@@ -7,6 +7,7 @@ using System.Timers;
 using Authentication;
 using Chat;
 using Connections;
+using PhinixServer.Framework;
 using Trading;
 using UserManagement;
 using Utils;
@@ -28,6 +29,7 @@ namespace PhinixServer
         public static ServerUserManager UserManager;
         public static ServerChat Chat;
         public static ServerTrading Trading;
+        public static PhinixFrameworkServer Framework;
 
         // Exiting flag to stop the main run loop
         private static bool exiting = false;
@@ -52,12 +54,14 @@ namespace PhinixServer
             UserManager = new ServerUserManager(Connections, Authenticator, Config.MaxDisplayNameLength);
             Chat = new ServerChat(Connections, Authenticator, UserManager, Config.ChatHistoryLength);
             Trading = new ServerTrading(Connections, Authenticator, UserManager);
+            Framework = new PhinixFrameworkServer(Connections, Authenticator, UserManager);
 
             // Add handler for ILoggable modules
             Authenticator.OnLogEntry += ILoggableHandler;
             UserManager.OnLogEntry += ILoggableHandler;
             Chat.OnLogEntry += ILoggableHandler;
             Trading.OnLogEntry += ILoggableHandler;
+            Framework.OnLogEntry += ILoggableHandler;
 
             // Load saved data
             Authenticator.Load(Config.CredentialDatabasePath);

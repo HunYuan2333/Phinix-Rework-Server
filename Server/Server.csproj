@@ -41,6 +41,8 @@
     <Compile Include="Command.cs" />
     <Compile Include="CommandInterpreter.cs" />
     <Compile Include="Commands\ExitCommand.cs" />
+    <Compile Include="Extensions\RedPacketServerExtension.cs" />
+    <Compile Include="Framework\PhinixFrameworkServer.cs" />
     <Compile Include="Commands\HelpCommand.cs" />
     <Compile Include="Commands\LogCommand.cs" />
     <Compile Include="Config.cs" />

@@ -5,7 +5,6 @@ using System.Net;
 using System.Reflection;
 using System.Timers;
 using Authentication;
-using Chat;
 using Connections;
 using PhinixServer.Framework;
 using Trading;
@@ -27,7 +26,7 @@ namespace PhinixServer
         public static NetServer Connections;
         public static ServerAuthenticator Authenticator;
         public static ServerUserManager UserManager;
-        public static ServerChat Chat;
+        public static PhinixFrameworkChatService FrameworkChat;
         public static ServerTrading Trading;
         public static PhinixFrameworkServer Framework;
 
@@ -52,21 +51,21 @@ namespace PhinixServer
                 authType: Config.AuthType
             );
             UserManager = new ServerUserManager(Connections, Authenticator, Config.MaxDisplayNameLength);
-            Chat = new ServerChat(Connections, Authenticator, UserManager, Config.ChatHistoryLength);
+            FrameworkChat = new PhinixFrameworkChatService(Config.ChatHistoryLength);
             Trading = new ServerTrading(Connections, Authenticator, UserManager);
             Framework = new PhinixFrameworkServer(Connections, Authenticator, UserManager);
 
             // Add handler for ILoggable modules
             Authenticator.OnLogEntry += ILoggableHandler;
             UserManager.OnLogEntry += ILoggableHandler;
-            Chat.OnLogEntry += ILoggableHandler;
+            FrameworkChat.OnLogEntry += ILoggableHandler;
             Trading.OnLogEntry += ILoggableHandler;
             Framework.OnLogEntry += ILoggableHandler;
 
             // Load saved data
             Authenticator.Load(Config.CredentialDatabasePath);
             UserManager.Load(Config.UserDatabasePath);
-            Chat.Load(Config.ChatHistoryPath);
+            FrameworkChat.Load(Config.ChatHistoryPath);
             Trading.Load(Config.TradeDatabasePath);
 
             // Set up the save timer
@@ -130,7 +129,7 @@ namespace PhinixServer
             // Save module states
             Authenticator.Save(Config.CredentialDatabasePath);
             UserManager.Save(Config.UserDatabasePath);
-            Chat.Save(Config.ChatHistoryPath);
+            FrameworkChat.Save(Config.ChatHistoryPath);
             Trading.Save(Config.TradeDatabasePath);
 
             // Save config too
@@ -161,7 +160,7 @@ namespace PhinixServer
             // Save module states
             Authenticator.Save(Config.CredentialDatabasePath);
             UserManager.Save(Config.UserDatabasePath);
-            Chat.Save(Config.ChatHistoryPath);
+            FrameworkChat.Save(Config.ChatHistoryPath);
             Trading.Save(Config.TradeDatabasePath);
 
             // Save the config

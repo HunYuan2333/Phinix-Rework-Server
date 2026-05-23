@@ -22,7 +22,7 @@ namespace PhinixServer
             Console.WriteLine("Connections: " + NetCommon.Version);
             Console.WriteLine("Authentication: " + Authenticator.Version);
             Console.WriteLine("UserManagement: " + UserManager.Version);
-            Console.WriteLine("Chat: " + Chat.Chat.Version);
+            Console.WriteLine("FrameworkChat: " + Server.Version);
             Console.WriteLine("Trading: " + Trading.Trading.Version);
 
             return true;

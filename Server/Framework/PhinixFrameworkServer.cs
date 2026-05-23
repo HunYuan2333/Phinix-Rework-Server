@@ -66,7 +66,18 @@ namespace PhinixServer.Framework
                     handleHello(connectionId, packet);
                     break;
                 case FrameworkProtocol.KindMessage:
+                    if (packet.Flow == global::Phinix.Framework.FrameworkFlow.Unspecified)
+                    {
+                        packet.Flow = global::Phinix.Framework.FrameworkFlow.Message;
+                    }
                     handleMessage(connectionId, packet);
+                    break;
+                case FrameworkProtocol.KindCommand:
+                    if (packet.Flow == global::Phinix.Framework.FrameworkFlow.Unspecified)
+                    {
+                        packet.Flow = global::Phinix.Framework.FrameworkFlow.Command;
+                    }
+                    handleCommand(connectionId, packet);
                     break;
                 default:
                     RaiseLogEntry(new LogEventArgs($"Received unsupported framework packet kind '{packet.Kind}'", LogLevel.DEBUG));
@@ -136,7 +147,7 @@ namespace PhinixServer.Framework
                         ServerCapabilities = serverCapabilities.ToArray(),
                         HasRemoteCapability = capability => connectionHasCapability(connectionId, capability),
                         ConnectionHasCapability = connectionHasCapability,
-                        Log = (message, level) => RaiseLogEntry(new LogEventArgs(message, level))
+                        Log = (logMessage, level) => RaiseLogEntry(new LogEventArgs(logMessage, level))
                     }
                 );
 
@@ -157,6 +168,67 @@ namespace PhinixServer.Framework
             if (!matchedHandler)
             {
                 RaiseLogEntry(new LogEventArgs($"No server framework handler registered for message type '{currentMessage.MessageType}'.", LogLevel.WARNING));
+            }
+        }
+
+        private void handleCommand(string connectionId, FrameworkPacket command)
+        {
+            if (!authenticator.IsAuthenticated(connectionId, command.SessionId) || !userManager.IsLoggedIn(connectionId, command.SenderUuid))
+            {
+                RaiseLogEntry(new LogEventArgs(
+                    $"Rejected framework command '{command.MessageType}' from unauthenticated connection {connectionId.Highlight(HighlightType.ConnectionID)} " +
+                    $"(session='{command.SessionId ?? "<null>"}', sender='{command.SenderUuid ?? "<null>"}')",
+                    LogLevel.WARNING));
+                return;
+            }
+
+            if (!connectionHasCapability(connectionId, command.MessageType))
+            {
+                RaiseLogEntry(new LogEventArgs($"Rejected framework command '{command.MessageType}' from connection {connectionId.Highlight(HighlightType.ConnectionID)} because the capability was not negotiated.", LogLevel.WARNING));
+                return;
+            }
+
+            bool matchedHandler = false;
+            FrameworkPacket currentCommand = command;
+
+            foreach (IServerCommandHandler handler in discoveredExtensions.ServerCommandHandlers.Where(handler => handler.CanHandleIncomingCommand(currentCommand)))
+            {
+                matchedHandler = true;
+                ServerIncomingCommandResult result = handler.HandleIncomingCommand(
+                    currentCommand,
+                    new ServerFrameworkContext
+                    {
+                        ConnectionId = connectionId,
+                        SenderUuid = currentCommand.SenderUuid,
+                        SessionId = currentCommand.SessionId,
+                        SendMessage = sendPacket,
+                        BroadcastMessage = broadcastPacket,
+                        IsConnectionFrameworkCapable = isConnectionFrameworkCapable,
+                        RemoteCapabilities = getRemoteCapabilities(connectionId),
+                        ServerCapabilities = serverCapabilities.ToArray(),
+                        HasRemoteCapability = capability => connectionHasCapability(connectionId, capability),
+                        ConnectionHasCapability = connectionHasCapability,
+                        Log = (logMessage, level) => RaiseLogEntry(new LogEventArgs(logMessage, level))
+                    }
+                );
+
+                if (result == null) continue;
+
+                if (result.Action == MessageHandlingResultAction.ReplacePayload && result.Command != null)
+                {
+                    currentCommand = result.Command;
+                    continue;
+                }
+
+                if (result.Action != MessageHandlingResultAction.Continue)
+                {
+                    return;
+                }
+            }
+
+            if (!matchedHandler)
+            {
+                RaiseLogEntry(new LogEventArgs($"No server framework command handler registered for command type '{currentCommand.MessageType}'.", LogLevel.WARNING));
             }
         }
 
@@ -193,6 +265,22 @@ namespace PhinixServer.Framework
 
         private void sendPacket(string connectionId, FrameworkPacket packet)
         {
+            if (packet.Flow == global::Phinix.Framework.FrameworkFlow.Message || packet.Kind == FrameworkProtocol.KindMessage)
+            {
+                packet.Flow = global::Phinix.Framework.FrameworkFlow.Message;
+                if (string.IsNullOrEmpty(packet.Kind)) packet.Kind = FrameworkProtocol.KindMessage;
+            }
+            else if (packet.Flow == global::Phinix.Framework.FrameworkFlow.Command || packet.Kind == FrameworkProtocol.KindCommand)
+            {
+                packet.Flow = global::Phinix.Framework.FrameworkFlow.Command;
+                if (string.IsNullOrEmpty(packet.Kind)) packet.Kind = FrameworkProtocol.KindCommand;
+            }
+            else if (packet.Flow == global::Phinix.Framework.FrameworkFlow.Item || packet.Kind == FrameworkProtocol.KindItem)
+            {
+                packet.Flow = global::Phinix.Framework.FrameworkFlow.Item;
+                if (string.IsNullOrEmpty(packet.Kind)) packet.Kind = FrameworkProtocol.KindItem;
+            }
+
             if (!netServer.TrySend(connectionId, FrameworkProtocol.ModuleName, FrameworkSerialization.SerializePacket(packet)))
             {
                 RaiseLogEntry(new LogEventArgs($"Failed to send framework packet '{packet.Kind}/{packet.MessageType}' to connection {connectionId.Highlight(HighlightType.ConnectionID)}", LogLevel.ERROR));

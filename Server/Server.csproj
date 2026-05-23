@@ -36,12 +36,23 @@
     <Reference Include="System.Core" />
     <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Xml" />
+    <Reference Include="System.Memory, Version=4.0.1.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51">
+      <HintPath>..\.nuget\System.Memory.4.5.3\lib\netstandard2.0\System.Memory.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Runtime.CompilerServices.Unsafe, Version=4.0.4.1, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+      <HintPath>..\.nuget\System.Runtime.CompilerServices.Unsafe.4.5.2\lib\netstandard2.0\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Command.cs" />
     <Compile Include="CommandInterpreter.cs" />
+    <Compile Include="Extensions\BuiltInChatServerExtension.cs" />
     <Compile Include="Commands\ExitCommand.cs" />
     <Compile Include="Extensions\RedPacketServerExtension.cs" />
+    <Compile Include="Framework\PhinixFrameworkChatBroadcast.cs" />
+    <Compile Include="Framework\PhinixFrameworkChatService.cs" />
     <Compile Include="Framework\PhinixFrameworkServer.cs" />
     <Compile Include="Commands\HelpCommand.cs" />
     <Compile Include="Commands\LogCommand.cs" />
@@ -58,10 +69,6 @@
       <Project>{e983d5c7-a573-44e4-a8bb-d5a9d78ea538}</Project>
       <Name>Authentication</Name>
     </ProjectReference>
-    <ProjectReference Include="..\Common\Chat\Chat.csproj">
-      <Project>{c6b36f14-16e8-4eeb-b1b3-5e8e96fa8dec}</Project>
-      <Name>Chat</Name>
-    </ProjectReference>
     <ProjectReference Include="..\Common\Connections\Connections.csproj">
       <Project>{38CB6BED-E751-42FE-A847-C0DDD482AC62}</Project>
       <Name>Connections</Name>
@@ -77,6 +84,10 @@
     <ProjectReference Include="..\Common\Utils\Utils.csproj">
       <Project>{b6ff1583-c75a-42c1-9b75-2b16215a0cf7}</Project>
       <Name>Utils</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Dependencies\protobuf\csharp\src\Google.Protobuf\Google.Protobuf.csproj">
+      <Project>{d5bbfa59-db31-40f8-a8bf-7333be984316}</Project>
+      <Name>Google.Protobuf</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

@@ -16,15 +16,15 @@ namespace PhinixServer.Extensions
             yield return "sample.red_packet";
         }
 
-        public bool CanHandleIncomingEnvelope(FrameworkEnvelope envelope)
+        public bool CanHandleIncomingMessage(FrameworkPacket message)
         {
-            return envelope != null && envelope.MessageType == ExtensionId;
+            return message != null && message.MessageType == ExtensionId;
         }
 
-        public ServerIncomingMessageResult HandleIncomingEnvelope(FrameworkEnvelope envelope, ServerFrameworkContext context)
+        public ServerIncomingMessageResult HandleIncomingMessage(FrameworkPacket message, ServerFrameworkContext context)
         {
             context.Log?.Invoke($"Broadcasting red packet message from {context.SenderUuid.Highlight(HighlightType.UUID)}", LogLevel.DEBUG);
-            context.BroadcastEnvelope?.Invoke(envelope, null);
+            context.BroadcastMessage?.Invoke(message, null);
 
             return new ServerIncomingMessageResult
             {

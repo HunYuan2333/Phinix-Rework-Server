@@ -49,88 +49,88 @@ namespace PhinixServer.Framework
 
         private void packetHandler(string module, string connectionId, byte[] data)
         {
-            FrameworkEnvelope envelope;
+            FrameworkPacket packet;
             try
             {
-                envelope = FrameworkSerialization.DeserializeEnvelope(data);
+                packet = FrameworkSerialization.DeserializePacket(data);
             }
             catch (Exception exception)
             {
-                RaiseLogEntry(new LogEventArgs($"Failed to deserialize framework envelope from {connectionId.Highlight(HighlightType.ConnectionID)}: {exception.Message}", LogLevel.WARNING));
+                RaiseLogEntry(new LogEventArgs($"Failed to deserialize framework packet from {connectionId.Highlight(HighlightType.ConnectionID)}: {exception.Message}", LogLevel.WARNING));
                 return;
             }
 
-            switch (envelope.Kind)
+            switch (packet.Kind)
             {
                 case FrameworkProtocol.KindHello:
-                    handleHello(connectionId, envelope);
+                    handleHello(connectionId, packet);
                     break;
-                case FrameworkProtocol.KindExtension:
-                    handleExtension(connectionId, envelope);
+                case FrameworkProtocol.KindMessage:
+                    handleMessage(connectionId, packet);
                     break;
                 default:
-                    RaiseLogEntry(new LogEventArgs($"Received unsupported framework envelope kind '{envelope.Kind}'", LogLevel.DEBUG));
+                    RaiseLogEntry(new LogEventArgs($"Received unsupported framework packet kind '{packet.Kind}'", LogLevel.DEBUG));
                     break;
             }
         }
 
-        private void handleHello(string connectionId, FrameworkEnvelope envelope)
+        private void handleHello(string connectionId, FrameworkPacket packet)
         {
-            if (!authenticator.IsAuthenticated(connectionId, envelope.SessionId) || !userManager.IsLoggedIn(connectionId, envelope.SenderUuid))
+            if (!authenticator.IsAuthenticated(connectionId, packet.SessionId) || !userManager.IsLoggedIn(connectionId, packet.SenderUuid))
             {
                 RaiseLogEntry(new LogEventArgs($"Rejected framework hello from unauthenticated connection {connectionId.Highlight(HighlightType.ConnectionID)}", LogLevel.WARNING));
                 return;
             }
 
-            FrameworkCapabilitiesPayload payload = FrameworkSerialization.DeserializePayload<FrameworkCapabilitiesPayload>(envelope.PayloadJson);
+            FrameworkCapabilitiesPayload payload = FrameworkSerialization.DeserializePayload<FrameworkCapabilitiesPayload>(packet.PayloadJson);
             lock (connectionCapabilitiesLock)
             {
                 connectionCapabilities[connectionId] = new HashSet<string>(payload.Capabilities ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
             }
 
-            FrameworkEnvelope response = new FrameworkEnvelope
+            FrameworkPacket response = new FrameworkPacket
             {
                 Kind = FrameworkProtocol.KindCapabilities,
                 SenderUuid = FrameworkProtocol.SystemSenderUuid,
-                SessionId = envelope.SessionId,
+                SessionId = packet.SessionId,
                 PayloadJson = FrameworkSerialization.SerializePayload(new FrameworkCapabilitiesPayload
                 {
                     Capabilities = serverCapabilities.OrderBy(capability => capability).ToList()
                 })
             };
 
-            sendEnvelope(connectionId, response);
+            sendPacket(connectionId, response);
         }
 
-        private void handleExtension(string connectionId, FrameworkEnvelope envelope)
+        private void handleMessage(string connectionId, FrameworkPacket message)
         {
-            if (!authenticator.IsAuthenticated(connectionId, envelope.SessionId) || !userManager.IsLoggedIn(connectionId, envelope.SenderUuid))
+            if (!authenticator.IsAuthenticated(connectionId, message.SessionId) || !userManager.IsLoggedIn(connectionId, message.SenderUuid))
             {
-                RaiseLogEntry(new LogEventArgs($"Rejected framework message '{envelope.MessageType}' from unauthenticated connection {connectionId.Highlight(HighlightType.ConnectionID)}", LogLevel.WARNING));
+                RaiseLogEntry(new LogEventArgs($"Rejected framework message '{message.MessageType}' from unauthenticated connection {connectionId.Highlight(HighlightType.ConnectionID)}", LogLevel.WARNING));
                 return;
             }
 
-            if (!connectionHasCapability(connectionId, envelope.MessageType))
+            if (!connectionHasCapability(connectionId, message.MessageType))
             {
-                RaiseLogEntry(new LogEventArgs($"Rejected framework message '{envelope.MessageType}' from connection {connectionId.Highlight(HighlightType.ConnectionID)} because the capability was not negotiated.", LogLevel.WARNING));
+                RaiseLogEntry(new LogEventArgs($"Rejected framework message '{message.MessageType}' from connection {connectionId.Highlight(HighlightType.ConnectionID)} because the capability was not negotiated.", LogLevel.WARNING));
                 return;
             }
 
             bool matchedHandler = false;
-            FrameworkEnvelope currentEnvelope = envelope;
+            FrameworkPacket currentMessage = message;
 
-            foreach (IServerMessageHandler handler in discoveredExtensions.ServerMessageHandlers.Where(handler => handler.CanHandleIncomingEnvelope(currentEnvelope)))
+            foreach (IServerMessageHandler handler in discoveredExtensions.ServerMessageHandlers.Where(handler => handler.CanHandleIncomingMessage(currentMessage)))
             {
                 matchedHandler = true;
-                ServerIncomingMessageResult result = handler.HandleIncomingEnvelope(
-                    currentEnvelope,
+                ServerIncomingMessageResult result = handler.HandleIncomingMessage(
+                    currentMessage,
                     new ServerFrameworkContext
                     {
                         ConnectionId = connectionId,
-                        SenderUuid = currentEnvelope.SenderUuid,
-                        SessionId = currentEnvelope.SessionId,
-                        SendEnvelope = sendEnvelope,
-                        BroadcastEnvelope = broadcastEnvelope,
+                        SenderUuid = currentMessage.SenderUuid,
+                        SessionId = currentMessage.SessionId,
+                        SendMessage = sendPacket,
+                        BroadcastMessage = broadcastPacket,
                         IsConnectionFrameworkCapable = isConnectionFrameworkCapable,
                         RemoteCapabilities = getRemoteCapabilities(connectionId),
                         ServerCapabilities = serverCapabilities.ToArray(),
@@ -142,9 +142,9 @@ namespace PhinixServer.Framework
 
                 if (result == null) continue;
 
-                if (result.Action == MessageHandlingResultAction.ReplacePayload && result.Envelope != null)
+                if (result.Action == MessageHandlingResultAction.ReplacePayload && result.Message != null)
                 {
-                    currentEnvelope = result.Envelope;
+                    currentMessage = result.Message;
                     continue;
                 }
 
@@ -156,7 +156,7 @@ namespace PhinixServer.Framework
 
             if (!matchedHandler)
             {
-                RaiseLogEntry(new LogEventArgs($"No server framework handler registered for message type '{currentEnvelope.MessageType}'.", LogLevel.WARNING));
+                RaiseLogEntry(new LogEventArgs($"No server framework handler registered for message type '{currentMessage.MessageType}'.", LogLevel.WARNING));
             }
         }
 
@@ -191,15 +191,15 @@ namespace PhinixServer.Framework
             }
         }
 
-        private void sendEnvelope(string connectionId, FrameworkEnvelope envelope)
+        private void sendPacket(string connectionId, FrameworkPacket packet)
         {
-            if (!netServer.TrySend(connectionId, FrameworkProtocol.ModuleName, FrameworkSerialization.SerializeEnvelope(envelope)))
+            if (!netServer.TrySend(connectionId, FrameworkProtocol.ModuleName, FrameworkSerialization.SerializePacket(packet)))
             {
-                RaiseLogEntry(new LogEventArgs($"Failed to send framework envelope '{envelope.Kind}/{envelope.MessageType}' to connection {connectionId.Highlight(HighlightType.ConnectionID)}", LogLevel.ERROR));
+                RaiseLogEntry(new LogEventArgs($"Failed to send framework packet '{packet.Kind}/{packet.MessageType}' to connection {connectionId.Highlight(HighlightType.ConnectionID)}", LogLevel.ERROR));
             }
         }
 
-        private void broadcastEnvelope(FrameworkEnvelope envelope, string[] excludedConnectionIds)
+        private void broadcastPacket(FrameworkPacket packet, string[] excludedConnectionIds)
         {
             string[] connectionIds = userManager.GetConnections();
             if (excludedConnectionIds != null)
@@ -209,8 +209,8 @@ namespace PhinixServer.Framework
 
             foreach (string connectionId in connectionIds.Where(isConnectionFrameworkCapable))
             {
-                if (!string.IsNullOrEmpty(envelope?.MessageType) && !connectionHasCapability(connectionId, envelope.MessageType)) continue;
-                sendEnvelope(connectionId, envelope);
+                if (!string.IsNullOrEmpty(packet?.MessageType) && !connectionHasCapability(connectionId, packet.MessageType)) continue;
+                sendPacket(connectionId, packet);
             }
         }
     }

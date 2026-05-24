@@ -18,18 +18,21 @@ namespace PhinixServer.Framework
         private readonly NetServer netServer;
         private readonly ServerAuthenticator authenticator;
         private readonly ServerUserManager userManager;
+        private readonly ExtensionHostContext extensionHostContext;
         private readonly DiscoveredPhinixExtensions discoveredExtensions;
         private readonly HashSet<string> serverCapabilities;
         private readonly Dictionary<string, HashSet<string>> connectionCapabilities = new Dictionary<string, HashSet<string>>();
         private readonly object connectionCapabilitiesLock = new object();
 
-        public PhinixFrameworkServer(NetServer netServer, ServerAuthenticator authenticator, ServerUserManager userManager)
+        public PhinixFrameworkServer(NetServer netServer, ServerAuthenticator authenticator, ServerUserManager userManager, ExtensionHostContext extensionHostContext = null)
         {
             this.netServer = netServer;
             this.authenticator = authenticator;
             this.userManager = userManager;
-            this.discoveredExtensions = PhinixExtensionRegistry.DiscoverExtensions();
+            this.extensionHostContext = extensionHostContext ?? ExtensionHostContext.Empty;
+            this.discoveredExtensions = PhinixExtensionRegistry.DiscoverExtensions(this.extensionHostContext);
             this.serverCapabilities = new HashSet<string>(PhinixExtensionRegistry.CollectCapabilities(discoveredExtensions), StringComparer.OrdinalIgnoreCase);
+            PhinixExtensionRegistry.ActivateExtensions(discoveredExtensions, this.extensionHostContext);
 
             netServer.RegisterPacketHandler(FrameworkProtocol.ModuleName, packetHandler);
             netServer.OnConnectionClosed += (_, args) =>
@@ -41,6 +44,16 @@ namespace PhinixServer.Framework
             };
 
             RaiseLogEntry(new LogEventArgs($"Discovered {discoveredExtensions.Extensions.Count} framework extension(s) and {serverCapabilities.Count} capability/capabilities."));
+            if (discoveredExtensions.Modules.Count > 0)
+            {
+                RaiseLogEntry(new LogEventArgs(
+                    $"Framework modules: {string.Join(", ", discoveredExtensions.Modules.Select(module => module.ExtensionId).OrderBy(extensionId => extensionId))}. " +
+                    $"Server handlers={discoveredExtensions.ServerMessageHandlers.Count}, server commands={discoveredExtensions.ServerCommandHandlers.Count}, item codecs={discoveredExtensions.ItemCodecs.Count}, trade completion handlers={discoveredExtensions.TradeCompletionHandlers.Count}."));
+            }
+            foreach (string diagnostic in discoveredExtensions.Diagnostics)
+            {
+                RaiseLogEntry(new LogEventArgs(diagnostic, LogLevel.DEBUG));
+            }
             foreach (string warning in discoveredExtensions.Warnings)
             {
                 RaiseLogEntry(new LogEventArgs(warning, LogLevel.WARNING));

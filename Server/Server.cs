@@ -10,6 +10,7 @@ using PhinixServer.Framework;
 using Trading;
 using UserManagement;
 using Utils;
+using Utils.Framework;
 
 namespace PhinixServer
 {
@@ -27,7 +28,8 @@ namespace PhinixServer
         public static ServerAuthenticator Authenticator;
         public static ServerUserManager UserManager;
         public static PhinixFrameworkChatService FrameworkChat;
-        public static ServerTrading Trading;
+        private static PhinixFrameworkTradeServerService frameworkTrade;
+        private static ILegacyTradeRuntime legacyTradeRuntime;
         public static PhinixFrameworkServer Framework;
 
         // Exiting flag to stop the main run loop
@@ -52,21 +54,30 @@ namespace PhinixServer
             );
             UserManager = new ServerUserManager(Connections, Authenticator, Config.MaxDisplayNameLength);
             FrameworkChat = new PhinixFrameworkChatService(Config.ChatHistoryLength);
-            Trading = new ServerTrading(Connections, Authenticator, UserManager);
-            Framework = new PhinixFrameworkServer(Connections, Authenticator, UserManager);
+            frameworkTrade = new PhinixFrameworkTradeServerService(UserManager);
+            legacyTradeRuntime = new LegacyServerTradeRuntimeAdapter(new ServerTrading(Connections, Authenticator, UserManager));
+            ExtensionHostContext extensionHostContext = new ExtensionHostContext
+            {
+                HostKind = "server",
+                Log = (message, level) => ILoggableHandler(typeof(Server), new LogEventArgs(message, level)),
+                StorageProvider = new FileSystemExtensionStorageProvider(System.IO.Path.Combine("framework-extensions", "server"))
+            };
+            extensionHostContext.AddService(new BuiltInChatServerHostServices(FrameworkChat));
+            extensionHostContext.AddService(new BuiltInTradeServerHostServices(frameworkTrade));
+            Framework = new PhinixFrameworkServer(Connections, Authenticator, UserManager, extensionHostContext);
 
             // Add handler for ILoggable modules
             Authenticator.OnLogEntry += ILoggableHandler;
             UserManager.OnLogEntry += ILoggableHandler;
             FrameworkChat.OnLogEntry += ILoggableHandler;
-            Trading.OnLogEntry += ILoggableHandler;
+            legacyTradeRuntime.OnLogEntry += ILoggableHandler;
             Framework.OnLogEntry += ILoggableHandler;
 
             // Load saved data
             Authenticator.Load(Config.CredentialDatabasePath);
             UserManager.Load(Config.UserDatabasePath);
             FrameworkChat.Load(Config.ChatHistoryPath);
-            Trading.Load(Config.TradeDatabasePath);
+            legacyTradeRuntime.Load(Config.TradeDatabasePath);
 
             // Set up the save timer
             saveTimer = new Timer
@@ -130,7 +141,7 @@ namespace PhinixServer
             Authenticator.Save(Config.CredentialDatabasePath);
             UserManager.Save(Config.UserDatabasePath);
             FrameworkChat.Save(Config.ChatHistoryPath);
-            Trading.Save(Config.TradeDatabasePath);
+            legacyTradeRuntime.Save(Config.TradeDatabasePath);
 
             // Save config too
             Config.Save(CONFIG_FILE);
@@ -161,7 +172,7 @@ namespace PhinixServer
             Authenticator.Save(Config.CredentialDatabasePath);
             UserManager.Save(Config.UserDatabasePath);
             FrameworkChat.Save(Config.ChatHistoryPath);
-            Trading.Save(Config.TradeDatabasePath);
+            legacyTradeRuntime.Save(Config.TradeDatabasePath);
 
             // Save the config
             Config.Save(CONFIG_FILE);

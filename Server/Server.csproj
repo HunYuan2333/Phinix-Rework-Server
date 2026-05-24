@@ -49,10 +49,17 @@
     <Compile Include="Command.cs" />
     <Compile Include="CommandInterpreter.cs" />
     <Compile Include="Extensions\BuiltInChatServerExtension.cs" />
+    <Compile Include="Extensions\BuiltInTradeServerExtension.cs" />
     <Compile Include="Commands\ExitCommand.cs" />
     <Compile Include="Extensions\RedPacketServerExtension.cs" />
+    <Compile Include="Framework\BuiltInChatServerHostServices.cs" />
+    <Compile Include="Framework\BuiltInTradeServerHostServices.cs" />
+    <Compile Include="Framework\ILegacyTradeRuntime.cs" />
+    <Compile Include="Framework\LegacyServerTradeRuntimeAdapter.cs" />
     <Compile Include="Framework\PhinixFrameworkChatBroadcast.cs" />
     <Compile Include="Framework\PhinixFrameworkChatService.cs" />
+    <Compile Include="Framework\PhinixFrameworkTradeStore.cs" />
+    <Compile Include="Framework\PhinixFrameworkTradeServerService.cs" />
     <Compile Include="Framework\PhinixFrameworkServer.cs" />
     <Compile Include="Commands\HelpCommand.cs" />
     <Compile Include="Commands\LogCommand.cs" />

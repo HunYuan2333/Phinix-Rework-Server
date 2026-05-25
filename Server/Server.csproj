@@ -48,14 +48,9 @@
   <ItemGroup>
     <Compile Include="Command.cs" />
     <Compile Include="CommandInterpreter.cs" />
-    <Compile Include="Extensions\BuiltInChatServerExtension.cs" />
-    <Compile Include="Extensions\BuiltInTradeServerExtension.cs" />
     <Compile Include="Commands\ExitCommand.cs" />
     <Compile Include="Extensions\RedPacketServerExtension.cs" />
-    <Compile Include="Framework\PhinixFrameworkChatBroadcast.cs" />
-    <Compile Include="Framework\PhinixFrameworkChatService.cs" />
-    <Compile Include="Framework\PhinixFrameworkTradeStore.cs" />
-    <Compile Include="Framework\PhinixFrameworkTradeServerService.cs" />
+    <Compile Include="Framework\FrameworkServerPacketDispatcher.cs" />
     <Compile Include="Framework\PhinixFrameworkServer.cs" />
     <Compile Include="Commands\HelpCommand.cs" />
     <Compile Include="Commands\LogCommand.cs" />
@@ -72,9 +67,21 @@
       <Project>{e983d5c7-a573-44e4-a8bb-d5a9d78ea538}</Project>
       <Name>Authentication</Name>
     </ProjectReference>
+    <ProjectReference Include="..\Common\ChatExtension.Server\ChatExtension.Server.csproj">
+      <Project>{4C930CBF-1A5A-4208-AAC8-F16625DE2103}</Project>
+      <Name>ChatExtension.Server</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Common\ChatExtension\ChatExtension.csproj">
+      <Project>{7B7D7B5F-D806-4A6B-B1AB-2D6EA7B4D5F4}</Project>
+      <Name>ChatExtension</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Common\Connections\Connections.csproj">
       <Project>{38CB6BED-E751-42FE-A847-C0DDD482AC62}</Project>
       <Name>Connections</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Common\TradeExtension.Server\TradeExtension.Server.csproj">
+      <Project>{C9F8BEAB-ACB7-4EBE-9713-BA0A50512104}</Project>
+      <Name>TradeExtension.Server</Name>
     </ProjectReference>
     <ProjectReference Include="..\Common\TradeExtension\TradeExtension.csproj">
       <Project>{D1C9486E-43DA-4816-BA8C-EC7C0F233C2C}</Project>

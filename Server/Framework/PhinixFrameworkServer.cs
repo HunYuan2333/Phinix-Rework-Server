@@ -33,6 +33,7 @@ namespace PhinixServer.Framework
             this.discoveredExtensions = PhinixExtensionRegistry.DiscoverExtensions(this.extensionHostContext);
             this.serverCapabilities = new HashSet<string>(PhinixExtensionRegistry.CollectCapabilities(discoveredExtensions), StringComparer.OrdinalIgnoreCase);
             PhinixExtensionRegistry.ActivateExtensions(discoveredExtensions, this.extensionHostContext);
+            LoadExtensionState();
 
             netServer.RegisterPacketHandler(FrameworkProtocol.ModuleName, packetHandler);
             netServer.OnConnectionClosed += (_, args) =>
@@ -58,6 +59,45 @@ namespace PhinixServer.Framework
             {
                 RaiseLogEntry(new LogEventArgs(warning, LogLevel.WARNING));
             }
+        }
+
+        public void LoadExtensionState()
+        {
+            foreach (ExtensionPersistenceRegistration registration in extensionHostContext.Persistents)
+            {
+                string path = extensionHostContext.GetStoragePath(registration.ExtensionId, registration.LogicalName);
+                if (string.IsNullOrEmpty(path))
+                {
+                    RaiseLogEntry(new LogEventArgs(
+                        $"Skipped loading persistent state '{registration.ExtensionId}/{registration.LogicalName}' because no storage path was available.",
+                        LogLevel.WARNING));
+                    continue;
+                }
+
+                registration.Persistent.Load(path);
+            }
+        }
+
+        public void SaveExtensionState()
+        {
+            foreach (ExtensionPersistenceRegistration registration in extensionHostContext.Persistents)
+            {
+                string path = extensionHostContext.GetStoragePath(registration.ExtensionId, registration.LogicalName);
+                if (string.IsNullOrEmpty(path))
+                {
+                    RaiseLogEntry(new LogEventArgs(
+                        $"Skipped saving persistent state '{registration.ExtensionId}/{registration.LogicalName}' because no storage path was available.",
+                        LogLevel.WARNING));
+                    continue;
+                }
+
+                registration.Persistent.Save(path);
+            }
+        }
+
+        public void ShutdownExtensions()
+        {
+            PhinixExtensionRegistry.ShutdownExtensions(discoveredExtensions, extensionHostContext);
         }
 
         public bool TryResolveExtensionApi<T>(out T implementation) where T : class

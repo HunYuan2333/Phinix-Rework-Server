@@ -26,8 +26,6 @@ namespace PhinixServer
         public static NetServer Connections;
         public static ServerAuthenticator Authenticator;
         public static ServerUserManager UserManager;
-        public static IFrameworkChatServerApi FrameworkChat;
-        private static IFrameworkTradeServerApi frameworkTrade;
         public static PhinixFrameworkServer Framework;
 
         // Exiting flag to stop the main run loop
@@ -51,41 +49,26 @@ namespace PhinixServer
                 authType: Config.AuthType
             );
             UserManager = new ServerUserManager(Connections, Authenticator, Config.MaxDisplayNameLength);
-            FrameworkChat = new PhinixFrameworkChatService(Config.ChatHistoryLength, UserManager);
-            frameworkTrade = new PhinixFrameworkTradeServerService(UserManager);
             ExtensionHostContext extensionHostContext = new ExtensionHostContext
             {
                 HostKind = "server",
                 Log = (message, level) => ILoggableHandler(typeof(Server), new LogEventArgs(message, level)),
                 StorageProvider = new FileSystemExtensionStorageProvider(System.IO.Path.Combine("framework-extensions", "server"))
             };
-            extensionHostContext.AddService<IFrameworkChatServerApi>(FrameworkChat);
-            extensionHostContext.AddService<IFrameworkTradeServerApi>(frameworkTrade);
             extensionHostContext.AddService(UserManager);
+            extensionHostContext.AddService<IFrameworkServerPacketDispatcher>(
+                new FrameworkServerPacketDispatcher(new FrameworkServerPacketDispatcher.NetServerAdapter(Connections)));
+            extensionHostContext.SetOption("builtin.chat.history-capacity", Config.ChatHistoryLength.ToString());
             Framework = new PhinixFrameworkServer(Connections, Authenticator, UserManager, extensionHostContext);
-            if (!Framework.TryResolveExtensionApi(out FrameworkChat))
-            {
-                throw new InvalidOperationException("The built-in chat server extension did not register IFrameworkChatServerApi.");
-            }
-
-            if (!Framework.TryResolveExtensionApi(out frameworkTrade))
-            {
-                throw new InvalidOperationException("The built-in trade server extension did not register IFrameworkTradeServerApi.");
-            }
 
             // Add handler for ILoggable modules
             Authenticator.OnLogEntry += ILoggableHandler;
             UserManager.OnLogEntry += ILoggableHandler;
-            FrameworkChat.OnLogEntry += ILoggableHandler;
-            frameworkTrade.OnLogEntry += ILoggableHandler;
             Framework.OnLogEntry += ILoggableHandler;
-            UserManager.OnLogin += (_, args) => frameworkTrade.HandleUserLoggedIn(args.ConnectionId, null, args.Uuid, sendFrameworkPacket);
 
             // Load saved data
             Authenticator.Load(Config.CredentialDatabasePath);
             UserManager.Load(Config.UserDatabasePath);
-            FrameworkChat.Load(Config.ChatHistoryPath);
-            frameworkTrade.Load(Config.TradeDatabasePath);
 
             // Set up the save timer
             saveTimer = new Timer
@@ -148,8 +131,7 @@ namespace PhinixServer
             // Save module states
             Authenticator.Save(Config.CredentialDatabasePath);
             UserManager.Save(Config.UserDatabasePath);
-            FrameworkChat.Save(Config.ChatHistoryPath);
-            frameworkTrade.Save(Config.TradeDatabasePath);
+            Framework.SaveExtensionState();
 
             // Save config too
             Config.Save(CONFIG_FILE);
@@ -179,8 +161,8 @@ namespace PhinixServer
             // Save module states
             Authenticator.Save(Config.CredentialDatabasePath);
             UserManager.Save(Config.UserDatabasePath);
-            FrameworkChat.Save(Config.ChatHistoryPath);
-            frameworkTrade.Save(Config.TradeDatabasePath);
+            Framework.SaveExtensionState();
+            Framework.ShutdownExtensions();
 
             // Save the config
             Config.Save(CONFIG_FILE);
@@ -219,11 +201,6 @@ namespace PhinixServer
             }
 
             Logger.Log(verbosity, args.Message, sender.GetType().Namespace);
-        }
-
-        private static void sendFrameworkPacket(string connectionId, FrameworkPacket packet)
-        {
-            Connections.TrySend(connectionId, FrameworkProtocol.ModuleName, FrameworkSerialization.SerializePacket(packet));
         }
     }
 }

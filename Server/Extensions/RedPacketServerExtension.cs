@@ -5,11 +5,17 @@ using Utils.Framework;
 namespace PhinixServer.Extensions
 {
     [PhinixExtension("sample.red_packet")]
-    public class RedPacketServerExtension : IPhinixExtension, ICapabilityProvider, IServerMessageHandler
+    public sealed class RedPacketServerExtension : IPhinixExtensionModule, ICapabilityProvider, IServerMessageHandler
     {
         public string ExtensionId => "sample.red_packet";
 
         public int Priority => 100;
+
+        public void Register(IExtensionBuilder builder)
+        {
+            builder.AddCapabilityProvider(this);
+            builder.AddServerMessageHandler(this);
+        }
 
         public IEnumerable<string> GetCapabilities()
         {

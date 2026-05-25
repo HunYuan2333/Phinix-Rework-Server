@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using Authentication;
 using Connections;
+using Phinix.TradeExtension.Server;
 using PhinixServer.Framework;
 using UserManagement;
 

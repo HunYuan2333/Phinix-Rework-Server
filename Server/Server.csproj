@@ -52,8 +52,6 @@
     <Compile Include="Extensions\BuiltInTradeServerExtension.cs" />
     <Compile Include="Commands\ExitCommand.cs" />
     <Compile Include="Extensions\RedPacketServerExtension.cs" />
-    <Compile Include="Framework\BuiltInChatServerHostServices.cs" />
-    <Compile Include="Framework\BuiltInTradeServerHostServices.cs" />
     <Compile Include="Framework\PhinixFrameworkChatBroadcast.cs" />
     <Compile Include="Framework\PhinixFrameworkChatService.cs" />
     <Compile Include="Framework\PhinixFrameworkTradeStore.cs" />

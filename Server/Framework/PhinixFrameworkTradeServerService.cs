@@ -8,7 +8,20 @@ using Utils.Framework;
 
 namespace PhinixServer.Framework
 {
-    public sealed class PhinixFrameworkTradeServerService : ILoggable, IPersistent
+    public interface IFrameworkTradeServerApi : ILoggable, IPersistent
+    {
+        void HandleSnapshotRequest(ServerFrameworkContext context);
+
+        void HandleUserLoggedIn(string connectionId, string sessionId, string uuid, Action<string, FrameworkPacket> sendMessage);
+
+        void HandleCreateRequest(FrameworkPacket command, ServerFrameworkContext context);
+
+        void HandleOfferUpdateRequest(FrameworkPacket command, ServerFrameworkContext context);
+
+        void HandleStatusUpdateRequest(FrameworkPacket command, ServerFrameworkContext context);
+    }
+
+    public sealed class PhinixFrameworkTradeServerService : IFrameworkTradeServerApi
     {
         private readonly ServerUserManager userManager;
         private readonly PhinixFrameworkTradeStore store = new PhinixFrameworkTradeStore();

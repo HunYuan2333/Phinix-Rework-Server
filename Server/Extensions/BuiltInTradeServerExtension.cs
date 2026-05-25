@@ -8,17 +8,18 @@ namespace PhinixServer.Extensions
     [PhinixExtension(FrameworkTradeProtocol.Capability)]
     public sealed class BuiltInTradeServerExtension : IPhinixExtensionModule, ICapabilityProvider, IServerCommandHandler
     {
-        private BuiltInTradeServerHostServices hostServices;
+        private IFrameworkTradeServerApi tradeApi;
 
         public string ExtensionId => FrameworkTradeProtocol.Capability;
 
         public int Priority => 1100;
 
-        public void Register(IExtensionComponentSink sink, ExtensionHostContext hostContext)
+        public void Register(IExtensionBuilder builder)
         {
-            hostServices = hostContext.GetRequiredService<BuiltInTradeServerHostServices>();
-            sink.AddCapabilityProvider(this);
-            sink.AddServerCommandHandler(this);
+            tradeApi = builder.HostContext.GetRequiredService<IFrameworkTradeServerApi>();
+            builder.RegisterApi(tradeApi);
+            builder.AddCapabilityProvider(this);
+            builder.AddServerCommandHandler(this);
         }
 
         public IEnumerable<string> GetCapabilities()
@@ -50,16 +51,16 @@ namespace PhinixServer.Extensions
             switch (command.MessageType)
             {
                 case FrameworkTradeProtocol.SnapshotType:
-                    hostServices.TradeService.HandleSnapshotRequest(context);
+                    tradeApi.HandleSnapshotRequest(context);
                     break;
                 case FrameworkTradeProtocol.CreateRequestType:
-                    hostServices.TradeService.HandleCreateRequest(command, context);
+                    tradeApi.HandleCreateRequest(command, context);
                     break;
                 case FrameworkTradeProtocol.OfferUpdateRequestType:
-                    hostServices.TradeService.HandleOfferUpdateRequest(command, context);
+                    tradeApi.HandleOfferUpdateRequest(command, context);
                     break;
                 case FrameworkTradeProtocol.StatusUpdateRequestType:
-                    hostServices.TradeService.HandleStatusUpdateRequest(command, context);
+                    tradeApi.HandleStatusUpdateRequest(command, context);
                     break;
             }
 

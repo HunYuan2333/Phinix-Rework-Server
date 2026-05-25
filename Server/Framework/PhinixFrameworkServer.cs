@@ -60,6 +60,22 @@ namespace PhinixServer.Framework
             }
         }
 
+        public bool TryResolveExtensionApi<T>(out T implementation) where T : class
+        {
+            if (discoveredExtensions.ApiRegistry != null)
+            {
+                return discoveredExtensions.ApiRegistry.TryResolve(out implementation);
+            }
+
+            implementation = null;
+            return false;
+        }
+
+        public IReadOnlyList<T> ResolveExtensionApis<T>() where T : class
+        {
+            return discoveredExtensions.ApiRegistry?.ResolveAll<T>() ?? Array.Empty<T>();
+        }
+
         private void packetHandler(string module, string connectionId, byte[] data)
         {
             FrameworkPacket packet;

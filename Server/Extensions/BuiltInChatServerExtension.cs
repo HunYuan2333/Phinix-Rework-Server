@@ -8,18 +8,19 @@ namespace PhinixServer.Extensions
     [PhinixExtension("builtin.chat")]
     public class BuiltInChatServerExtension : IPhinixExtensionModule, ICapabilityProvider, IServerMessageHandler, IServerCommandHandler
     {
-        private BuiltInChatServerHostServices hostServices;
+        private IFrameworkChatServerApi chatApi;
 
         public string ExtensionId => "builtin.chat";
 
         public int Priority => 1000;
 
-        public void Register(IExtensionComponentSink sink, ExtensionHostContext hostContext)
+        public void Register(IExtensionBuilder builder)
         {
-            hostServices = hostContext.GetRequiredService<BuiltInChatServerHostServices>();
-            sink.AddCapabilityProvider(this);
-            sink.AddServerMessageHandler(this);
-            sink.AddServerCommandHandler(this);
+            chatApi = builder.HostContext.GetRequiredService<IFrameworkChatServerApi>();
+            builder.RegisterApi(chatApi);
+            builder.AddCapabilityProvider(this);
+            builder.AddServerMessageHandler(this);
+            builder.AddServerCommandHandler(this);
         }
 
         public IEnumerable<string> GetCapabilities()
@@ -37,8 +38,8 @@ namespace PhinixServer.Extensions
         public ServerIncomingMessageResult HandleIncomingMessage(FrameworkPacket message, ServerFrameworkContext context)
         {
             global::Phinix.Framework.BuiltInChatMessagePayload incomingPacket = global::Phinix.Framework.BuiltInChatMessagePayload.Parser.ParseFrom(message.PayloadBytes ?? System.Array.Empty<byte>());
-            global::Phinix.Framework.BuiltInChatMessagePayload storedMessage = hostServices.ChatService.AddMessage(context.SenderUuid, incomingPacket.Message);
-            context.BroadcastMessage?.Invoke(hostServices.ChatService.BuildBroadcastPacket(storedMessage), null);
+            global::Phinix.Framework.BuiltInChatMessagePayload storedMessage = chatApi.AddMessage(context.SenderUuid, incomingPacket.Message);
+            context.BroadcastMessage?.Invoke(chatApi.BuildBroadcastPacket(storedMessage), null);
 
             return new ServerIncomingMessageResult
             {
@@ -53,12 +54,12 @@ namespace PhinixServer.Extensions
 
         public ServerIncomingCommandResult HandleIncomingCommand(FrameworkPacket command, ServerFrameworkContext context)
         {
-            foreach (global::Phinix.Framework.BuiltInChatMessagePayload historyMessage in hostServices.ChatService.GetHistory())
+            foreach (global::Phinix.Framework.BuiltInChatMessagePayload historyMessage in chatApi.GetHistory())
             {
-                context.SendMessage?.Invoke(context.ConnectionId, hostServices.ChatService.BuildBroadcastPacket(historyMessage));
+                context.SendMessage?.Invoke(context.ConnectionId, chatApi.BuildBroadcastPacket(historyMessage));
             }
 
-            context.SendMessage?.Invoke(context.ConnectionId, hostServices.ChatService.BuildHistorySyncCompletePacket());
+            context.SendMessage?.Invoke(context.ConnectionId, chatApi.BuildHistorySyncCompletePacket());
 
             return new ServerIncomingCommandResult
             {

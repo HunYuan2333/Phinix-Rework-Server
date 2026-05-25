@@ -26,8 +26,8 @@ namespace PhinixServer
         public static NetServer Connections;
         public static ServerAuthenticator Authenticator;
         public static ServerUserManager UserManager;
-        public static PhinixFrameworkChatService FrameworkChat;
-        private static PhinixFrameworkTradeServerService frameworkTrade;
+        public static IFrameworkChatServerApi FrameworkChat;
+        private static IFrameworkTradeServerApi frameworkTrade;
         public static PhinixFrameworkServer Framework;
 
         // Exiting flag to stop the main run loop
@@ -51,7 +51,7 @@ namespace PhinixServer
                 authType: Config.AuthType
             );
             UserManager = new ServerUserManager(Connections, Authenticator, Config.MaxDisplayNameLength);
-            FrameworkChat = new PhinixFrameworkChatService(Config.ChatHistoryLength);
+            FrameworkChat = new PhinixFrameworkChatService(Config.ChatHistoryLength, UserManager);
             frameworkTrade = new PhinixFrameworkTradeServerService(UserManager);
             ExtensionHostContext extensionHostContext = new ExtensionHostContext
             {
@@ -59,9 +59,19 @@ namespace PhinixServer
                 Log = (message, level) => ILoggableHandler(typeof(Server), new LogEventArgs(message, level)),
                 StorageProvider = new FileSystemExtensionStorageProvider(System.IO.Path.Combine("framework-extensions", "server"))
             };
-            extensionHostContext.AddService(new BuiltInChatServerHostServices(FrameworkChat));
-            extensionHostContext.AddService(new BuiltInTradeServerHostServices(frameworkTrade));
+            extensionHostContext.AddService<IFrameworkChatServerApi>(FrameworkChat);
+            extensionHostContext.AddService<IFrameworkTradeServerApi>(frameworkTrade);
+            extensionHostContext.AddService(UserManager);
             Framework = new PhinixFrameworkServer(Connections, Authenticator, UserManager, extensionHostContext);
+            if (!Framework.TryResolveExtensionApi(out FrameworkChat))
+            {
+                throw new InvalidOperationException("The built-in chat server extension did not register IFrameworkChatServerApi.");
+            }
+
+            if (!Framework.TryResolveExtensionApi(out frameworkTrade))
+            {
+                throw new InvalidOperationException("The built-in trade server extension did not register IFrameworkTradeServerApi.");
+            }
 
             // Add handler for ILoggable modules
             Authenticator.OnLogEntry += ILoggableHandler;

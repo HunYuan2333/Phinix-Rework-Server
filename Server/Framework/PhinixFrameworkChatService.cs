@@ -4,13 +4,26 @@ using System.IO;
 using System.Linq;
 using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
+using UserManagement;
 using Utils;
 using Utils.Framework;
 
 namespace PhinixServer.Framework
 {
-    public class PhinixFrameworkChatService : ILoggable, IPersistent
+    public interface IFrameworkChatServerApi : ILoggable, IPersistent
     {
+        global::Phinix.Framework.BuiltInChatMessagePayload AddMessage(string senderUuid, string message);
+
+        global::Phinix.Framework.BuiltInChatMessagePayload[] GetHistory();
+
+        FrameworkPacket BuildBroadcastPacket(global::Phinix.Framework.BuiltInChatMessagePayload chatMessage);
+
+        FrameworkPacket BuildHistorySyncCompletePacket();
+    }
+
+    public class PhinixFrameworkChatService : IFrameworkChatServerApi
+    {
+        private readonly ServerUserManager userManager;
         public event EventHandler<LogEventArgs> OnLogEntry;
 
         public void RaiseLogEntry(LogEventArgs e) => OnLogEntry?.Invoke(this, e);
@@ -20,9 +33,10 @@ namespace PhinixServer.Framework
         private readonly int messageHistoryCapacity;
         private readonly PhinixFrameworkChatBroadcast broadcastBuilder = new PhinixFrameworkChatBroadcast();
 
-        public PhinixFrameworkChatService(int messageHistoryCapacity)
+        public PhinixFrameworkChatService(int messageHistoryCapacity, ServerUserManager userManager)
         {
             this.messageHistoryCapacity = messageHistoryCapacity;
+            this.userManager = userManager;
         }
 
         public global::Phinix.Framework.BuiltInChatMessagePayload AddMessage(string senderUuid, string message)
@@ -44,7 +58,7 @@ namespace PhinixServer.Framework
                 }
             }
 
-            if (!Server.UserManager.TryGetDisplayName(chatMessage.SenderUuid, out string displayName))
+            if (userManager == null || !userManager.TryGetDisplayName(chatMessage.SenderUuid, out string displayName))
             {
                 displayName = "??? (" + chatMessage.SenderUuid + ")";
             }

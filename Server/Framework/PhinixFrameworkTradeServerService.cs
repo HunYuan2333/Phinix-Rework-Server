@@ -1,15 +1,21 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Phinix.TradeExtension;
 using UserManagement;
+using Utils;
 using Utils.Framework;
 
 namespace PhinixServer.Framework
 {
-    public sealed class PhinixFrameworkTradeServerService
+    public sealed class PhinixFrameworkTradeServerService : ILoggable, IPersistent
     {
         private readonly ServerUserManager userManager;
         private readonly PhinixFrameworkTradeStore store = new PhinixFrameworkTradeStore();
+
+        public event EventHandler<LogEventArgs> OnLogEntry;
+
+        public void RaiseLogEntry(LogEventArgs e) => OnLogEntry?.Invoke(this, e);
 
         public PhinixFrameworkTradeServerService(ServerUserManager userManager)
         {
@@ -36,6 +42,15 @@ namespace PhinixServer.Framework
             response.SetStateKind(FrameworkMetadataStateKinds.Snapshot);
             response.SetSnapshotVersion(payload.Trades.Count == 0 ? 0L : payload.Trades.Max(trade => trade.SnapshotVersion));
             context.SendMessage?.Invoke(context.ConnectionId, response);
+        }
+
+        public void HandleUserLoggedIn(string connectionId, string sessionId, string uuid, Action<string, FrameworkPacket> sendMessage)
+        {
+            foreach (PhinixFrameworkTradeStore.PendingCompletionNotification notification in store.GetPendingCompletionNotificationsFor(uuid))
+            {
+                sendCompletionEvent(connectionId, sessionId, notification, sendMessage);
+                store.MarkCompletionNotificationDelivered(notification.TradeId, uuid);
+            }
         }
 
         public void HandleCreateRequest(FrameworkPacket command, ServerFrameworkContext context)
@@ -111,7 +126,7 @@ namespace PhinixServer.Framework
                 return;
             }
 
-            if (!store.TrySetStatus(payload.TradeId, context.SenderUuid, payload.Accepted, payload.Cancelled, out FrameworkTradeStateSnapshot snapshot, out bool completed, out bool wasCancelled, out FrameworkItemPayload[] completionItems, out string otherPartyUuid, out FrameworkTradeFailureReason failureReason))
+            if (!store.TrySetStatus(payload.TradeId, context.SenderUuid, payload.Accepted, payload.Cancelled, out FrameworkTradeStateSnapshot snapshot, out bool completed, out bool wasCancelled, out FrameworkTradeFailureReason failureReason))
             {
                 sendStatusUpdateResponse(context.ConnectionId, context, false, payload.TradeId, failureReason, "Trade status update failed.", command.GetCorrelationId());
                 return;
@@ -128,6 +143,7 @@ namespace PhinixServer.Framework
 
             if (completed)
             {
+                store.QueueCompletionNotifications(snapshot, wasCancelled);
                 sendCompletionEvents(snapshot, context, wasCancelled, command.GetCorrelationId());
                 return;
             }
@@ -260,29 +276,52 @@ namespace PhinixServer.Framework
                     continue;
                 }
 
-                FrameworkTradeParticipantSnapshot otherParty = snapshot.Participants.SingleOrDefault(candidate => candidate.Uuid != participant.Uuid);
-                FrameworkTradeCompletionEvent payload = new FrameworkTradeCompletionEvent
+                PhinixFrameworkTradeStore.PendingCompletionNotification notification = store
+                    .GetPendingCompletionNotificationsFor(participant.Uuid)
+                    .SingleOrDefault(candidate => candidate.TradeId == snapshot.TradeId);
+                if (notification == null)
                 {
-                    TradeId = snapshot.TradeId,
-                    OtherPartyUuid = otherParty?.Uuid,
-                    Items = cancelled
-                        ? (participant.ItemsOnOffer ?? new List<FrameworkItemPayload>()).ToList()
-                        : (otherParty?.ItemsOnOffer ?? new List<FrameworkItemPayload>()).ToList(),
-                    Cancelled = cancelled
-                };
+                    continue;
+                }
 
-                FrameworkPacket packet = new FrameworkPacket
-                {
-                    Flow = global::Phinix.Framework.FrameworkFlow.Command,
-                    CommandKind = global::Phinix.Framework.FrameworkCommandKind.Event,
-                    MessageType = cancelled ? FrameworkTradeProtocol.CancelledEventType : FrameworkTradeProtocol.CompletedEventType,
-                    SessionId = context.SessionId,
-                    SenderUuid = FrameworkProtocol.SystemSenderUuid,
-                    PayloadJson = FrameworkSerialization.SerializePayload(payload)
-                };
-                packet.SetCorrelationId(correlationId);
-                context.SendMessage?.Invoke(connectionId, packet);
+                sendCompletionEvent(connectionId, context.SessionId, notification, context.SendMessage, correlationId);
+                store.MarkCompletionNotificationDelivered(notification.TradeId, participant.Uuid);
             }
+        }
+
+        public void Save(string path)
+        {
+            store.Save(path);
+            RaiseLogEntry(new LogEventArgs("Saved framework trade state."));
+        }
+
+        public void Load(string path)
+        {
+            store.Load(path);
+            RaiseLogEntry(new LogEventArgs("Loaded framework trade state."));
+        }
+
+        private void sendCompletionEvent(string connectionId, string sessionId, PhinixFrameworkTradeStore.PendingCompletionNotification notification, Action<string, FrameworkPacket> sendMessage, string correlationId = null)
+        {
+            FrameworkTradeCompletionEvent payload = new FrameworkTradeCompletionEvent
+            {
+                TradeId = notification.TradeId,
+                OtherPartyUuid = notification.OtherPartyUuid,
+                Items = (notification.Items ?? new List<FrameworkItemPayload>()).ToList(),
+                Cancelled = notification.Cancelled
+            };
+
+            FrameworkPacket packet = new FrameworkPacket
+            {
+                Flow = global::Phinix.Framework.FrameworkFlow.Command,
+                CommandKind = global::Phinix.Framework.FrameworkCommandKind.Event,
+                MessageType = notification.Cancelled ? FrameworkTradeProtocol.CancelledEventType : FrameworkTradeProtocol.CompletedEventType,
+                SessionId = sessionId,
+                SenderUuid = FrameworkProtocol.SystemSenderUuid,
+                PayloadJson = FrameworkSerialization.SerializePayload(payload)
+            };
+            packet.SetCorrelationId(correlationId ?? Guid.NewGuid().ToString());
+            sendMessage?.Invoke(connectionId, packet);
         }
     }
 }

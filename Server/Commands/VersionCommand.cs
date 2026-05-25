@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using Authentication;
 using Connections;
+using PhinixServer.Framework;
 using UserManagement;
 
 namespace PhinixServer
@@ -23,7 +24,7 @@ namespace PhinixServer
             Console.WriteLine("Authentication: " + Authenticator.Version);
             Console.WriteLine("UserManagement: " + UserManager.Version);
             Console.WriteLine("FrameworkChat: " + Server.Version);
-            Console.WriteLine("Trading: " + Trading.Trading.Version);
+            Console.WriteLine("FrameworkTrade: " + typeof(PhinixFrameworkTradeServerService).Assembly.GetName().Version);
 
             return true;
         }

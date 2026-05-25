@@ -7,7 +7,6 @@ using System.Timers;
 using Authentication;
 using Connections;
 using PhinixServer.Framework;
-using Trading;
 using UserManagement;
 using Utils;
 using Utils.Framework;
@@ -29,7 +28,6 @@ namespace PhinixServer
         public static ServerUserManager UserManager;
         public static PhinixFrameworkChatService FrameworkChat;
         private static PhinixFrameworkTradeServerService frameworkTrade;
-        private static ILegacyTradeRuntime legacyTradeRuntime;
         public static PhinixFrameworkServer Framework;
 
         // Exiting flag to stop the main run loop
@@ -55,7 +53,6 @@ namespace PhinixServer
             UserManager = new ServerUserManager(Connections, Authenticator, Config.MaxDisplayNameLength);
             FrameworkChat = new PhinixFrameworkChatService(Config.ChatHistoryLength);
             frameworkTrade = new PhinixFrameworkTradeServerService(UserManager);
-            legacyTradeRuntime = new LegacyServerTradeRuntimeAdapter(new ServerTrading(Connections, Authenticator, UserManager));
             ExtensionHostContext extensionHostContext = new ExtensionHostContext
             {
                 HostKind = "server",
@@ -70,14 +67,15 @@ namespace PhinixServer
             Authenticator.OnLogEntry += ILoggableHandler;
             UserManager.OnLogEntry += ILoggableHandler;
             FrameworkChat.OnLogEntry += ILoggableHandler;
-            legacyTradeRuntime.OnLogEntry += ILoggableHandler;
+            frameworkTrade.OnLogEntry += ILoggableHandler;
             Framework.OnLogEntry += ILoggableHandler;
+            UserManager.OnLogin += (_, args) => frameworkTrade.HandleUserLoggedIn(args.ConnectionId, null, args.Uuid, sendFrameworkPacket);
 
             // Load saved data
             Authenticator.Load(Config.CredentialDatabasePath);
             UserManager.Load(Config.UserDatabasePath);
             FrameworkChat.Load(Config.ChatHistoryPath);
-            legacyTradeRuntime.Load(Config.TradeDatabasePath);
+            frameworkTrade.Load(Config.TradeDatabasePath);
 
             // Set up the save timer
             saveTimer = new Timer
@@ -141,7 +139,7 @@ namespace PhinixServer
             Authenticator.Save(Config.CredentialDatabasePath);
             UserManager.Save(Config.UserDatabasePath);
             FrameworkChat.Save(Config.ChatHistoryPath);
-            legacyTradeRuntime.Save(Config.TradeDatabasePath);
+            frameworkTrade.Save(Config.TradeDatabasePath);
 
             // Save config too
             Config.Save(CONFIG_FILE);
@@ -172,7 +170,7 @@ namespace PhinixServer
             Authenticator.Save(Config.CredentialDatabasePath);
             UserManager.Save(Config.UserDatabasePath);
             FrameworkChat.Save(Config.ChatHistoryPath);
-            legacyTradeRuntime.Save(Config.TradeDatabasePath);
+            frameworkTrade.Save(Config.TradeDatabasePath);
 
             // Save the config
             Config.Save(CONFIG_FILE);
@@ -211,6 +209,11 @@ namespace PhinixServer
             }
 
             Logger.Log(verbosity, args.Message, sender.GetType().Namespace);
+        }
+
+        private static void sendFrameworkPacket(string connectionId, FrameworkPacket packet)
+        {
+            Connections.TrySend(connectionId, FrameworkProtocol.ModuleName, FrameworkSerialization.SerializePacket(packet));
         }
     }
 }

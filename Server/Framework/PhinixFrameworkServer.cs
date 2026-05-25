@@ -48,7 +48,7 @@ namespace PhinixServer.Framework
             {
                 RaiseLogEntry(new LogEventArgs(
                     $"Framework modules: {string.Join(", ", discoveredExtensions.Modules.Select(module => module.ExtensionId).OrderBy(extensionId => extensionId))}. " +
-                    $"Server handlers={discoveredExtensions.ServerMessageHandlers.Count}, server commands={discoveredExtensions.ServerCommandHandlers.Count}, item codecs={discoveredExtensions.ItemCodecs.Count}, trade completion handlers={discoveredExtensions.TradeCompletionHandlers.Count}."));
+                    $"Server handlers={discoveredExtensions.ServerMessageHandlers.Count}, server commands={discoveredExtensions.ServerCommandHandlers.Count}, item codecs={discoveredExtensions.ItemCodecs.Count}."));
             }
             foreach (string diagnostic in discoveredExtensions.Diagnostics)
             {

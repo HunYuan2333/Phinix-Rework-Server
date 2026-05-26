@@ -1,0 +1,14 @@
+<Project>
+  <!-- Keep protobuf SDK compatibility patches in the main repo instead of modifying the vendored submodule. -->
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Google.Protobuf'">
+    <NoWarn>$(NoWarn);NETSDK1215</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Google.Protobuf' and '$(TargetFramework)' == 'net50'">
+    <IsTrimmable>true</IsTrimmable>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Google.Protobuf' and '$(TargetFramework)' != 'net50'">
+    <IsTrimmable>false</IsTrimmable>
+  </PropertyGroup>
+</Project>

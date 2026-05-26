@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <ProjectGuid>{76A84E54-5F6B-44AC-B362-A2852D9156D1}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>ServerRuntime</RootNamespace>
+    <AssemblyName>ServerRuntime</AssemblyName>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\ConsoleHighlighting.cs">
+      <Link>ConsoleHighlighting.cs</Link>
+    </Compile>
+  </ItemGroup>
+</Project>

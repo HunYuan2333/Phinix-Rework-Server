@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <ProjectGuid>{AF645938-D954-4A3A-A24A-AF8593401B34}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>UserManagement</RootNamespace>
+    <AssemblyName>UserManagement.Server</AssemblyName>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\UserManagement\ServerLoginEventArgs.cs">
+      <Link>ServerLoginEventArgs.cs</Link>
+    </Compile>
+    <Compile Include="..\UserManagement\ServerUserManager.cs">
+      <Link>ServerUserManager.cs</Link>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Dependencies\protobuf\csharp\src\Google.Protobuf\Google.Protobuf.csproj" />
+    <ProjectReference Include="..\Authentication.Server\Authentication.Server.csproj" />
+    <ProjectReference Include="..\..\Common\Connections\Connections.csproj" />
+    <ProjectReference Include="..\..\Common\UserManagement\UserManagement.csproj" />
+    <ProjectReference Include="..\..\Common\Utils\Utils.csproj" />
+    <ProjectReference Include="..\ServerRuntime\ServerRuntime.csproj" />
+  </ItemGroup>
+</Project>

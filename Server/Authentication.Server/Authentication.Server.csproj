@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <ProjectGuid>{59BE10C8-26E4-46D5-9E92-FA35EDBC12D5}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Authentication</RootNamespace>
+    <AssemblyName>Authentication.Server</AssemblyName>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Authentication\ServerAuthenticator.cs">
+      <Link>ServerAuthenticator.cs</Link>
+    </Compile>
+    <Compile Include="..\Authentication\Session.cs">
+      <Link>Session.cs</Link>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Dependencies\protobuf\csharp\src\Google.Protobuf\Google.Protobuf.csproj" />
+    <ProjectReference Include="..\..\Common\Authentication\Authentication.csproj" />
+    <ProjectReference Include="..\..\Common\Connections\Connections.csproj" />
+    <ProjectReference Include="..\..\Common\Utils\Utils.csproj" />
+    <ProjectReference Include="..\ServerRuntime\ServerRuntime.csproj" />
+  </ItemGroup>
+</Project>

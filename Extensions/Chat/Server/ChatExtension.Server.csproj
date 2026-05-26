@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <ProjectGuid>{4C930CBF-1A5A-4208-AAC8-F16625DE2103}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Phinix.ChatExtension.Server</RootNamespace>
+    <AssemblyName>ChatExtension.Server</AssemblyName>
+    <TargetFramework>net10.0</TargetFramework>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Dependencies\protobuf\csharp\src\Google.Protobuf\Google.Protobuf.csproj" />
+    <ProjectReference Include="..\Contracts\ChatExtension.csproj" />
+    <ProjectReference Include="..\..\..\Common\UserManagement\UserManagement.csproj" />
+    <ProjectReference Include="..\..\..\Server\UserManagement.Server\UserManagement.Server.csproj" />
+    <ProjectReference Include="..\..\..\Common\Utils\Utils.csproj" />
+  </ItemGroup>
+</Project>

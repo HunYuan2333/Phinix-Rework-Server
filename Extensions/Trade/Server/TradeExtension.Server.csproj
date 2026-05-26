@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <ProjectGuid>{C9F8BEAB-ACB7-4EBE-9713-BA0A50512104}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Phinix.TradeExtension.Server</RootNamespace>
+    <AssemblyName>TradeExtension.Server</AssemblyName>
+    <TargetFramework>net10.0</TargetFramework>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Contracts\TradeExtension.csproj" />
+    <ProjectReference Include="..\..\..\Common\UserManagement\UserManagement.csproj" />
+    <ProjectReference Include="..\..\..\Server\UserManagement.Server\UserManagement.Server.csproj" />
+    <ProjectReference Include="..\..\..\Common\Utils\Utils.csproj" />
+  </ItemGroup>
+</Project>

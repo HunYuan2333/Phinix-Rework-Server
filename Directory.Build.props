@@ -1,0 +1,7 @@
+<Project>
+  <PropertyGroup>
+    <!-- The local .NET 10 SDK install exposes workload resolver noise during SDK-style project evaluation.
+         Disable workload resolution for this repo because these projects do not depend on optional workloads. -->
+    <MSBuildEnableWorkloadResolver>false</MSBuildEnableWorkloadResolver>
+  </PropertyGroup>
+</Project>

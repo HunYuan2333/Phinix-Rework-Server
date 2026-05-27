@@ -6,7 +6,7 @@ using Utils.Framework;
 namespace Phinix.ChatExtension.Server
 {
     [PhinixExtension("builtin.chat")]
-    public class BuiltInChatServerExtension : IPhinixExtensionModule, IActivatablePhinixExtensionModule, ICapabilityProvider, IServerMessageHandler, IServerCommandHandler
+    public class BuiltInChatServerExtension : IPhinixExtensionModule, IActivatablePhinixExtensionModule, ICapabilityProvider, IServerDefaultMessageHandler, IServerDefaultCommandHandler
     {
         private const string HistoryStorageName = "chat-history.bin";
         private const string HistoryCapacityOption = "builtin.chat.history-capacity";
@@ -26,8 +26,8 @@ namespace Phinix.ChatExtension.Server
             builder.RegisterApi(chatApi);
             builder.HostContext.RegisterPersistent(ExtensionId, HistoryStorageName, chatApi);
             builder.AddCapabilityProvider(this);
-            builder.AddServerMessageHandler(this);
-            builder.AddServerCommandHandler(this);
+            builder.AddServerDefaultMessageHandler(this);
+            builder.AddServerDefaultCommandHandler(this);
         }
 
         public void Activate(ExtensionHostContext hostContext)
@@ -73,7 +73,7 @@ namespace Phinix.ChatExtension.Server
 
             return new ServerIncomingMessageResult
             {
-                Action = MessageHandlingResultAction.Handled
+                Action = MessageHandlingResultAction.Handle
             };
         }
 
@@ -93,7 +93,7 @@ namespace Phinix.ChatExtension.Server
 
             return new ServerIncomingCommandResult
             {
-                Action = MessageHandlingResultAction.Handled
+                Action = MessageHandlingResultAction.Handle
             };
         }
     }

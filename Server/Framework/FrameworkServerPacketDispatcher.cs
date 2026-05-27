@@ -1,39 +1,25 @@
+using System;
 using Utils.Framework;
 
 namespace PhinixServer.Framework
 {
     public sealed class FrameworkServerPacketDispatcher : IFrameworkServerPacketDispatcher
     {
-        private readonly NetServerAdapter sender;
+        private Action<string, string, FrameworkPacket> dispatch;
 
-        public FrameworkServerPacketDispatcher(NetServerAdapter sender)
+        public void Configure(Action<string, string, FrameworkPacket> dispatch)
         {
-            this.sender = sender;
+            this.dispatch = dispatch;
         }
 
         public void Send(string connectionId, FrameworkPacket packet)
         {
-            sender?.Send(connectionId, packet);
+            Send(connectionId, packet, null);
         }
 
-        public sealed class NetServerAdapter
+        public void Send(string connectionId, FrameworkPacket packet, string sourceExtensionId)
         {
-            private readonly Connections.NetServer server;
-
-            public NetServerAdapter(Connections.NetServer server)
-            {
-                this.server = server;
-            }
-
-            public void Send(string connectionId, FrameworkPacket packet)
-            {
-                if (server == null || packet == null)
-                {
-                    return;
-                }
-
-                server.TrySend(connectionId, FrameworkProtocol.ModuleName, FrameworkSerialization.SerializePacket(packet));
-            }
+            dispatch?.Invoke(connectionId, sourceExtensionId, packet);
         }
     }
 }

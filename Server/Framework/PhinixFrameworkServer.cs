@@ -20,6 +20,7 @@ namespace PhinixServer.Framework
         private readonly ServerUserManager userManager;
         private readonly ExtensionHostContext extensionHostContext;
         private readonly DiscoveredPhinixExtensions discoveredExtensions;
+        private readonly ServerPipelineRunner pipelineRunner;
         private readonly HashSet<string> serverCapabilities;
         private readonly Dictionary<string, HashSet<string>> connectionCapabilities = new Dictionary<string, HashSet<string>>();
         private readonly object connectionCapabilitiesLock = new object();
@@ -31,9 +32,11 @@ namespace PhinixServer.Framework
             this.userManager = userManager;
             this.extensionHostContext = extensionHostContext ?? ExtensionHostContext.Empty;
             this.discoveredExtensions = PhinixExtensionRegistry.DiscoverExtensions(this.extensionHostContext);
+            this.pipelineRunner = new ServerPipelineRunner();
             this.serverCapabilities = new HashSet<string>(PhinixExtensionRegistry.CollectCapabilities(discoveredExtensions), StringComparer.OrdinalIgnoreCase);
             PhinixExtensionRegistry.ActivateExtensions(discoveredExtensions, this.extensionHostContext);
             LoadExtensionState();
+            hydratePipelineRunner();
 
             netServer.RegisterPacketHandler(FrameworkProtocol.ModuleName, packetHandler);
             netServer.OnConnectionClosed += (_, args) =>
@@ -116,6 +119,11 @@ namespace PhinixServer.Framework
             return discoveredExtensions.ApiRegistry?.ResolveAll<T>() ?? Array.Empty<T>();
         }
 
+        public void DispatchExtensionPacket(string sourceExtensionId, string connectionId, FrameworkPacket packet)
+        {
+            dispatchOutboundToConnection(sourceExtensionId, connectionId, packet);
+        }
+
         private void packetHandler(string module, string connectionId, byte[] data)
         {
             FrameworkPacket packet;
@@ -179,7 +187,7 @@ namespace PhinixServer.Framework
                 })
             };
 
-            sendPacket(connectionId, response);
+            sendPacketDirect(connectionId, response);
         }
 
         private void handleMessage(string connectionId, FrameworkPacket message)
@@ -196,47 +204,9 @@ namespace PhinixServer.Framework
                 return;
             }
 
-            bool matchedHandler = false;
-            FrameworkPacket currentMessage = message;
-
-            foreach (IServerMessageHandler handler in discoveredExtensions.ServerMessageHandlers.Where(handler => handler.CanHandleIncomingMessage(currentMessage)))
+            if (!pipelineRunner.ProcessIncomingMessage(message, createServerContext(connectionId, message.SenderUuid, message.SessionId, null)))
             {
-                matchedHandler = true;
-                ServerIncomingMessageResult result = handler.HandleIncomingMessage(
-                    currentMessage,
-                    new ServerFrameworkContext
-                    {
-                        ConnectionId = connectionId,
-                        SenderUuid = currentMessage.SenderUuid,
-                        SessionId = currentMessage.SessionId,
-                        SendMessage = sendPacket,
-                        BroadcastMessage = broadcastPacket,
-                        IsConnectionFrameworkCapable = isConnectionFrameworkCapable,
-                        RemoteCapabilities = getRemoteCapabilities(connectionId),
-                        ServerCapabilities = serverCapabilities.ToArray(),
-                        HasRemoteCapability = capability => connectionHasCapability(connectionId, capability),
-                        ConnectionHasCapability = connectionHasCapability,
-                        Log = (logMessage, level) => RaiseLogEntry(new LogEventArgs(logMessage, level))
-                    }
-                );
-
-                if (result == null) continue;
-
-                if (result.Action == MessageHandlingResultAction.ReplacePayload && result.Message != null)
-                {
-                    currentMessage = result.Message;
-                    continue;
-                }
-
-                if (result.Action != MessageHandlingResultAction.Continue)
-                {
-                    return;
-                }
-            }
-
-            if (!matchedHandler)
-            {
-                RaiseLogEntry(new LogEventArgs($"No server framework handler registered for message type '{currentMessage.MessageType}'.", LogLevel.WARNING));
+                RaiseLogEntry(new LogEventArgs($"No server framework handler registered for message type '{message.MessageType}'.", LogLevel.WARNING));
             }
         }
 
@@ -257,47 +227,9 @@ namespace PhinixServer.Framework
                 return;
             }
 
-            bool matchedHandler = false;
-            FrameworkPacket currentCommand = command;
-
-            foreach (IServerCommandHandler handler in discoveredExtensions.ServerCommandHandlers.Where(handler => handler.CanHandleIncomingCommand(currentCommand)))
+            if (!pipelineRunner.ProcessIncomingCommand(command, createServerContext(connectionId, command.SenderUuid, command.SessionId, null)))
             {
-                matchedHandler = true;
-                ServerIncomingCommandResult result = handler.HandleIncomingCommand(
-                    currentCommand,
-                    new ServerFrameworkContext
-                    {
-                        ConnectionId = connectionId,
-                        SenderUuid = currentCommand.SenderUuid,
-                        SessionId = currentCommand.SessionId,
-                        SendMessage = sendPacket,
-                        BroadcastMessage = broadcastPacket,
-                        IsConnectionFrameworkCapable = isConnectionFrameworkCapable,
-                        RemoteCapabilities = getRemoteCapabilities(connectionId),
-                        ServerCapabilities = serverCapabilities.ToArray(),
-                        HasRemoteCapability = capability => connectionHasCapability(connectionId, capability),
-                        ConnectionHasCapability = connectionHasCapability,
-                        Log = (logMessage, level) => RaiseLogEntry(new LogEventArgs(logMessage, level))
-                    }
-                );
-
-                if (result == null) continue;
-
-                if (result.Action == MessageHandlingResultAction.ReplacePayload && result.Command != null)
-                {
-                    currentCommand = result.Command;
-                    continue;
-                }
-
-                if (result.Action != MessageHandlingResultAction.Continue)
-                {
-                    return;
-                }
-            }
-
-            if (!matchedHandler)
-            {
-                RaiseLogEntry(new LogEventArgs($"No server framework command handler registered for command type '{currentCommand.MessageType}'.", LogLevel.WARNING));
+                RaiseLogEntry(new LogEventArgs($"No server framework command handler registered for command type '{command.MessageType}'.", LogLevel.WARNING));
             }
         }
 
@@ -332,7 +264,117 @@ namespace PhinixServer.Framework
             }
         }
 
-        private void sendPacket(string connectionId, FrameworkPacket packet)
+        private void hydratePipelineRunner()
+        {
+            foreach (IServerInboundMessageInterceptor interceptor in discoveredExtensions.ServerInboundMessageInterceptors)
+            {
+                pipelineRunner.InboundMessageInterceptors.Add(new BoundServerInboundMessageInterceptor(interceptor, getExtensionId(interceptor)));
+            }
+
+            foreach (IServerDefaultMessageHandler handler in discoveredExtensions.ServerDefaultMessageHandlers)
+            {
+                pipelineRunner.DefaultMessageHandlers.Add(new BoundServerDefaultMessageHandler(handler, getExtensionId(handler)));
+            }
+
+            foreach (IServerMessageObserver observer in discoveredExtensions.ServerMessageObservers)
+            {
+                pipelineRunner.MessageObservers.Add(new BoundServerMessageObserver(observer, getExtensionId(observer)));
+            }
+
+            foreach (IServerInboundCommandInterceptor interceptor in discoveredExtensions.ServerInboundCommandInterceptors)
+            {
+                pipelineRunner.InboundCommandInterceptors.Add(new BoundServerInboundCommandInterceptor(interceptor, getExtensionId(interceptor)));
+            }
+
+            foreach (IServerDefaultCommandHandler handler in discoveredExtensions.ServerDefaultCommandHandlers)
+            {
+                pipelineRunner.DefaultCommandHandlers.Add(new BoundServerDefaultCommandHandler(handler, getExtensionId(handler)));
+            }
+
+            foreach (IServerCommandObserver observer in discoveredExtensions.ServerCommandObservers)
+            {
+                pipelineRunner.CommandObservers.Add(new BoundServerCommandObserver(observer, getExtensionId(observer)));
+            }
+
+            foreach (IServerOutboundPacketInterceptor interceptor in discoveredExtensions.ServerOutboundPacketInterceptors)
+            {
+                pipelineRunner.OutboundPacketInterceptors.Add(interceptor);
+            }
+        }
+
+        private ServerFrameworkContext createServerContext(string connectionId, string senderUuid, string sessionId, string sourceExtensionId)
+        {
+            ServerFrameworkContext context = new ServerFrameworkContext
+            {
+                ConnectionId = connectionId,
+                SenderUuid = senderUuid,
+                SessionId = sessionId,
+                SourceExtensionId = sourceExtensionId,
+                IsConnectionFrameworkCapable = isConnectionFrameworkCapable,
+                RemoteCapabilities = getRemoteCapabilities(connectionId),
+                ServerCapabilities = serverCapabilities.ToArray(),
+                HasRemoteCapability = capability => connectionHasCapability(connectionId, capability),
+                ConnectionHasCapability = connectionHasCapability,
+                Log = (logMessage, level) => RaiseLogEntry(new LogEventArgs(logMessage, level))
+            };
+
+            context.SendMessage = (targetConnectionId, packet) => dispatchOutboundToConnection(context.SourceExtensionId, targetConnectionId, packet);
+            context.BroadcastMessage = (packet, excludedConnectionIds) => dispatchOutboundBroadcast(context.SourceExtensionId, packet, excludedConnectionIds);
+            return context;
+        }
+
+        private static string getExtensionId(object component)
+        {
+            return (component as IPhinixExtension)?.ExtensionId;
+        }
+
+        private void dispatchOutboundToConnection(string sourceExtensionId, string connectionId, FrameworkPacket packet)
+        {
+            if (string.IsNullOrEmpty(connectionId) || packet == null)
+            {
+                return;
+            }
+
+            pipelineRunner.DispatchOutbound(
+                packet,
+                new ServerOutboundPacketContext
+                {
+                    SourceExtensionId = sourceExtensionId,
+                    TargetConnectionIds = new[] { connectionId },
+                    DeliverToConnection = sendPacketDirect,
+                    IsConnectionFrameworkCapable = isConnectionFrameworkCapable,
+                    ConnectionHasCapability = connectionHasCapability,
+                    Log = (logMessage, level) => RaiseLogEntry(new LogEventArgs(logMessage, level))
+                });
+        }
+
+        private void dispatchOutboundBroadcast(string sourceExtensionId, FrameworkPacket packet, string[] excludedConnectionIds)
+        {
+            if (packet == null)
+            {
+                return;
+            }
+
+            string[] connectionIds = userManager.GetConnections();
+            if (excludedConnectionIds != null)
+            {
+                connectionIds = connectionIds.Except(excludedConnectionIds).ToArray();
+            }
+
+            pipelineRunner.DispatchOutbound(
+                packet,
+                new ServerOutboundPacketContext
+                {
+                    SourceExtensionId = sourceExtensionId,
+                    TargetConnectionIds = connectionIds.Where(isConnectionFrameworkCapable).ToArray(),
+                    DeliverToConnection = sendPacketDirect,
+                    IsConnectionFrameworkCapable = isConnectionFrameworkCapable,
+                    ConnectionHasCapability = connectionHasCapability,
+                    Log = (logMessage, level) => RaiseLogEntry(new LogEventArgs(logMessage, level))
+                });
+        }
+
+        private void sendPacketDirect(string connectionId, FrameworkPacket packet)
         {
             if (packet.Flow == global::Phinix.Framework.FrameworkFlow.Message || packet.Kind == FrameworkProtocol.KindMessage)
             {
@@ -356,18 +398,135 @@ namespace PhinixServer.Framework
             }
         }
 
-        private void broadcastPacket(FrameworkPacket packet, string[] excludedConnectionIds)
+        private sealed class BoundServerInboundMessageInterceptor : IServerInboundMessageInterceptor
         {
-            string[] connectionIds = userManager.GetConnections();
-            if (excludedConnectionIds != null)
+            private readonly IServerInboundMessageInterceptor inner;
+            private readonly string extensionId;
+
+            public BoundServerInboundMessageInterceptor(IServerInboundMessageInterceptor inner, string extensionId)
             {
-                connectionIds = connectionIds.Except(excludedConnectionIds).ToArray();
+                this.inner = inner;
+                this.extensionId = extensionId;
             }
 
-            foreach (string connectionId in connectionIds.Where(isConnectionFrameworkCapable))
+            public int Priority => inner.Priority;
+
+            public bool CanInterceptIncomingMessage(FrameworkPacket message) => inner.CanInterceptIncomingMessage(message);
+
+            public ServerIncomingMessageResult InterceptIncomingMessage(FrameworkPacket message, ServerFrameworkContext context)
             {
-                if (!string.IsNullOrEmpty(packet?.MessageType) && !connectionHasCapability(connectionId, packet.MessageType)) continue;
-                sendPacket(connectionId, packet);
+                context.SourceExtensionId = extensionId;
+                return inner.InterceptIncomingMessage(message, context);
+            }
+        }
+
+        private sealed class BoundServerDefaultMessageHandler : IServerDefaultMessageHandler
+        {
+            private readonly IServerDefaultMessageHandler inner;
+            private readonly string extensionId;
+
+            public BoundServerDefaultMessageHandler(IServerDefaultMessageHandler inner, string extensionId)
+            {
+                this.inner = inner;
+                this.extensionId = extensionId;
+            }
+
+            public int Priority => inner.Priority;
+
+            public bool CanHandleIncomingMessage(FrameworkPacket message) => inner.CanHandleIncomingMessage(message);
+
+            public ServerIncomingMessageResult HandleIncomingMessage(FrameworkPacket message, ServerFrameworkContext context)
+            {
+                context.SourceExtensionId = extensionId;
+                return inner.HandleIncomingMessage(message, context);
+            }
+        }
+
+        private sealed class BoundServerInboundCommandInterceptor : IServerInboundCommandInterceptor
+        {
+            private readonly IServerInboundCommandInterceptor inner;
+            private readonly string extensionId;
+
+            public BoundServerInboundCommandInterceptor(IServerInboundCommandInterceptor inner, string extensionId)
+            {
+                this.inner = inner;
+                this.extensionId = extensionId;
+            }
+
+            public int Priority => inner.Priority;
+
+            public bool CanInterceptIncomingCommand(FrameworkPacket command) => inner.CanInterceptIncomingCommand(command);
+
+            public ServerIncomingCommandResult InterceptIncomingCommand(FrameworkPacket command, ServerFrameworkContext context)
+            {
+                context.SourceExtensionId = extensionId;
+                return inner.InterceptIncomingCommand(command, context);
+            }
+        }
+
+        private sealed class BoundServerDefaultCommandHandler : IServerDefaultCommandHandler
+        {
+            private readonly IServerDefaultCommandHandler inner;
+            private readonly string extensionId;
+
+            public BoundServerDefaultCommandHandler(IServerDefaultCommandHandler inner, string extensionId)
+            {
+                this.inner = inner;
+                this.extensionId = extensionId;
+            }
+
+            public int Priority => inner.Priority;
+
+            public bool CanHandleIncomingCommand(FrameworkPacket command) => inner.CanHandleIncomingCommand(command);
+
+            public ServerIncomingCommandResult HandleIncomingCommand(FrameworkPacket command, ServerFrameworkContext context)
+            {
+                context.SourceExtensionId = extensionId;
+                return inner.HandleIncomingCommand(command, context);
+            }
+        }
+
+        private sealed class BoundServerMessageObserver : IServerMessageObserver
+        {
+            private readonly IServerMessageObserver inner;
+            private readonly string extensionId;
+
+            public BoundServerMessageObserver(IServerMessageObserver inner, string extensionId)
+            {
+                this.inner = inner;
+                this.extensionId = extensionId;
+            }
+
+            public int Priority => inner.Priority;
+
+            public bool CanObserveIncomingMessage(FrameworkPacket message) => inner.CanObserveIncomingMessage(message);
+
+            public void ObserveIncomingMessage(FrameworkPacket message, ServerFrameworkContext context, MessageHandlingResultAction terminalAction)
+            {
+                context.SourceExtensionId = extensionId;
+                inner.ObserveIncomingMessage(message, context, terminalAction);
+            }
+        }
+
+        private sealed class BoundServerCommandObserver : IServerCommandObserver
+        {
+            private readonly IServerCommandObserver inner;
+            private readonly string extensionId;
+
+            public BoundServerCommandObserver(IServerCommandObserver inner, string extensionId)
+            {
+                this.inner = inner;
+                this.extensionId = extensionId;
+            }
+
+            public int Priority => inner.Priority;
+
+            public bool CanObserveIncomingCommand(FrameworkPacket command) => inner.CanObserveIncomingCommand(command);
+
+            public void ObserveIncomingCommand(FrameworkPacket command, ServerFrameworkContext context, MessageHandlingResultAction terminalAction)
+            {
+                context.SourceExtensionId = extensionId;
+                inner.ObserveIncomingCommand(command, context, terminalAction);
             }
         }
     }

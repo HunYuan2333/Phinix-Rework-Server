@@ -5,7 +5,7 @@ using Utils.Framework;
 namespace Phinix.TradeExtension.Server
 {
     [PhinixExtension(FrameworkTradeProtocol.Capability)]
-    public sealed class BuiltInTradeServerExtension : IPhinixExtensionModule, IActivatablePhinixExtensionModule, ICapabilityProvider, IServerCommandHandler
+    public sealed class BuiltInTradeServerExtension : IPhinixExtensionModule, IActivatablePhinixExtensionModule, ICapabilityProvider, IServerDefaultCommandHandler
     {
         private const string TradeStateStorageName = "trade-state.bin";
 
@@ -27,7 +27,7 @@ namespace Phinix.TradeExtension.Server
             builder.RegisterApi(tradeApi);
             builder.HostContext.RegisterPersistent(ExtensionId, TradeStateStorageName, tradeApi);
             builder.AddCapabilityProvider(this);
-            builder.AddServerCommandHandler(this);
+            builder.AddServerDefaultCommandHandler(this);
         }
 
         public void Activate(ExtensionHostContext hostContext)
@@ -44,7 +44,11 @@ namespace Phinix.TradeExtension.Server
 
             if (loginForwarder == null)
             {
-                loginForwarder = (_, args) => tradeApi.HandleUserLoggedIn(args.ConnectionId, null, args.Uuid, packetDispatcher.Send);
+                loginForwarder = (_, args) => tradeApi.HandleUserLoggedIn(
+                    args.ConnectionId,
+                    null,
+                    args.Uuid,
+                    (connectionId, packet) => packetDispatcher.Send(connectionId, packet, ExtensionId));
             }
 
             tradeApi.OnLogEntry += logForwarder;
@@ -111,7 +115,7 @@ namespace Phinix.TradeExtension.Server
 
             return new ServerIncomingCommandResult
             {
-                Action = MessageHandlingResultAction.Handled
+                Action = MessageHandlingResultAction.Handle
             };
         }
     }

@@ -5,7 +5,7 @@ using Utils.Framework;
 namespace PhinixServer.Extensions
 {
     [PhinixExtension("sample.red_packet")]
-    public sealed class RedPacketServerExtension : IPhinixExtensionModule, ICapabilityProvider, IServerMessageHandler
+    public sealed class RedPacketServerExtension : IPhinixExtensionModule, ICapabilityProvider, IServerDefaultMessageHandler
     {
         public string ExtensionId => "sample.red_packet";
 
@@ -14,7 +14,7 @@ namespace PhinixServer.Extensions
         public void Register(IExtensionBuilder builder)
         {
             builder.AddCapabilityProvider(this);
-            builder.AddServerMessageHandler(this);
+            builder.AddServerDefaultMessageHandler(this);
         }
 
         public IEnumerable<string> GetCapabilities()
@@ -34,7 +34,7 @@ namespace PhinixServer.Extensions
 
             return new ServerIncomingMessageResult
             {
-                Action = MessageHandlingResultAction.Handled
+                Action = MessageHandlingResultAction.Handle
             };
         }
     }

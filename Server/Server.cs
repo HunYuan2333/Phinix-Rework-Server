@@ -56,10 +56,15 @@ namespace PhinixServer
                 StorageProvider = new FileSystemExtensionStorageProvider(System.IO.Path.Combine("framework-extensions", "server"))
             };
             extensionHostContext.AddService(UserManager);
-            extensionHostContext.AddService<IFrameworkServerPacketDispatcher>(
-                new FrameworkServerPacketDispatcher(new FrameworkServerPacketDispatcher.NetServerAdapter(Connections)));
+            FrameworkServerPacketDispatcher frameworkPacketDispatcher = new FrameworkServerPacketDispatcher();
+            extensionHostContext.AddService<IFrameworkServerPacketDispatcher>(frameworkPacketDispatcher);
             extensionHostContext.SetOption("builtin.chat.history-capacity", Config.ChatHistoryLength.ToString());
+            ExtensionAssemblyLoader.LoadAssemblies(
+                new[] { AppContext.BaseDirectory },
+                (message, level) => ILoggableHandler(typeof(Server), new LogEventArgs(message, level)));
             Framework = new PhinixFrameworkServer(Connections, Authenticator, UserManager, extensionHostContext);
+            frameworkPacketDispatcher.Configure((connectionId, sourceExtensionId, packet) =>
+                Framework?.DispatchExtensionPacket(sourceExtensionId, connectionId, packet));
 
             // Add handler for ILoggable modules
             Authenticator.OnLogEntry += ILoggableHandler;

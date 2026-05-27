@@ -1,9 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Reflection;
 using Authentication;
 using Connections;
-using Phinix.TradeExtension.Server;
-using PhinixServer.Framework;
 using UserManagement;
 
 namespace PhinixServer
@@ -24,10 +23,28 @@ namespace PhinixServer
             Console.WriteLine("Connections: " + NetCommon.Version);
             Console.WriteLine("Authentication: " + Authenticator.Version);
             Console.WriteLine("UserManagement: " + UserManager.Version);
-            Console.WriteLine("FrameworkChat: " + Server.Version);
-            Console.WriteLine("FrameworkTrade: " + typeof(PhinixFrameworkTradeServerService).Assembly.GetName().Version);
+            Console.WriteLine("FrameworkChat: " + GetAssemblyVersion("ChatExtension.Server"));
+            Console.WriteLine("FrameworkTrade: " + GetAssemblyVersion("TradeExtension.Server"));
 
             return true;
+        }
+
+        private static string GetAssemblyVersion(string assemblyName)
+        {
+            if (string.IsNullOrWhiteSpace(assemblyName))
+            {
+                return "unknown";
+            }
+
+            foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                if (string.Equals(assembly.GetName().Name, assemblyName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return assembly.GetName().Version?.ToString() ?? "unknown";
+                }
+            }
+
+            return "not loaded";
         }
     }
 }

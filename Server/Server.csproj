@@ -18,6 +18,7 @@
     <Compile Include="Logger.cs" />
     <Compile Include="Server.cs" />
     <Compile Include="Commands\*.cs" />
+    <Compile Include="Extensions\FrameworkPipelineLoggingServerExtension.cs" />
     <Compile Include="Extensions\RedPacketServerExtension.cs" />
     <Compile Include="Framework\FrameworkServerPacketDispatcher.cs" />
     <Compile Include="Framework\PhinixFrameworkServer.cs" />
@@ -26,14 +27,36 @@
 
   <ItemGroup>
     <ProjectReference Include="Authentication.Server\Authentication.Server.csproj" />
-    <ProjectReference Include="..\Extensions\Chat\Server\ChatExtension.Server.csproj" />
     <ProjectReference Include="..\Extensions\Chat\Contracts\ChatExtension.csproj" />
     <ProjectReference Include="..\Common\Connections\Connections.csproj" />
-    <ProjectReference Include="..\Extensions\Trade\Server\TradeExtension.Server.csproj" />
     <ProjectReference Include="..\Extensions\Trade\Contracts\TradeExtension.csproj" />
     <ProjectReference Include="..\Common\UserManagement\UserManagement.csproj" />
     <ProjectReference Include="UserManagement.Server\UserManagement.Server.csproj" />
     <ProjectReference Include="..\Common\Utils\Utils.csproj" />
     <ProjectReference Include="ServerRuntime\ServerRuntime.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <OfficialServerExtensionProject Include="..\Extensions\Chat\Server\ChatExtension.Server.csproj" />
+    <OfficialServerExtensionProject Include="..\Extensions\Trade\Server\TradeExtension.Server.csproj" />
+  </ItemGroup>
+
+  <Target Name="CopyOfficialServerExtensions" AfterTargets="Build">
+    <MSBuild
+      Projects="@(OfficialServerExtensionProject)"
+      Targets="Build"
+      Properties="Configuration=$(Configuration);TargetFramework=net10.0" />
+
+    <MSBuild
+      Projects="@(OfficialServerExtensionProject)"
+      Targets="GetTargetPath"
+      Properties="Configuration=$(Configuration);TargetFramework=net10.0">
+      <Output TaskParameter="TargetOutputs" ItemName="_OfficialServerExtensionOutput" />
+    </MSBuild>
+
+    <Copy
+      SourceFiles="@(_OfficialServerExtensionOutput)"
+      DestinationFolder="$(OutDir)"
+      SkipUnchangedFiles="true" />
+  </Target>
 </Project>

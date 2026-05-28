@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Reflection;
@@ -60,7 +61,7 @@ namespace PhinixServer
             extensionHostContext.AddService<IFrameworkServerPacketDispatcher>(frameworkPacketDispatcher);
             extensionHostContext.SetOption("builtin.chat.history-capacity", Config.ChatHistoryLength.ToString());
             ExtensionAssemblyLoader.LoadAssemblies(
-                new[] { AppContext.BaseDirectory },
+                GetExtensionProbeDirectories(),
                 (message, level) => ILoggableHandler(typeof(Server), new LogEventArgs(message, level)));
             Framework = new PhinixFrameworkServer(Connections, Authenticator, UserManager, extensionHostContext);
             frameworkPacketDispatcher.Configure((connectionId, sourceExtensionId, packet) =>
@@ -121,6 +122,18 @@ namespace PhinixServer
                 // Interpret the command and its arguments
                 interpreter.Run(command, arguments);
             }
+        }
+
+        private static IEnumerable<string> GetExtensionProbeDirectories()
+        {
+            string appBaseDirectory = AppContext.BaseDirectory;
+            if (string.IsNullOrEmpty(appBaseDirectory))
+            {
+                yield break;
+            }
+
+            yield return Path.Combine(appBaseDirectory, "Extensions");
+            yield return Path.GetFullPath(Path.Combine(appBaseDirectory, "..", "..", "..", "Extensions"));
         }
 
         /// <summary>

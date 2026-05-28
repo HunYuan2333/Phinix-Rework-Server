@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Utils;
 using Utils.Framework;
 
 namespace Phinix.TradeExtension.Server
@@ -97,6 +98,8 @@ namespace Phinix.TradeExtension.Server
 
         public ServerIncomingCommandResult HandleIncomingCommand(FrameworkPacket command, ServerFrameworkContext context)
         {
+            context.Log?.Invoke($"[TradeServer] HandleIncomingCommand: type={command.MessageType}, from={context.SenderUuid}", LogLevel.INFO);
+
             switch (command.MessageType)
             {
                 case FrameworkTradeProtocol.SnapshotType:

@@ -133,7 +133,6 @@ namespace PhinixServer
             }
 
             yield return Path.Combine(appBaseDirectory, "Extensions");
-            yield return Path.GetFullPath(Path.Combine(appBaseDirectory, "..", "..", "..", "Extensions"));
         }
 
         /// <summary>

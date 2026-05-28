@@ -134,11 +134,22 @@ namespace Phinix.TradeExtension.Server
                 return;
             }
 
+            RaiseLogEntry(new LogEventArgs(
+                $"[TradeServer] HandleStatusUpdate: tradeId={payload.TradeId}, from={context.SenderUuid}, " +
+                $"accepted={payload.Accepted}, cancelled={payload.Cancelled}, connectionId={context.ConnectionId}",
+                LogLevel.INFO));
+
             if (!store.TrySetStatus(payload.TradeId, context.SenderUuid, payload.Accepted, payload.Cancelled, out FrameworkTradeStateSnapshot snapshot, out bool completed, out bool wasCancelled, out FrameworkTradeFailureReason failureReason))
             {
+                RaiseLogEntry(new LogEventArgs($"[TradeServer] HandleStatusUpdate: FAILED tradeId={payload.TradeId}, reason={failureReason}", LogLevel.WARNING));
                 SendStatusUpdateResponse(context.ConnectionId, context, false, payload.TradeId, failureReason, "Trade status update failed.", command.GetCorrelationId());
                 return;
             }
+
+            RaiseLogEntry(new LogEventArgs(
+                $"[TradeServer] HandleStatusUpdate: SUCCESS tradeId={payload.TradeId}, completed={completed}, " +
+                $"participants=[{string.Join(",", snapshot.Participants?.Select(p => p.Uuid) ?? Array.Empty<string>())}]",
+                LogLevel.INFO));
 
             SendStatusUpdateResponse(
                 context.ConnectionId,
@@ -151,11 +162,13 @@ namespace Phinix.TradeExtension.Server
 
             if (completed)
             {
+                RaiseLogEntry(new LogEventArgs($"[TradeServer] HandleStatusUpdate: trade COMPLETED, wasCancelled={wasCancelled}", LogLevel.INFO));
                 store.QueueCompletionNotifications(snapshot, wasCancelled);
                 SendCompletionEvents(snapshot, context, wasCancelled, command.GetCorrelationId());
                 return;
             }
 
+            RaiseLogEntry(new LogEventArgs($"[TradeServer] HandleStatusUpdate: broadcasting snapshot to participants", LogLevel.INFO));
             BroadcastSnapshot(snapshot, context, payload.TradeId, command.GetCorrelationId());
         }
 
@@ -170,9 +183,15 @@ namespace Phinix.TradeExtension.Server
             {
                 if (!userManager.TryGetConnection(participant.Uuid, out string connectionId))
                 {
+                    RaiseLogEntry(new LogEventArgs(
+                        $"[TradeServer] BroadcastSnapshot: SKIPPED uuid={participant.Uuid} — no connection found",
+                        LogLevel.WARNING));
                     continue;
                 }
 
+                RaiseLogEntry(new LogEventArgs(
+                    $"[TradeServer] BroadcastSnapshot: sending snapshot to uuid={participant.Uuid} via connectionId={connectionId}",
+                    LogLevel.INFO));
                 SendSnapshot(connectionId, context, snapshot, correlationId);
             }
         }
@@ -281,6 +300,9 @@ namespace Phinix.TradeExtension.Server
             {
                 if (!userManager.TryGetConnection(participant.Uuid, out string connectionId))
                 {
+                    RaiseLogEntry(new LogEventArgs(
+                        $"[TradeServer] SendCompletionEvents: SKIPPED uuid={participant.Uuid} — no connection found",
+                        LogLevel.WARNING));
                     continue;
                 }
 
@@ -289,9 +311,15 @@ namespace Phinix.TradeExtension.Server
                     .SingleOrDefault(candidate => candidate.TradeId == snapshot.TradeId);
                 if (notification == null)
                 {
+                    RaiseLogEntry(new LogEventArgs(
+                        $"[TradeServer] SendCompletionEvents: SKIPPED uuid={participant.Uuid} — no pending notification for tradeId={snapshot.TradeId}",
+                        LogLevel.WARNING));
                     continue;
                 }
 
+                RaiseLogEntry(new LogEventArgs(
+                    $"[TradeServer] SendCompletionEvents: sending completion to uuid={participant.Uuid} via connectionId={connectionId}, cancelled={cancelled}",
+                    LogLevel.INFO));
                 SendCompletionEvent(connectionId, context.SessionId, notification, context.SendMessage, correlationId);
                 store.MarkCompletionNotificationDelivered(notification.TradeId, participant.Uuid);
             }

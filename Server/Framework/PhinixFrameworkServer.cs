@@ -212,6 +212,8 @@ namespace PhinixServer.Framework
 
         private void handleCommand(string connectionId, FrameworkPacket command)
         {
+            RaiseLogEntry(new LogEventArgs($"Received framework command '{command.MessageType}' flow={command.Flow} kind={command.Kind} from {connectionId}", LogLevel.INFO));
+
             if (!authenticator.IsAuthenticated(connectionId, command.SessionId) || !userManager.IsLoggedIn(connectionId, command.SenderUuid))
             {
                 RaiseLogEntry(new LogEventArgs(
@@ -230,6 +232,10 @@ namespace PhinixServer.Framework
             if (!pipelineRunner.ProcessIncomingCommand(command, createServerContext(connectionId, command.SenderUuid, command.SessionId, null)))
             {
                 RaiseLogEntry(new LogEventArgs($"No server framework command handler registered for command type '{command.MessageType}'.", LogLevel.WARNING));
+            }
+            else
+            {
+                RaiseLogEntry(new LogEventArgs($"Framework command '{command.MessageType}' processed successfully.", LogLevel.INFO));
             }
         }
 

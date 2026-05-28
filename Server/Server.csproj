@@ -42,11 +42,6 @@
   </ItemGroup>
 
   <Target Name="CopyOfficialServerExtensions" AfterTargets="Build">
-    <PropertyGroup>
-      <ServerProjectExtensionDir>$(MSBuildProjectDirectory)\Extensions</ServerProjectExtensionDir>
-      <ServerOutputExtensionDir>$(OutDir)Extensions</ServerOutputExtensionDir>
-    </PropertyGroup>
-
     <MSBuild
       Projects="@(OfficialServerExtensionProject)"
       Targets="Build"
@@ -59,14 +54,10 @@
       <Output TaskParameter="TargetOutputs" ItemName="_OfficialServerExtensionOutput" />
     </MSBuild>
 
-    <MakeDir Directories="$(ServerOutputExtensionDir);$(ServerProjectExtensionDir)" />
+    <MakeDir Directories="$(OutDir)Extensions" />
     <Copy
       SourceFiles="@(_OfficialServerExtensionOutput)"
-      DestinationFolder="$(ServerOutputExtensionDir)"
-      SkipUnchangedFiles="true" />
-    <Copy
-      SourceFiles="@(_OfficialServerExtensionOutput)"
-      DestinationFolder="$(ServerProjectExtensionDir)"
+      DestinationFolder="$(OutDir)Extensions"
       SkipUnchangedFiles="true" />
   </Target>
 </Project>

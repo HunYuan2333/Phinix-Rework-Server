@@ -3,13 +3,9 @@ name: Publish docker image
 on:
   push:
     branches:
-      - 'master'
-      - 'dev'
+      - main
     tags:
       - 'v*'
-  release:
-    types:
-      - 'published'
 
 jobs:
   build_and_push:
@@ -33,9 +29,7 @@ jobs:
       with:
         images: hunyuan23333/phinix-rework
         tags: |
-          # Publish 'latest' on master, and '1.2.3' on any 'v1.2.3' tags
           type=raw,value=latest,enable={{is_default_branch}}
-          type=raw,value=dev,enable=${{ github.ref == format('refs/heads/{0}', 'dev') }}
           type=semver,pattern={{version}}
 
     - name: Publish to Docker Hub

@@ -133,6 +133,7 @@ namespace PhinixServer
             }
 
             yield return Path.Combine(appBaseDirectory, "Extensions");
+            yield return Path.Combine(appBaseDirectory, "UserExtensions");
         }
 
         /// <summary>

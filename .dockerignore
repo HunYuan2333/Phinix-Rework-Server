@@ -1,0 +1,16 @@
+**/.git
+**/.vs
+**/bin
+**/obj
+**/Output
+Client/
+GameDlls/
+docs/
+.claude/
+*.md
+.gitignore
+.gitmodules
+.gitattributes
+.travis.yml
+.abstruse.yml
+.editorconfig

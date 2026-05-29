@@ -12,4 +12,8 @@
       <Link>ConsoleHighlighting.cs</Link>
     </Compile>
   </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Common\Utils\Utils.csproj" />
+  </ItemGroup>
 </Project>

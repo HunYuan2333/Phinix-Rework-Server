@@ -1,31 +1,34 @@
-# Build on top of Mono
-FROM mono:latest AS build
+# Build stage
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 
-# Set our working directory to build from source
-WORKDIR /src/
+WORKDIR /src
 
-# Copy all project directories and files
+# Copy only what's needed for server build
 COPY nuget.config ./
 COPY Phinix.sln ./
-COPY Server ./Server/
-COPY Common ./Common/
-COPY Dependencies ./Dependencies/
+COPY Server/ ./Server/
+COPY Common/ ./Common/
+COPY Dependencies/ ./Dependencies/
+COPY Extensions/ ./Extensions/
+COPY .nuget/ ./.nuget/
 
-# Restore NuGet packages and build
-RUN nuget restore Phinix.sln && \
-    msbuild Phinix.sln /t:Build /p:Configuration=TravisCI
+# Restore packages (including extension server projects built by CopyOfficialServerExtensions)
+RUN dotnet restore Server/Server.csproj && \
+    dotnet restore Extensions/Chat/Server/ChatExtension.Server.csproj && \
+    dotnet restore Extensions/Trade/Server/TradeExtension.Server.csproj
 
-# Start fresh using a lighter Alpine image
-FROM frolvlad/alpine-mono:latest
+# Build server (this also builds extension Server DLLs via CopyOfficialServerExtensions target)
+RUN dotnet build Server/Server.csproj -c Release -o /out --no-restore
 
-# Make a spot for the server to sit
-WORKDIR /server/
+# Runtime stage
+FROM mcr.microsoft.com/dotnet/runtime:10.0
 
-# Copy the build result into the server dir
-COPY --from=build /src/Server/bin/Release/*.dll /src/Server/bin/Release/PhinixServer.exe ./
+# CWD is the data directory — server saves config, logs, databases here
+WORKDIR /data
 
-# Expose the default port
-EXPOSE 16200
+# Copy build output to /app (AppContext.BaseDirectory → Extensions at /app/Extensions/)
+COPY --from=build /out /app/
 
-# Run the server
-CMD ["mono", "PhinixServer.exe"]
+EXPOSE 16200/udp
+
+CMD ["dotnet", "/app/PhinixServer.dll"]

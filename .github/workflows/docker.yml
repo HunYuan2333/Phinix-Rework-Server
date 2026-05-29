@@ -31,7 +31,7 @@ jobs:
       id: tags
       uses: docker/metadata-action@master
       with:
-        images: thomotron/phinix
+        images: hunyuan23333/phinix-rework
         tags: |
           # Publish 'latest' on master, and '1.2.3' on any 'v1.2.3' tags
           type=raw,value=latest,enable={{is_default_branch}}

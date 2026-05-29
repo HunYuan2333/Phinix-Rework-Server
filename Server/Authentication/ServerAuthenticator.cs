@@ -84,6 +84,15 @@ namespace Authentication
             netServer.OnConnectionClosed += ConnectionClosedHandler;
         }
 
+        /// <summary>
+        /// Stops the session cleanup timer and disposes it.
+        /// </summary>
+        public void Stop()
+        {
+            sessionCleanupTimer.Stop();
+            sessionCleanupTimer.Dispose();
+        }
+
         public ServerAuthenticator(NetServer netServer, string serverName, string serverDescription, AuthTypes authType, string credentialStorePath) : this(netServer, serverName, serverDescription, authType)
         {
             Load(credentialStorePath);
@@ -314,7 +323,8 @@ namespace Authentication
             // Pack it into an Any message
             Any packedHello = ProtobufPacketHelper.Pack(hello);
 
-            // Try send it
+            // Try send it — don't disconnect on failure here: LiteNetLib may not
+            // have fully transitioned the peer to Connected by the time this event fires.
             if (!netServer.TrySend(e.ConnectionId, MODULE_NAME, packedHello.ToByteArray()))
             {
                 RaiseLogEntry(new LogEventArgs("Failed to send HelloPacket to connection " + e.ConnectionId.Highlight(HighlightType.ConnectionID), LogLevel.ERROR));
@@ -332,8 +342,8 @@ namespace Authentication
                 {
                     Session session = sessions[e.ConnectionId];
 
-                    // Remove the session
-                    sessions.Remove(session.SessionId);
+                    // Remove the session by connection ID (the dictionary key)
+                    sessions.Remove(e.ConnectionId);
                 }
             }
         }
@@ -514,7 +524,8 @@ namespace Authentication
             // Send it
             if (!netServer.TrySend(connectionId, MODULE_NAME, packedResponse.ToByteArray()))
             {
-                RaiseLogEntry(new LogEventArgs("Failed to send AuthResponsePacket to connection " + connectionId.Highlight(HighlightType.ConnectionID), LogLevel.ERROR));
+                RaiseLogEntry(new LogEventArgs("Failed to send AuthResponsePacket to connection " + connectionId.Highlight(HighlightType.ConnectionID) + ", disconnecting", LogLevel.ERROR));
+                netServer.DisconnectPeer(connectionId);
             }
         }
 
@@ -542,7 +553,8 @@ namespace Authentication
             // Send it
             if (!netServer.TrySend(connectionId, MODULE_NAME, packedResponse.ToByteArray()))
             {
-                RaiseLogEntry(new LogEventArgs("Failed to send AuthResponsePacket to connection " + connectionId.Highlight(HighlightType.ConnectionID), LogLevel.ERROR));
+                RaiseLogEntry(new LogEventArgs("Failed to send AuthResponsePacket to connection " + connectionId.Highlight(HighlightType.ConnectionID) + ", disconnecting", LogLevel.ERROR));
+                netServer.DisconnectPeer(connectionId);
             }
         }
 
@@ -593,7 +605,8 @@ namespace Authentication
             // Send it on its way
             if (!netServer.TrySend(connectionId, MODULE_NAME, packedPacket.ToByteArray()))
             {
-                RaiseLogEntry(new LogEventArgs("Failed to send ExtendSessionResponsePacket to connection " + connectionId.Highlight(HighlightType.ConnectionID), LogLevel.ERROR));
+                RaiseLogEntry(new LogEventArgs("Failed to send ExtendSessionResponsePacket to connection " + connectionId.Highlight(HighlightType.ConnectionID) + ", disconnecting", LogLevel.ERROR));
+                netServer.DisconnectPeer(connectionId);
             }
         }
 
@@ -615,7 +628,8 @@ namespace Authentication
             // Send it on its way
             if (!netServer.TrySend(connectionId, MODULE_NAME, packedPacket.ToByteArray()))
             {
-                RaiseLogEntry(new LogEventArgs("Failed to send ExtendSessionResponsePacket to connection " + connectionId.Highlight(HighlightType.ConnectionID), LogLevel.ERROR));
+                RaiseLogEntry(new LogEventArgs("Failed to send ExtendSessionResponsePacket to connection " + connectionId.Highlight(HighlightType.ConnectionID) + ", disconnecting", LogLevel.ERROR));
+                netServer.DisconnectPeer(connectionId);
             }
         }
 

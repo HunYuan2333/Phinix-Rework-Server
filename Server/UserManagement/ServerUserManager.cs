@@ -523,7 +523,8 @@ namespace UserManagement
             // Send it on its way
             if (!netServer.TrySend(connectionId, MODULE_NAME, packedResponse.ToByteArray()))
             {
-                RaiseLogEntry(new LogEventArgs("Failed to send LoginResponsePacket to connection " + connectionId.Highlight(HighlightType.ConnectionID), LogLevel.ERROR));
+                RaiseLogEntry(new LogEventArgs("Failed to send LoginResponsePacket to connection " + connectionId.Highlight(HighlightType.ConnectionID) + ", disconnecting", LogLevel.ERROR));
+                netServer.DisconnectPeer(connectionId);
             }
         }
 
@@ -549,7 +550,8 @@ namespace UserManagement
             // Send it on its way
             if (!netServer.TrySend(connectionId, MODULE_NAME, packedResponse.ToByteArray()))
             {
-                RaiseLogEntry(new LogEventArgs("Failed to send LoginResponsePacket to connection " + connectionId.Highlight(HighlightType.ConnectionID), LogLevel.ERROR));
+                RaiseLogEntry(new LogEventArgs("Failed to send LoginResponsePacket to connection " + connectionId.Highlight(HighlightType.ConnectionID) + ", disconnecting", LogLevel.ERROR));
+                netServer.DisconnectPeer(connectionId);
             }
         }
 

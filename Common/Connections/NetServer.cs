@@ -43,6 +43,10 @@ namespace Connections
         /// Collection of currently-connected peers organised by their connection ID.
         /// </summary>
         private Dictionary<string, NetPeer> connectedPeers;
+        /// <summary>
+        /// Lock object to prevent race conditions when accessing <see cref="connectedPeers"/>.
+        /// </summary>
+        private readonly object connectedPeersLock = new object();
 
         /// <summary>
         /// Thread that polls the server backend for incoming packets.
@@ -69,15 +73,11 @@ namespace Connections
             {
                 // Add or update the peer's connection
                 string connectionId = peer.ConnectId.ToString("X");
-                if (connectedPeers.ContainsKey(connectionId))
+                lock (connectedPeersLock)
                 {
                     connectedPeers[connectionId] = peer;
                 }
-                else
-                {
-                    connectedPeers.Add(connectionId, peer);
-                }
-                
+
                 // Raise the connection established event for this peer
                 OnConnectionEstablished?.Invoke(this, new ConnectionEventArgs(connectionId));
             };
@@ -85,8 +85,11 @@ namespace Connections
             {
                 // Remove the peer's connection
                 string connectionId = peer.ConnectId.ToString("X");
-                connectedPeers.Remove(connectionId);
-                
+                lock (connectedPeersLock)
+                {
+                    connectedPeers.Remove(connectionId);
+                }
+
                 // Raise the connection established event for this peer
                 OnConnectionClosed?.Invoke(this, new ConnectionEventArgs(connectionId));
             };
@@ -123,8 +126,11 @@ namespace Connections
         public void Stop()
         {
             server.Stop();
-            connectedPeers.Clear();
-            
+            lock (connectedPeersLock)
+            {
+                connectedPeers.Clear();
+            }
+
             pollThreadStopRequested = true;
             Thread activePollThread = pollThread;
             pollThread = null;
@@ -154,14 +160,18 @@ namespace Connections
             if (string.IsNullOrEmpty(module)) throw new ArgumentException("Module cannot be null or empty", nameof(module));
             if (serialisedMessage == null) throw new ArgumentNullException(nameof(serialisedMessage), "Serialised message cannot be null");
 
-            // Check the connection exists
-            if (!connectedPeers.ContainsKey(connectionId))
+            NetPeer peer;
+            lock (connectedPeersLock)
             {
-                throw new NotConnectedException();
-            }
+                // Check the connection exists
+                if (!connectedPeers.ContainsKey(connectionId))
+                {
+                    throw new NotConnectedException();
+                }
 
-            // Get the connection by it's ID
-            NetPeer peer = connectedPeers[connectionId];
+                // Get the connection by it's ID
+                peer = connectedPeers[connectionId];
+            }
 
             // Make sure the connection is open
             if (peer.ConnectionState != ConnectionState.Connected)
@@ -226,5 +236,21 @@ namespace Connections
                 return false;
             }
         }
+
+        /// <summary>
+        /// Disconnects a specific peer by connection ID and removes it from the connected peers dictionary.
+        /// </summary>
+        /// <param name="connectionId">Connection ID of the peer to disconnect</param>
+        public void DisconnectPeer(string connectionId)
+        {
+            NetPeer peer;
+            lock (connectedPeersLock)
+            {
+                if (!connectedPeers.TryGetValue(connectionId, out peer)) return;
+                connectedPeers.Remove(connectionId);
+            }
+            server.DisconnectPeer(peer);
+        }
+
     }
 }

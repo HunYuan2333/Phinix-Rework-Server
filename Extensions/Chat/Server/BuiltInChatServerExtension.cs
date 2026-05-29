@@ -67,7 +67,16 @@ namespace Phinix.ChatExtension.Server
 
         public ServerIncomingMessageResult HandleIncomingMessage(FrameworkPacket message, ServerFrameworkContext context)
         {
-            global::Phinix.Framework.BuiltInChatMessagePayload incomingPacket = global::Phinix.Framework.BuiltInChatMessagePayload.Parser.ParseFrom(message.PayloadBytes ?? Array.Empty<byte>());
+            global::Phinix.Framework.BuiltInChatMessagePayload incomingPacket;
+            try
+            {
+                incomingPacket = global::Phinix.Framework.BuiltInChatMessagePayload.Parser.ParseFrom(message.PayloadBytes ?? Array.Empty<byte>());
+            }
+            catch (Exception)
+            {
+                return new ServerIncomingMessageResult { Action = MessageHandlingResultAction.Handle };
+            }
+
             global::Phinix.Framework.BuiltInChatMessagePayload storedMessage = chatApi.AddMessage(context.SenderUuid, incomingPacket.Message);
             context.BroadcastMessage?.Invoke(chatApi.BuildBroadcastPacket(storedMessage), null);
 

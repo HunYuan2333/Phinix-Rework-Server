@@ -169,6 +169,7 @@ namespace PhinixServer
 
             // Stop the save timer
             saveTimer.Stop();
+            saveTimer.Dispose();
 
             // Log everyone out
             UserManager.LogOutAll();
@@ -177,6 +178,7 @@ namespace PhinixServer
             Connections.Stop();
 
             // Save module states
+            Authenticator.Stop();
             Authenticator.Save(Config.CredentialDatabasePath);
             UserManager.Save(Config.UserDatabasePath);
             Framework.SaveExtensionState();

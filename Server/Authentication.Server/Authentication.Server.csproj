@@ -20,6 +20,7 @@
     <ProjectReference Include="..\..\Dependencies\protobuf\csharp\src\Google.Protobuf\Google.Protobuf.csproj" />
     <ProjectReference Include="..\..\Common\Authentication\Authentication.csproj" />
     <ProjectReference Include="..\..\Common\Connections\Connections.csproj" />
+    <ProjectReference Include="..\Connections.Server\Connections.Server.csproj" />
     <ProjectReference Include="..\..\Common\Utils\Utils.csproj" />
     <ProjectReference Include="..\ServerRuntime\ServerRuntime.csproj" />
   </ItemGroup>

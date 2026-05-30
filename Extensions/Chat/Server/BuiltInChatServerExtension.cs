@@ -20,8 +20,16 @@ namespace Phinix.ChatExtension.Server
 
         public void Register(IExtensionBuilder builder)
         {
+            var configProvider = builder.HostContext.TryGetService<IExtensionConfigProvider>(out var provider)
+                ? provider
+                : null;
+            ChatServerConfig config = configProvider != null
+                ? configProvider.GetConfig<ChatServerConfig>()
+                : new ChatServerConfig();
+            config.Validate();
+
             chatApi = chatApi ?? new PhinixFrameworkChatService(
-                builder.HostContext.GetIntOption(HistoryCapacityOption, 100),
+                config.HistoryLength,
                 builder.HostContext.GetRequiredService<UserManagement.ServerUserManager>());
             builder.RegisterApi(chatApi);
             builder.HostContext.RegisterPersistent(ExtensionId, HistoryStorageName, chatApi);

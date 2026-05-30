@@ -15,5 +15,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Common\Utils\Utils.csproj" />
+    <ProjectReference Include="..\..\Common\Connections\Connections.csproj" />
   </ItemGroup>
 </Project>

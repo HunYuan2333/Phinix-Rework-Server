@@ -33,11 +33,10 @@ namespace PhinixServer.Framework
             this.userManager = userManager;
             this.extensionHostContext = extensionHostContext ?? ExtensionHostContext.Empty;
             this.discoveredExtensions = PhinixExtensionRegistry.DiscoverExtensions(this.extensionHostContext);
-            this.pipelineRunner = new ServerPipelineRunner();
             this.serverCapabilities = new HashSet<string>(PhinixExtensionRegistry.CollectCapabilities(discoveredExtensions), StringComparer.OrdinalIgnoreCase);
             PhinixExtensionRegistry.ActivateExtensions(discoveredExtensions, this.extensionHostContext);
             LoadExtensionState();
-            hydratePipelineRunner();
+            this.pipelineRunner = buildPipelineRunner();
 
             netServer.RegisterPacketHandler(FrameworkProtocol.ModuleName, packetHandler);
             netServer.OnConnectionClosed += (_, args) =>
@@ -157,6 +156,13 @@ namespace PhinixServer.Framework
                     }
                     handleCommand(connectionId, packet);
                     break;
+                case FrameworkProtocol.KindItem:
+                    if (packet.Flow == global::Phinix.Framework.FrameworkFlow.Unspecified)
+                    {
+                        packet.Flow = global::Phinix.Framework.FrameworkFlow.Item;
+                    }
+                    handleItem(connectionId, packet);
+                    break;
                 default:
                     RaiseLogEntry(new LogEventArgs($"Received unsupported framework packet kind '{packet.Kind}'", LogLevel.DEBUG));
                     break;
@@ -240,6 +246,35 @@ namespace PhinixServer.Framework
             }
         }
 
+        private void handleItem(string connectionId, FrameworkPacket item)
+        {
+            RaiseLogEntry(new LogEventArgs($"Received framework item '{item.MessageType}' flow={item.Flow} kind={item.Kind} from {connectionId}", LogLevel.INFO));
+
+            if (!authenticator.IsAuthenticated(connectionId, item.SessionId) || !userManager.IsLoggedIn(connectionId, item.SenderUuid))
+            {
+                RaiseLogEntry(new LogEventArgs(
+                    $"Rejected framework item '{item.MessageType}' from unauthenticated connection {connectionId.Highlight(HighlightType.ConnectionID)} " +
+                    $"(session='{item.SessionId ?? "<null>"}', sender='{item.SenderUuid ?? "<null>"}')",
+                    LogLevel.WARNING));
+                return;
+            }
+
+            if (!connectionHasCapability(connectionId, item.MessageType))
+            {
+                RaiseLogEntry(new LogEventArgs($"Rejected framework item '{item.MessageType}' from connection {connectionId.Highlight(HighlightType.ConnectionID)} because the capability was not negotiated.", LogLevel.WARNING));
+                return;
+            }
+
+            if (!pipelineRunner.ProcessIncomingItem(item, createServerContext(connectionId, item.SenderUuid, item.SessionId, null)))
+            {
+                RaiseLogEntry(new LogEventArgs($"No item codec registered for item type '{item.MessageType}'.", LogLevel.DEBUG));
+            }
+            else
+            {
+                RaiseLogEntry(new LogEventArgs($"Framework item '{item.MessageType}' processed successfully.", LogLevel.INFO));
+            }
+        }
+
         private bool isConnectionFrameworkCapable(string connectionId)
         {
             lock (connectionCapabilitiesLock)
@@ -271,42 +306,53 @@ namespace PhinixServer.Framework
             }
         }
 
-        private void hydratePipelineRunner()
+        private ServerPipelineRunner buildPipelineRunner()
         {
-            foreach (IServerInboundMessageInterceptor interceptor in discoveredExtensions.ServerInboundMessageInterceptors)
-            {
-                pipelineRunner.InboundMessageInterceptors.Add(new BoundServerInboundMessageInterceptor(interceptor, getExtensionId(interceptor)));
-            }
+            var inboundMessageInterceptors = discoveredExtensions.ServerInboundMessageInterceptors
+                .Select(interceptor => new BoundServerInboundMessageInterceptor(interceptor, getExtensionId(interceptor)))
+                .OrderBy(i => i.Priority)
+                .ToList();
 
-            foreach (IServerDefaultMessageHandler handler in discoveredExtensions.ServerDefaultMessageHandlers)
-            {
-                pipelineRunner.DefaultMessageHandlers.Add(new BoundServerDefaultMessageHandler(handler, getExtensionId(handler)));
-            }
+            var defaultMessageHandlers = discoveredExtensions.ServerDefaultMessageHandlers
+                .Select(handler => new BoundServerDefaultMessageHandler(handler, getExtensionId(handler)))
+                .OrderBy(h => h.Priority)
+                .ToList();
 
-            foreach (IServerMessageObserver observer in discoveredExtensions.ServerMessageObservers)
-            {
-                pipelineRunner.MessageObservers.Add(new BoundServerMessageObserver(observer, getExtensionId(observer)));
-            }
+            var messageObservers = discoveredExtensions.ServerMessageObservers
+                .Select(observer => new BoundServerMessageObserver(observer, getExtensionId(observer)))
+                .OrderBy(o => o.Priority)
+                .ToList();
 
-            foreach (IServerInboundCommandInterceptor interceptor in discoveredExtensions.ServerInboundCommandInterceptors)
-            {
-                pipelineRunner.InboundCommandInterceptors.Add(new BoundServerInboundCommandInterceptor(interceptor, getExtensionId(interceptor)));
-            }
+            var inboundCommandInterceptors = discoveredExtensions.ServerInboundCommandInterceptors
+                .Select(interceptor => new BoundServerInboundCommandInterceptor(interceptor, getExtensionId(interceptor)))
+                .OrderBy(i => i.Priority)
+                .ToList();
 
-            foreach (IServerDefaultCommandHandler handler in discoveredExtensions.ServerDefaultCommandHandlers)
-            {
-                pipelineRunner.DefaultCommandHandlers.Add(new BoundServerDefaultCommandHandler(handler, getExtensionId(handler)));
-            }
+            var defaultCommandHandlers = discoveredExtensions.ServerDefaultCommandHandlers
+                .Select(handler => new BoundServerDefaultCommandHandler(handler, getExtensionId(handler)))
+                .OrderBy(h => h.Priority)
+                .ToList();
 
-            foreach (IServerCommandObserver observer in discoveredExtensions.ServerCommandObservers)
-            {
-                pipelineRunner.CommandObservers.Add(new BoundServerCommandObserver(observer, getExtensionId(observer)));
-            }
+            var commandObservers = discoveredExtensions.ServerCommandObservers
+                .Select(observer => new BoundServerCommandObserver(observer, getExtensionId(observer)))
+                .OrderBy(o => o.Priority)
+                .ToList();
 
-            foreach (IServerOutboundPacketInterceptor interceptor in discoveredExtensions.ServerOutboundPacketInterceptors)
-            {
-                pipelineRunner.OutboundPacketInterceptors.Add(interceptor);
-            }
+            var outboundPacketInterceptors = discoveredExtensions.ServerOutboundPacketInterceptors
+                .OrderBy(i => i.Priority)
+                .ToList();
+
+            var itemCodecs = discoveredExtensions.ItemCodecs.ToList();
+
+            return new ServerPipelineRunner(
+                inboundMessageInterceptors,
+                defaultMessageHandlers,
+                messageObservers,
+                inboundCommandInterceptors,
+                defaultCommandHandlers,
+                commandObservers,
+                outboundPacketInterceptors,
+                itemCodecs);
         }
 
         private ServerFrameworkContext createServerContext(string connectionId, string senderUuid, string sessionId, string sourceExtensionId)

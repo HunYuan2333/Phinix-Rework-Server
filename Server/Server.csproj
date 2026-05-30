@@ -19,7 +19,6 @@
     <Compile Include="Server.cs" />
     <Compile Include="Commands\*.cs" />
     <Compile Include="Extensions\FrameworkPipelineLoggingServerExtension.cs" />
-    <Compile Include="Extensions\RedPacketServerExtension.cs" />
     <Compile Include="Framework\FrameworkServerPacketDispatcher.cs" />
     <Compile Include="Framework\PhinixFrameworkServer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -27,37 +26,52 @@
 
   <ItemGroup>
     <ProjectReference Include="Authentication.Server\Authentication.Server.csproj" />
-    <ProjectReference Include="..\Extensions\Chat\Contracts\ChatExtension.csproj" />
     <ProjectReference Include="..\Common\Connections\Connections.csproj" />
-    <ProjectReference Include="..\Extensions\Trade\Contracts\TradeExtension.csproj" />
+    <ProjectReference Include="Connections.Server\Connections.Server.csproj" />
     <ProjectReference Include="..\Common\UserManagement\UserManagement.csproj" />
     <ProjectReference Include="UserManagement.Server\UserManagement.Server.csproj" />
     <ProjectReference Include="..\Common\Utils\Utils.csproj" />
     <ProjectReference Include="ServerRuntime\ServerRuntime.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <OfficialServerExtensionProject Include="..\Extensions\Chat\Server\ChatExtension.Server.csproj" />
-    <OfficialServerExtensionProject Include="..\Extensions\Trade\Server\TradeExtension.Server.csproj" />
-  </ItemGroup>
-
+  <!--
+    Build and copy official server extensions after Server build.
+    This target handles Build+Copy only — NO ProjectReference, so Server
+    has zero compile-time dependency on any extension.
+    For production/CI, prefer scripts/build-extensions.sh (-all).
+  -->
   <Target Name="CopyOfficialServerExtensions" AfterTargets="Build">
-    <MSBuild
-      Projects="@(OfficialServerExtensionProject)"
-      Targets="Build"
-      Properties="Configuration=$(Configuration);TargetFramework=net10.0" />
-
-    <MSBuild
-      Projects="@(OfficialServerExtensionProject)"
-      Targets="GetTargetPath"
-      Properties="Configuration=$(Configuration);TargetFramework=net10.0">
-      <Output TaskParameter="TargetOutputs" ItemName="_OfficialServerExtensionOutput" />
-    </MSBuild>
+    <!-- Copy extension server DLLs to Extensions/ for runtime loading.
+         Solution build compiles these already — we only copy the outputs.
+         No ProjectReference, so Server has zero compile-time dep on any extension. -->
 
     <MakeDir Directories="$(OutDir)Extensions" />
+
+    <!-- Chat Extension Server -->
     <Copy
-      SourceFiles="@(_OfficialServerExtensionOutput)"
+      SourceFiles="..\Extensions\Chat\Server\bin\$(Configuration)\net10.0\ChatExtension.Server.dll"
       DestinationFolder="$(OutDir)Extensions"
-      SkipUnchangedFiles="true" />
+      SkipUnchangedFiles="true"
+      Condition="Exists('..\Extensions\Chat\Server\bin\$(Configuration)\net10.0\ChatExtension.Server.dll')" />
+
+    <!-- Trade Extension Server -->
+    <Copy
+      SourceFiles="..\Extensions\Trade\Server\bin\$(Configuration)\net10.0\TradeExtension.Server.dll"
+      DestinationFolder="$(OutDir)Extensions"
+      SkipUnchangedFiles="true"
+      Condition="Exists('..\Extensions\Trade\Server\bin\$(Configuration)\net10.0\TradeExtension.Server.dll')" />
+
+    <!-- Contracts DLLs (required at runtime for protobuf types) -->
+    <Copy
+      SourceFiles="..\Extensions\Chat\Contracts\bin\$(Configuration)\net10.0\ChatExtension.dll"
+      DestinationFolder="$(OutDir)Extensions"
+      SkipUnchangedFiles="true"
+      Condition="Exists('..\Extensions\Chat\Contracts\bin\$(Configuration)\net10.0\ChatExtension.dll')" />
+    <Copy
+      SourceFiles="..\Extensions\Trade\Contracts\bin\$(Configuration)\net10.0\TradeExtension.dll"
+      DestinationFolder="$(OutDir)Extensions"
+      SkipUnchangedFiles="true"
+      Condition="Exists('..\Extensions\Trade\Contracts\bin\$(Configuration)\net10.0\TradeExtension.dll')" />
   </Target>
+
 </Project>

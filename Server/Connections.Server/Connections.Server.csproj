@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <ProjectGuid>{D4E5F6A7-B8C9-0123-DEF1-234567890123}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Connections</RootNamespace>
+    <AssemblyName>Connections.Server</AssemblyName>
+    <TargetFramework>net10.0</TargetFramework>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\Common\Connections\NetServer.cs">
+      <Link>NetServer.cs</Link>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="LiteNetLib">
+      <HintPath>..\..\.nuget\LiteNetLib.0.7.7.3\lib\netstandard2.0\LiteNetLib.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Common\Connections\Connections.csproj" />
+    <ProjectReference Include="..\..\Common\Utils\Utils.csproj" />
+  </ItemGroup>
+</Project>

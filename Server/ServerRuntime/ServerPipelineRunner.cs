@@ -8,19 +8,41 @@ namespace ServerRuntime
 {
     public sealed class ServerPipelineRunner
     {
-        public IList<IServerInboundMessageInterceptor> InboundMessageInterceptors { get; } = new List<IServerInboundMessageInterceptor>();
+        public IReadOnlyList<IServerInboundMessageInterceptor> InboundMessageInterceptors { get; }
 
-        public IList<IServerDefaultMessageHandler> DefaultMessageHandlers { get; } = new List<IServerDefaultMessageHandler>();
+        public IReadOnlyList<IServerDefaultMessageHandler> DefaultMessageHandlers { get; }
 
-        public IList<IServerMessageObserver> MessageObservers { get; } = new List<IServerMessageObserver>();
+        public IReadOnlyList<IServerMessageObserver> MessageObservers { get; }
 
-        public IList<IServerInboundCommandInterceptor> InboundCommandInterceptors { get; } = new List<IServerInboundCommandInterceptor>();
+        public IReadOnlyList<IServerInboundCommandInterceptor> InboundCommandInterceptors { get; }
 
-        public IList<IServerDefaultCommandHandler> DefaultCommandHandlers { get; } = new List<IServerDefaultCommandHandler>();
+        public IReadOnlyList<IServerDefaultCommandHandler> DefaultCommandHandlers { get; }
 
-        public IList<IServerCommandObserver> CommandObservers { get; } = new List<IServerCommandObserver>();
+        public IReadOnlyList<IServerCommandObserver> CommandObservers { get; }
 
-        public IList<IServerOutboundPacketInterceptor> OutboundPacketInterceptors { get; } = new List<IServerOutboundPacketInterceptor>();
+        public IReadOnlyList<IServerOutboundPacketInterceptor> OutboundPacketInterceptors { get; }
+
+        public IReadOnlyList<IItemCodec> ItemCodecs { get; }
+
+        public ServerPipelineRunner(
+            IReadOnlyList<IServerInboundMessageInterceptor> inboundMessageInterceptors,
+            IReadOnlyList<IServerDefaultMessageHandler> defaultMessageHandlers,
+            IReadOnlyList<IServerMessageObserver> messageObservers,
+            IReadOnlyList<IServerInboundCommandInterceptor> inboundCommandInterceptors,
+            IReadOnlyList<IServerDefaultCommandHandler> defaultCommandHandlers,
+            IReadOnlyList<IServerCommandObserver> commandObservers,
+            IReadOnlyList<IServerOutboundPacketInterceptor> outboundPacketInterceptors,
+            IReadOnlyList<IItemCodec> itemCodecs)
+        {
+            InboundMessageInterceptors = inboundMessageInterceptors ?? Array.Empty<IServerInboundMessageInterceptor>();
+            DefaultMessageHandlers = defaultMessageHandlers ?? Array.Empty<IServerDefaultMessageHandler>();
+            MessageObservers = messageObservers ?? Array.Empty<IServerMessageObserver>();
+            InboundCommandInterceptors = inboundCommandInterceptors ?? Array.Empty<IServerInboundCommandInterceptor>();
+            DefaultCommandHandlers = defaultCommandHandlers ?? Array.Empty<IServerDefaultCommandHandler>();
+            CommandObservers = commandObservers ?? Array.Empty<IServerCommandObserver>();
+            OutboundPacketInterceptors = outboundPacketInterceptors ?? Array.Empty<IServerOutboundPacketInterceptor>();
+            ItemCodecs = itemCodecs ?? Array.Empty<IItemCodec>();
+        }
 
         public bool ProcessIncomingMessage(FrameworkPacket message, ServerFrameworkContext context)
         {
@@ -41,6 +63,14 @@ namespace ServerRuntime
                         LogLevel.ERROR);
                     continue;
                 }
+
+                if (result?.Action == MessageHandlingResultAction.LegacyFallback)
+                {
+                    context.Log?.Invoke(
+                        $"Message interceptor {interceptor.GetType().FullName} returned LegacyFallback for '{currentMessage.MessageType}' — treating as Continue.",
+                        LogLevel.WARNING);
+                }
+
                 if (shouldContinue(result?.Action))
                 {
                     continue;
@@ -76,6 +106,14 @@ namespace ServerRuntime
                         LogLevel.ERROR);
                     continue;
                 }
+
+                if (result?.Action == MessageHandlingResultAction.LegacyFallback)
+                {
+                    context.Log?.Invoke(
+                        $"Message handler {handler.GetType().FullName} returned LegacyFallback for '{currentMessage.MessageType}' — treating as Continue.",
+                        LogLevel.WARNING);
+                }
+
                 if (shouldContinue(result?.Action))
                 {
                     continue;
@@ -122,6 +160,14 @@ namespace ServerRuntime
                         LogLevel.ERROR);
                     continue;
                 }
+
+                if (result?.Action == MessageHandlingResultAction.LegacyFallback)
+                {
+                    context.Log?.Invoke(
+                        $"Command interceptor {interceptor.GetType().FullName} returned LegacyFallback for '{currentCommand.MessageType}' — treating as Continue.",
+                        LogLevel.WARNING);
+                }
+
                 if (shouldContinue(result?.Action))
                 {
                     continue;
@@ -157,6 +203,14 @@ namespace ServerRuntime
                         LogLevel.ERROR);
                     continue;
                 }
+
+                if (result?.Action == MessageHandlingResultAction.LegacyFallback)
+                {
+                    context.Log?.Invoke(
+                        $"Command handler {handler.GetType().FullName} returned LegacyFallback for '{currentCommand.MessageType}' — treating as Continue.",
+                        LogLevel.WARNING);
+                }
+
                 if (shouldContinue(result?.Action))
                 {
                     continue;
@@ -182,6 +236,64 @@ namespace ServerRuntime
             }
 
             return matchedHandler;
+        }
+
+        public bool ProcessIncomingItem(FrameworkPacket item, ServerFrameworkContext context)
+        {
+            if (item == null || string.IsNullOrEmpty(item.PayloadJson))
+            {
+                return false;
+            }
+
+            FrameworkItemPayload payload;
+            try
+            {
+                payload = FrameworkSerialization.DeserializePayload<FrameworkItemPayload>(item.PayloadJson);
+            }
+            catch (Exception ex)
+            {
+                context.Log?.Invoke($"Failed to deserialize item payload: {ex.Message}", LogLevel.WARNING);
+                return false;
+            }
+
+            if (payload == null || string.IsNullOrEmpty(payload.CodecId))
+            {
+                return false;
+            }
+
+            ItemCodecContext codecContext = new ItemCodecContext
+            {
+                CompatibilityMode = FrameworkCompatibilityMode.FrameworkV2,
+                Log = context.Log
+            };
+
+            foreach (IItemCodec codec in ItemCodecs)
+            {
+                if (!codec.CanDecode(payload, codecContext))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    object decoded = codec.Decode(payload, codecContext);
+                    if (codec.CanEncode(decoded, codecContext))
+                    {
+                        codec.Encode(decoded, codecContext);
+                    }
+
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    context.Log?.Invoke(
+                        $"Item codec '{codec.CodecId}' threw for '{item.MessageType}': {ex}",
+                        LogLevel.ERROR);
+                    continue;
+                }
+            }
+
+            return false;
         }
 
         public void DispatchOutbound(FrameworkPacket packet, ServerOutboundPacketContext context)
@@ -272,7 +384,8 @@ namespace ServerRuntime
         {
             return !action.HasValue ||
                    action.Value == MessageHandlingResultAction.Continue ||
-                   action.Value == MessageHandlingResultAction.Observe;
+                   action.Value == MessageHandlingResultAction.Observe ||
+                   action.Value == MessageHandlingResultAction.LegacyFallback;
         }
 
         private static bool isReplace(MessageHandlingResultAction? action)

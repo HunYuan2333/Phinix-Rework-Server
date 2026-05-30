@@ -1,8 +1,10 @@
-﻿using System.IO;
+using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Runtime.Serialization;
 using System.Xml;
 using Authentication;
+using Utils.Framework;
 
 namespace PhinixServer
 {
@@ -11,7 +13,7 @@ namespace PhinixServer
     /// Server configuration class able to read from and write to a configuration file.
     /// </summary>
     [DataContract]
-    public class Config
+    public class Config : IExtensionConfigProvider
     {
         /// <summary>
         /// IP address to listen on.
@@ -75,46 +77,52 @@ namespace PhinixServer
         public string CredentialDatabasePath = "credentials";
 
         /// <summary>
-        /// Path to the chat history file.
-        /// </summary>
-        [DataMember(Name = "ChatHistoryFile", Order = 9)]
-        public string ChatHistoryPath = "chatHistory";
-
-        /// <summary>
-        /// Path to the chat history file.
-        /// </summary>
-        [DataMember(Name = "TradeDatabaseFile", Order = 10)]
-        public string TradeDatabasePath = "trades";
-
-        /// <summary>
         /// Name of the server as shown to clients.
         /// </summary>
-        [DataMember(Name = "ServerName", Order = 11)]
+        [DataMember(Name = "ServerName", Order = 9)]
         public string ServerName = "Phinix Server";
 
         /// <summary>
         /// Description of the server as shown to clients.
         /// </summary>
-        [DataMember(Name = "ServerDescription", Order = 12)]
+        [DataMember(Name = "ServerDescription", Order = 10)]
         public string ServerDescription = "A Phinix server.";
 
         /// <summary>
         /// Authentication type clients must use when connecting.
         /// </summary>
-        [DataMember(Name = "AuthType", Order = 13)]
+        [DataMember(Name = "AuthType", Order = 11)]
         public AuthTypes AuthType = AuthTypes.ClientKey;
 
         /// <summary>
         /// Maximum display name length for users.
         /// </summary>
-        [DataMember(Name = "MaxDisplayNameLength", Order = 14)]
+        [DataMember(Name = "MaxDisplayNameLength", Order = 12)]
         public int MaxDisplayNameLength = 100;
 
         /// <summary>
-        /// Maximum number of chat messages to store in the chat history buffer.
+        /// Extension configuration stored as key-value pairs.
         /// </summary>
-        [DataMember(Name = "ChatHistoryLength", Order = 15)]
-        public int ChatHistoryLength = 40;
+        [DataMember(Name = "ExtensionConfigs", Order = 13)]
+        public Dictionary<string, string> ExtensionConfigs = new Dictionary<string, string>();
+
+        // Legacy fields — only present to catch old XML elements during deserialization.
+        // Moved to ExtensionConfigs in OnDeserialized, then cleared so they never re-appear on Save.
+
+        [DataMember(Name = "ChatHistoryFile", Order = 14, EmitDefaultValue = false)]
+        private string legacyChatHistoryPath;
+
+        [DataMember(Name = "TradeDatabaseFile", Order = 15, EmitDefaultValue = false)]
+        private string legacyTradeDatabasePath;
+
+        [DataMember(Name = "ChatHistoryLength", Order = 16)]
+        private int legacyChatHistoryLength;
+
+        /// <summary>
+        /// True after OnDeserialized migrates legacy fields, so Load() can trigger a re-save.
+        /// </summary>
+        [IgnoreDataMember]
+        private bool migrationPerformed;
 
         /// <summary>
         /// Loads a <see cref="Config"/> object from the given file path. Will return a default <see cref="Config"/> if the file does not exist.
@@ -136,6 +144,13 @@ namespace PhinixServer
             using (XmlReader reader = XmlReader.Create(filePath))
             {
                 result = new DataContractSerializer(typeof(Config)).ReadObject(reader) as Config;
+            }
+
+            // Persist immediately when legacy fields were migrated, so old XML nodes never re-appear.
+            if (result != null && result.migrationPerformed)
+            {
+                result.migrationPerformed = false;
+                result.Save(filePath);
             }
 
             return result;
@@ -177,13 +192,11 @@ namespace PhinixServer
             // Ignore Display- and LogVerbosity since they always have a value
             if (string.IsNullOrEmpty(UserDatabasePath)) UserDatabasePath = "users";
             if (string.IsNullOrEmpty(CredentialDatabasePath)) CredentialDatabasePath = "credentials";
-            if (string.IsNullOrEmpty(ChatHistoryPath)) ChatHistoryPath = "chatHistory";
-            if (string.IsNullOrEmpty(TradeDatabasePath)) TradeDatabasePath = "trades";
             if (string.IsNullOrEmpty(ServerName)) ServerName = "Phinix Server";
             if (string.IsNullOrEmpty(ServerDescription)) ServerDescription = "A Phinix server.";
             // Ignore AuthType since it always has a value
             if (MaxDisplayNameLength < 1) MaxDisplayNameLength = 100;
-            if (ChatHistoryLength < 0) ChatHistoryLength = 40;
+            if (ExtensionConfigs == null) ExtensionConfigs = new Dictionary<string, string>();
         }
 
         /// <summary>
@@ -197,6 +210,112 @@ namespace PhinixServer
             if (!IPAddress.TryParse(addressString, out Address))
             {
                 throw new ConfigItemDeserialisationException(typeof(string), typeof(IPAddress), nameof(addressString));
+            }
+
+            migrateLegacyExtensionFields();
+        }
+
+        private void migrateLegacyExtensionFields()
+        {
+            if (ExtensionConfigs == null)
+                ExtensionConfigs = new Dictionary<string, string>();
+
+            // ChatHistoryFile + ChatHistoryLength -> builtin.chat config section
+            if ((!string.IsNullOrEmpty(legacyChatHistoryPath) || legacyChatHistoryLength > 0)
+                && !ExtensionConfigs.ContainsKey("builtin.chat"))
+            {
+                string historyPath = !string.IsNullOrEmpty(legacyChatHistoryPath) ? legacyChatHistoryPath : "chatHistory";
+                int historyLength = legacyChatHistoryLength > 0 ? legacyChatHistoryLength : 40;
+
+                string chatXml = string.Format(
+                    "<ChatServerConfig xmlns:i=\"http://www.w3.org/2001/XMLSchema-instance\" " +
+                    "xmlns=\"http://schemas.datacontract.org/2004/07/Phinix.ChatExtension.Server\">" +
+                    "<HistoryPath>{0}</HistoryPath>" +
+                    "<HistoryLength>{1}</HistoryLength>" +
+                    "</ChatServerConfig>",
+                    System.Security.SecurityElement.Escape(historyPath),
+                    historyLength);
+
+                ExtensionConfigs["builtin.chat"] = chatXml;
+                migrationPerformed = true;
+            }
+
+            // TradeDatabaseFile -> builtin.trade config section
+            if (!string.IsNullOrEmpty(legacyTradeDatabasePath)
+                && !ExtensionConfigs.ContainsKey("builtin.trade"))
+            {
+                string tradeXml = string.Format(
+                    "<TradeServerConfig xmlns:i=\"http://www.w3.org/2001/XMLSchema-instance\" " +
+                    "xmlns=\"http://schemas.datacontract.org/2004/07/Phinix.TradeExtension.Server\">" +
+                    "<DatabasePath>{0}</DatabasePath>" +
+                    "</TradeServerConfig>",
+                    System.Security.SecurityElement.Escape(legacyTradeDatabasePath));
+
+                ExtensionConfigs["builtin.trade"] = tradeXml;
+                migrationPerformed = true;
+            }
+
+            // Clear legacy fields so they never serialize
+            legacyChatHistoryPath = null;
+            legacyTradeDatabasePath = null;
+            legacyChatHistoryLength = 0;
+        }
+
+        /// <inheritdoc cref="IExtensionConfigProvider.GetConfig{T}"/>
+        public T GetConfig<T>() where T : IExtensionConfigSection, new()
+        {
+            T section = new T();
+            section.LoadDefaults();
+
+            // Apply overrides from ExtensionConfigs dictionary
+            if (ExtensionConfigs != null && ExtensionConfigs.TryGetValue(section.SectionName, out string json))
+            {
+                try
+                {
+                    using (System.IO.MemoryStream ms = new System.IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(json)))
+                    {
+                        DataContractSerializer serializer = new DataContractSerializer(typeof(T));
+                        T overrides = (T)serializer.ReadObject(ms);
+                        // Shallow merge via reflection — overwrite non-default properties
+                        foreach (var prop in typeof(T).GetProperties())
+                        {
+                            if (prop.CanWrite)
+                            {
+                                object value = prop.GetValue(overrides);
+                                if (value != null)
+                                {
+                                    prop.SetValue(section, value);
+                                }
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    // If deserialization fails, use defaults
+                }
+            }
+
+            return section;
+        }
+
+        /// <inheritdoc cref="IExtensionConfigProvider.SaveConfig{T}"/>
+        public void SaveConfig<T>(T config) where T : IExtensionConfigSection
+        {
+            if (ExtensionConfigs == null)
+            {
+                ExtensionConfigs = new Dictionary<string, string>();
+            }
+
+            DataContractSerializer serializer = new DataContractSerializer(typeof(T));
+            using (System.IO.MemoryStream ms = new System.IO.MemoryStream())
+            {
+                using (XmlDictionaryWriter writer = XmlDictionaryWriter.CreateTextWriter(ms, System.Text.Encoding.UTF8, ownsStream: false))
+                {
+                    serializer.WriteObject(writer, config);
+                    writer.Flush();
+                    ExtensionConfigs[config.SectionName] = System.Text.Encoding.UTF8.GetString(ms.ToArray());
+                }
             }
         }
     }

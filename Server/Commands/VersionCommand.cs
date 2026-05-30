@@ -23,8 +23,16 @@ namespace PhinixServer
             Console.WriteLine("Connections: " + NetCommon.Version);
             Console.WriteLine("Authentication: " + Authenticator.Version);
             Console.WriteLine("UserManagement: " + UserManager.Version);
-            Console.WriteLine("FrameworkChat: " + GetAssemblyVersion("ChatExtension.Server"));
-            Console.WriteLine("FrameworkTrade: " + GetAssemblyVersion("TradeExtension.Server"));
+
+            // Dynamically discover all loaded extension assemblies
+            foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                string name = assembly.GetName().Name;
+                if (name != null && name.EndsWith("Extension.Server", StringComparison.OrdinalIgnoreCase))
+                {
+                    Console.WriteLine(name + ": " + (assembly.GetName().Version?.ToString() ?? "unknown"));
+                }
+            }
 
             return true;
         }

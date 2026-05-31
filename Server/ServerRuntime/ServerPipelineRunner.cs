@@ -306,9 +306,40 @@ namespace ServerRuntime
             FrameworkPacket currentPacket = packet;
             IReadOnlyCollection<string> currentTargets = context.TargetConnectionIds ?? Array.Empty<string>();
 
-            foreach (IServerOutboundPacketInterceptor interceptor in OutboundPacketInterceptors.Where(candidate => candidate.CanInterceptOutgoingPacket(currentPacket, createSnapshot(context, currentTargets))))
+            foreach (IServerOutboundPacketInterceptor interceptor in OutboundPacketInterceptors)
             {
-                ServerOutgoingPacketResult result = interceptor.InterceptOutgoingPacket(currentPacket, createSnapshot(context, currentTargets));
+                ServerOutboundPacketContext snapshot = createSnapshot(context, currentTargets);
+                bool canIntercept;
+                try
+                {
+                    canIntercept = interceptor.CanInterceptOutgoingPacket(currentPacket, snapshot);
+                }
+                catch (Exception ex)
+                {
+                    context.Log?.Invoke(
+                        $"Outbound packet interceptor {interceptor.GetType().FullName}.CanIntercept threw for '{currentPacket.MessageType}': {ex}",
+                        LogLevel.ERROR);
+                    continue;
+                }
+
+                if (!canIntercept)
+                {
+                    continue;
+                }
+
+                ServerOutgoingPacketResult result;
+                try
+                {
+                    result = interceptor.InterceptOutgoingPacket(currentPacket, snapshot);
+                }
+                catch (Exception ex)
+                {
+                    context.Log?.Invoke(
+                        $"Outbound packet interceptor {interceptor.GetType().FullName} threw for '{currentPacket.MessageType}': {ex}",
+                        LogLevel.ERROR);
+                    continue;
+                }
+
                 if (result == null || shouldContinue(result.Action))
                 {
                     continue;
@@ -409,17 +440,71 @@ namespace ServerRuntime
 
         private void observeMessage(FrameworkPacket message, ServerFrameworkContext context, MessageHandlingResultAction terminalAction)
         {
-            foreach (IServerMessageObserver observer in MessageObservers.Where(candidate => candidate.CanObserveIncomingMessage(message)))
+            foreach (IServerMessageObserver observer in MessageObservers)
             {
-                observer.ObserveIncomingMessage(message, context, terminalAction);
+                bool canObserve;
+                try
+                {
+                    canObserve = observer.CanObserveIncomingMessage(message);
+                }
+                catch (Exception ex)
+                {
+                    context.Log?.Invoke(
+                        $"Message observer {observer.GetType().FullName}.CanObserve threw for '{message.MessageType}': {ex}",
+                        LogLevel.ERROR);
+                    continue;
+                }
+
+                if (!canObserve)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    observer.ObserveIncomingMessage(message, context, terminalAction);
+                }
+                catch (Exception ex)
+                {
+                    context.Log?.Invoke(
+                        $"Message observer {observer.GetType().FullName} threw for '{message.MessageType}': {ex}",
+                        LogLevel.ERROR);
+                }
             }
         }
 
         private void observeCommand(FrameworkPacket command, ServerFrameworkContext context, MessageHandlingResultAction terminalAction)
         {
-            foreach (IServerCommandObserver observer in CommandObservers.Where(candidate => candidate.CanObserveIncomingCommand(command)))
+            foreach (IServerCommandObserver observer in CommandObservers)
             {
-                observer.ObserveIncomingCommand(command, context, terminalAction);
+                bool canObserve;
+                try
+                {
+                    canObserve = observer.CanObserveIncomingCommand(command);
+                }
+                catch (Exception ex)
+                {
+                    context.Log?.Invoke(
+                        $"Command observer {observer.GetType().FullName}.CanObserve threw for '{command.MessageType}': {ex}",
+                        LogLevel.ERROR);
+                    continue;
+                }
+
+                if (!canObserve)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    observer.ObserveIncomingCommand(command, context, terminalAction);
+                }
+                catch (Exception ex)
+                {
+                    context.Log?.Invoke(
+                        $"Command observer {observer.GetType().FullName} threw for '{command.MessageType}': {ex}",
+                        LogLevel.ERROR);
+                }
             }
         }
 

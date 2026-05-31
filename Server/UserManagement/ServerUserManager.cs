@@ -105,28 +105,39 @@ namespace UserManagement
 
         private void connectionClosedHandler(object sender, ConnectionEventArgs e)
         {
+            string uuid;
+            bool lastConnection;
+
             lock (connectedUsersLock)
             {
                 // Make sure this connection has a UUID associated with it
-                if (!connectedUsers.ContainsKey(e.ConnectionId)) return;
-
-                // Get the UUID associated with this connection
-                string uuid = connectedUsers[e.ConnectionId];
+                if (!connectedUsers.TryGetValue(e.ConnectionId, out uuid)) return;
 
                 // Check if there are multiple connections for this user
-                if (connectedUsers.Values.Count(v => v == uuid) > 1)
+                int connectionCount = 0;
+                foreach (string v in connectedUsers.Values)
+                {
+                    if (v == uuid) connectionCount++;
+                }
+
+                lastConnection = connectionCount <= 1;
+                if (!lastConnection)
                 {
                     // Only drop this connection from the association dict
                     connectedUsers.Remove(e.ConnectionId);
                 }
                 else
                 {
-                    // Try to log them out
-                    TryLogOut(connectedUsers[e.ConnectionId]);
-
                     // Drop them from the connected user dictionary
                     connectedUsers.Remove(e.ConnectionId);
                 }
+            }
+
+            // TryLogOut 需要获取 userStoreLock —— 在 connectedUsersLock 外调用避免死锁
+            // (handleLoginPacket 路径先获取 userStoreLock 再获取 connectedUsersLock)
+            if (lastConnection)
+            {
+                TryLogOut(uuid);
             }
         }
 

@@ -86,11 +86,19 @@ namespace Authentication
 
         /// <summary>
         /// Stops the session cleanup timer and disposes it.
+        /// Also unregisters from NetServer callbacks to allow future re-start.
         /// </summary>
         public void Stop()
         {
             sessionCleanupTimer.Stop();
             sessionCleanupTimer.Dispose();
+
+            if (netServer != null)
+            {
+                netServer.UnregisterPacketHandler(MODULE_NAME);
+                netServer.OnConnectionEstablished -= ConnectionEstablishedHandler;
+                netServer.OnConnectionClosed -= ConnectionClosedHandler;
+            }
         }
 
         public ServerAuthenticator(NetServer netServer, string serverName, string serverDescription, AuthTypes authType, string credentialStorePath) : this(netServer, serverName, serverDescription, authType)

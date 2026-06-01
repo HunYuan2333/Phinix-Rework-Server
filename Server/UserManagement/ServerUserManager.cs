@@ -15,7 +15,7 @@ namespace UserManagement
     /// Server-side variant of <see cref="UserManager"/>.
     /// Used to store details of each user and oversees user login.
     /// </summary>
-    public class ServerUserManager : UserManager
+    public class ServerUserManager : UserManager, IServerUserManager
     {
         /// <inheritdoc />
         public override event EventHandler<LogEventArgs> OnLogEntry;
@@ -485,9 +485,6 @@ namespace UserManagement
                 // Update the user's display name on the server with the one they've provided
                 UpdateUser(uuid, TextHelper.SanitiseRichText(packet.DisplayName));
             }
-
-            // Set whether they are accepting trades
-            UpdateUser(uuid, acceptingTrades: packet.AcceptingTrades);
 
             // Add their UUID/Session ID pair to connectedUsers
             lock (connectedUsersLock)

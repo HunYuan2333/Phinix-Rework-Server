@@ -18,14 +18,14 @@ namespace Phinix.TradeExtension.Server
 
     public sealed class PhinixFrameworkTradeServerService : IFrameworkTradeServerApi
     {
-        private readonly ServerUserManager userManager;
+        private readonly IServerUserManager userManager;
         private readonly PhinixFrameworkTradeStore store = new PhinixFrameworkTradeStore();
 
         public event EventHandler<LogEventArgs> OnLogEntry;
 
         public void RaiseLogEntry(LogEventArgs e) => OnLogEntry?.Invoke(this, e);
 
-        public PhinixFrameworkTradeServerService(ServerUserManager userManager)
+        public PhinixFrameworkTradeServerService(IServerUserManager userManager)
         {
             this.userManager = userManager;
         }

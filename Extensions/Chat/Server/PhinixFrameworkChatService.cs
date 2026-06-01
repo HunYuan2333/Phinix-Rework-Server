@@ -23,7 +23,7 @@ namespace Phinix.ChatExtension.Server
 
     public class PhinixFrameworkChatService : IFrameworkChatServerApi
     {
-        private readonly ServerUserManager userManager;
+        private readonly IServerUserManager userManager;
         public event EventHandler<LogEventArgs> OnLogEntry;
 
         public void RaiseLogEntry(LogEventArgs e) => OnLogEntry?.Invoke(this, e);
@@ -33,7 +33,7 @@ namespace Phinix.ChatExtension.Server
         private readonly int messageHistoryCapacity;
         private readonly PhinixFrameworkChatBroadcast broadcastBuilder = new PhinixFrameworkChatBroadcast();
 
-        public PhinixFrameworkChatService(int messageHistoryCapacity, ServerUserManager userManager)
+        public PhinixFrameworkChatService(int messageHistoryCapacity, IServerUserManager userManager)
         {
             this.messageHistoryCapacity = messageHistoryCapacity;
             this.userManager = userManager;

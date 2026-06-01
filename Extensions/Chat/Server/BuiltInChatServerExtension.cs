@@ -30,7 +30,7 @@ namespace Phinix.ChatExtension.Server
 
             chatApi = chatApi ?? new PhinixFrameworkChatService(
                 config.HistoryLength,
-                builder.HostContext.GetRequiredService<UserManagement.ServerUserManager>());
+                builder.HostContext.GetRequiredService<UserManagement.IServerUserManager>());
             builder.RegisterApi(chatApi);
             builder.HostContext.RegisterPersistent(ExtensionId, HistoryStorageName, chatApi);
             builder.AddCapabilityProvider(this);

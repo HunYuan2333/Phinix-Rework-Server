@@ -8,9 +8,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="..\UserManagement\ServerLoginEventArgs.cs">
-      <Link>ServerLoginEventArgs.cs</Link>
-    </Compile>
     <Compile Include="..\UserManagement\ServerUserManager.cs">
       <Link>ServerUserManager.cs</Link>
     </Compile>

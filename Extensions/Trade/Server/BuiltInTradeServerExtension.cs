@@ -11,7 +11,7 @@ namespace Phinix.TradeExtension.Server
         private const string TradeStateStorageName = "trade-state.bin";
 
         private IFrameworkTradeServerApi tradeApi;
-        private UserManagement.ServerUserManager userManager;
+        private UserManagement.IServerUserManager userManager;
         private EventHandler<Utils.LogEventArgs> logForwarder;
         private EventHandler<UserManagement.ServerLoginEventArgs> loginForwarder;
         private IFrameworkServerPacketDispatcher packetDispatcher;
@@ -22,7 +22,7 @@ namespace Phinix.TradeExtension.Server
 
         public void Register(IExtensionBuilder builder)
         {
-            userManager = builder.HostContext.GetRequiredService<UserManagement.ServerUserManager>();
+            userManager = builder.HostContext.GetRequiredService<UserManagement.IServerUserManager>();
             packetDispatcher = builder.HostContext.GetRequiredService<IFrameworkServerPacketDispatcher>();
             tradeApi = tradeApi ?? new PhinixFrameworkTradeServerService(userManager);
             builder.RegisterApi(tradeApi);

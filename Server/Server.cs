@@ -57,6 +57,7 @@ namespace PhinixServer
                 StorageProvider = new FileSystemExtensionStorageProvider(System.IO.Path.Combine("framework-extensions", "server"))
             };
             extensionHostContext.AddService(UserManager);
+            extensionHostContext.AddService<IServerUserManager>(UserManager);
             FrameworkServerPacketDispatcher frameworkPacketDispatcher = new FrameworkServerPacketDispatcher();
             extensionHostContext.AddService<IFrameworkServerPacketDispatcher>(frameworkPacketDispatcher);
             extensionHostContext.AddService<IExtensionConfigProvider>(Config);

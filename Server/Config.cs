@@ -119,7 +119,7 @@ namespace PhinixServer
         private int legacyChatHistoryLength;
 
         /// <summary>
-        /// True after OnDeserialized migrates legacy fields, so Load() can trigger a re-save.
+        /// True after a legacy extension config migration succeeds, so Load() can trigger a re-save.
         /// </summary>
         [IgnoreDataMember]
         private bool migrationPerformed;
@@ -146,7 +146,7 @@ namespace PhinixServer
                 result = new DataContractSerializer(typeof(Config)).ReadObject(reader) as Config;
             }
 
-            // Persist immediately when legacy fields were migrated, so old XML nodes never re-appear.
+            // Persist immediately when a legacy extension config migration succeeds, so old XML nodes never re-appear.
             if (result != null && result.migrationPerformed)
             {
                 result.migrationPerformed = false;
@@ -212,53 +212,10 @@ namespace PhinixServer
                 throw new ConfigItemDeserialisationException(typeof(string), typeof(IPAddress), nameof(addressString));
             }
 
-            migrateLegacyExtensionFields();
-        }
-
-        private void migrateLegacyExtensionFields()
-        {
             if (ExtensionConfigs == null)
+            {
                 ExtensionConfigs = new Dictionary<string, string>();
-
-            // ChatHistoryFile + ChatHistoryLength -> builtin.chat config section
-            if ((!string.IsNullOrEmpty(legacyChatHistoryPath) || legacyChatHistoryLength > 0)
-                && !ExtensionConfigs.ContainsKey("builtin.chat"))
-            {
-                string historyPath = !string.IsNullOrEmpty(legacyChatHistoryPath) ? legacyChatHistoryPath : "chatHistory";
-                int historyLength = legacyChatHistoryLength > 0 ? legacyChatHistoryLength : 40;
-
-                string chatXml = string.Format(
-                    "<ChatServerConfig xmlns:i=\"http://www.w3.org/2001/XMLSchema-instance\" " +
-                    "xmlns=\"http://schemas.datacontract.org/2004/07/Phinix.ChatExtension.Server\">" +
-                    "<HistoryPath>{0}</HistoryPath>" +
-                    "<HistoryLength>{1}</HistoryLength>" +
-                    "</ChatServerConfig>",
-                    System.Security.SecurityElement.Escape(historyPath),
-                    historyLength);
-
-                ExtensionConfigs["builtin.chat"] = chatXml;
-                migrationPerformed = true;
             }
-
-            // TradeDatabaseFile -> builtin.trade config section
-            if (!string.IsNullOrEmpty(legacyTradeDatabasePath)
-                && !ExtensionConfigs.ContainsKey("builtin.trade"))
-            {
-                string tradeXml = string.Format(
-                    "<TradeServerConfig xmlns:i=\"http://www.w3.org/2001/XMLSchema-instance\" " +
-                    "xmlns=\"http://schemas.datacontract.org/2004/07/Phinix.TradeExtension.Server\">" +
-                    "<DatabasePath>{0}</DatabasePath>" +
-                    "</TradeServerConfig>",
-                    System.Security.SecurityElement.Escape(legacyTradeDatabasePath));
-
-                ExtensionConfigs["builtin.trade"] = tradeXml;
-                migrationPerformed = true;
-            }
-
-            // Clear legacy fields so they never serialize
-            legacyChatHistoryPath = null;
-            legacyTradeDatabasePath = null;
-            legacyChatHistoryLength = 0;
         }
 
         /// <inheritdoc cref="IExtensionConfigProvider.GetConfig{T}"/>
@@ -266,10 +223,12 @@ namespace PhinixServer
         {
             T section = new T();
             section.LoadDefaults();
+            bool hasPersistedConfig = false;
 
             // Apply overrides from ExtensionConfigs dictionary
             if (ExtensionConfigs != null && ExtensionConfigs.TryGetValue(section.SectionName, out string json))
             {
+                hasPersistedConfig = true;
                 try
                 {
                     using (System.IO.MemoryStream ms = new System.IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(json)))
@@ -296,6 +255,18 @@ namespace PhinixServer
                 }
             }
 
+            if (!hasPersistedConfig && section is ILegacyExtensionConfigMigrator migrator)
+            {
+                if (migrator.TryMigrateLegacyConfig(BuildLegacyConfigValues()))
+                {
+                    migrationPerformed = true;
+                    SaveConfig(section);
+                    clearLegacyConfigFields();
+                }
+            }
+
+            section.Validate();
+
             return section;
         }
 
@@ -317,6 +288,34 @@ namespace PhinixServer
                     ExtensionConfigs[config.SectionName] = System.Text.Encoding.UTF8.GetString(ms.ToArray());
                 }
             }
+        }
+
+        private IReadOnlyDictionary<string, string> BuildLegacyConfigValues()
+        {
+            Dictionary<string, string> values = new Dictionary<string, string>();
+            if (!string.IsNullOrWhiteSpace(legacyChatHistoryPath))
+            {
+                values["server.legacy.chatHistoryPath"] = legacyChatHistoryPath;
+            }
+
+            if (legacyChatHistoryLength > 0)
+            {
+                values["server.legacy.chatHistoryLength"] = legacyChatHistoryLength.ToString();
+            }
+
+            if (!string.IsNullOrWhiteSpace(legacyTradeDatabasePath))
+            {
+                values["server.legacy.tradeDatabasePath"] = legacyTradeDatabasePath;
+            }
+
+            return values;
+        }
+
+        private void clearLegacyConfigFields()
+        {
+            legacyChatHistoryPath = null;
+            legacyTradeDatabasePath = null;
+            legacyChatHistoryLength = 0;
         }
     }
 }

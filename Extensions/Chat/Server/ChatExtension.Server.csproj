@@ -12,7 +12,6 @@
     <ProjectReference Include="..\..\..\Dependencies\protobuf\csharp\src\Google.Protobuf\Google.Protobuf.csproj" />
     <ProjectReference Include="..\Contracts\ChatExtension.csproj" />
     <ProjectReference Include="..\..\..\Common\UserManagement\UserManagement.csproj" />
-    <ProjectReference Include="..\..\..\Server\UserManagement.Server\UserManagement.Server.csproj" />
     <ProjectReference Include="..\..\..\Server\ServerRuntime\ServerRuntime.csproj" />
     <ProjectReference Include="..\..\..\Common\Utils\Utils.csproj" />
   </ItemGroup>

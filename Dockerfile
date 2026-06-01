@@ -11,15 +11,20 @@ COPY Common/ ./Common/
 COPY Dependencies/ ./Dependencies/
 COPY Extensions/ ./Extensions/
 COPY libs/ ./libs/
-COPY scripts/ ./scripts/
 
-# Restore server (extensions are restored by build script)
+# Restore packages (including official server extension projects)
 RUN dotnet restore Server/Server.csproj && \
-    bash scripts/build-extensions.sh --restore
+    dotnet restore Extensions/Chat/Server/ChatExtension.Server.csproj && \
+    dotnet restore Extensions/Trade/Server/TradeExtension.Server.csproj
 
 # Build server (extension build + copy is handled by CopyOfficialServerExtensions target)
 RUN dotnet build Server/Server.csproj -c Release -o /out --no-restore && \
-    cp /src/libs/netstandard2.0/LiteNetLib.dll /out/
+    cp /src/libs/netstandard2.0/LiteNetLib.dll /out/ && \
+    mkdir -p /out/Extensions && \
+    cp /out/ChatExtension.Server.dll /out/Extensions/ && \
+    cp /out/ChatExtension.dll /out/Extensions/ && \
+    cp /out/TradeExtension.Server.dll /out/Extensions/ && \
+    cp /out/TradeExtension.dll /out/Extensions/
 
 # Runtime stage
 FROM mcr.microsoft.com/dotnet/runtime:10.0

@@ -15,9 +15,11 @@ COPY libs/ ./libs/
 # Restore packages (including official server extension projects)
 RUN dotnet restore Server/Server.csproj && \
     dotnet restore Extensions/Chat/Server/ChatExtension.Server.csproj && \
-    dotnet restore Extensions/Trade/Server/TradeExtension.Server.csproj
+    dotnet restore Extensions/Chat/Contracts/ChatExtension.csproj && \
+    dotnet restore Extensions/Trade/Server/TradeExtension.Server.csproj && \
+    dotnet restore Extensions/Trade/Contracts/TradeExtension.csproj
 
-# Build server (extension build + copy is handled by CopyOfficialServerExtensions target)
+# Build server (extension build via ProjectReference, copy via target + manual cp for -o flat output)
 RUN dotnet build Server/Server.csproj -c Release -o /out --no-restore && \
     cp /src/libs/netstandard2.0/LiteNetLib.dll /out/ && \
     mkdir -p /out/Extensions && \

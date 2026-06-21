@@ -7,7 +7,6 @@
     <TargetFramework>net10.0</TargetFramework>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
-    <OfficialServerExtensionsOutputDir>$([System.IO.Path]::Combine('$(OutDir)', 'Extensions'))</OfficialServerExtensionsOutputDir>
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,7 +18,6 @@
     <Compile Include="Logger.cs" />
     <Compile Include="Server.cs" />
     <Compile Include="Commands\*.cs" />
-    <Compile Include="Extensions\FrameworkPipelineLoggingServerExtension.cs" />
     <Compile Include="Framework\FrameworkServerPacketDispatcher.cs" />
     <Compile Include="Framework\PhinixFrameworkServer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -33,6 +31,18 @@
     <ProjectReference Include="UserManagement.Server\UserManagement.Server.csproj" />
     <ProjectReference Include="..\Common\Utils\Utils.csproj" />
     <ProjectReference Include="ServerRuntime\ServerRuntime.csproj" />
+    <ProjectReference Include="..\Extensions\Chat\Server\ChatExtension.Server.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\Extensions\Trade\Server\TradeExtension.Server.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\Extensions\Chat\Contracts\ChatExtension.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\Extensions\Trade\Contracts\TradeExtension.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
   </ItemGroup>
 
   <ItemGroup>
@@ -43,34 +53,31 @@
   </ItemGroup>
 
   <Target Name="CopyOfficialServerExtensions" AfterTargets="Build">
-    <MSBuild
-      Projects="@(OfficialServerExtensionProject)"
-      Targets="Build"
-      Properties="Configuration=$(Configuration);TargetFramework=net10.0" />
+    <PropertyGroup>
+      <_ExtensionsBase>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\Extensions'))</_ExtensionsBase>
+      <_ExtensionsConfigBin>bin\$(Configuration)\net10.0</_ExtensionsConfigBin>
+      <_OfficialServerExtensionsOutputDir>$([System.IO.Path]::Combine('$(OutDir)', 'Extensions'))</_OfficialServerExtensionsOutputDir>
+    </PropertyGroup>
 
-    <MSBuild
-      Projects="@(OfficialServerExtensionContractProject)"
-      Targets="Build"
-      Properties="Configuration=$(Configuration);TargetFramework=net10.0" />
+    <ItemGroup>
+      <_OfficialServerExtensionFile Include="$(_ExtensionsBase)\Chat\Server\$(_ExtensionsConfigBin)\ChatExtension.Server.dll" />
+      <_OfficialServerExtensionFile Include="$(_ExtensionsBase)\Chat\Contracts\$(_ExtensionsConfigBin)\ChatExtension.dll" />
+      <_OfficialServerExtensionFile Include="$(_ExtensionsBase)\Trade\Server\$(_ExtensionsConfigBin)\TradeExtension.Server.dll" />
+      <_OfficialServerExtensionFile Include="$(_ExtensionsBase)\Trade\Contracts\$(_ExtensionsConfigBin)\TradeExtension.dll" />
+      <_OfficialServerExtensionFile Include="$(OutDir)ChatExtension.Server.dll" />
+      <_OfficialServerExtensionFile Include="$(OutDir)ChatExtension.dll" />
+      <_OfficialServerExtensionFile Include="$(OutDir)TradeExtension.Server.dll" />
+      <_OfficialServerExtensionFile Include="$(OutDir)TradeExtension.dll" />
+    </ItemGroup>
 
-    <MSBuild
-      Projects="@(OfficialServerExtensionProject)"
-      Targets="GetTargetPath"
-      Properties="Configuration=$(Configuration);TargetFramework=net10.0">
-      <Output TaskParameter="TargetOutputs" ItemName="_OfficialServerExtensionOutput" />
-    </MSBuild>
+    <ItemGroup>
+      <_OfficialServerExtensionFileToCopy Include="@(_OfficialServerExtensionFile)" Condition="Exists('%(Identity)')" />
+    </ItemGroup>
 
-    <MSBuild
-      Projects="@(OfficialServerExtensionContractProject)"
-      Targets="GetTargetPath"
-      Properties="Configuration=$(Configuration);TargetFramework=net10.0">
-      <Output TaskParameter="TargetOutputs" ItemName="_OfficialServerExtensionOutput" />
-    </MSBuild>
-
-    <MakeDir Directories="$(OfficialServerExtensionsOutputDir)" />
+    <MakeDir Directories="$(_OfficialServerExtensionsOutputDir)" />
     <Copy
-      SourceFiles="@(_OfficialServerExtensionOutput)"
-      DestinationFolder="$(OfficialServerExtensionsOutputDir)"
+      SourceFiles="@(_OfficialServerExtensionFileToCopy)"
+      DestinationFolder="$(_OfficialServerExtensionsOutputDir)"
       SkipUnchangedFiles="true" />
   </Target>
 

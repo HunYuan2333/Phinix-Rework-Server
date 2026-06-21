@@ -194,6 +194,7 @@ namespace PhinixServer.Framework
                 })
             };
 
+            RaiseLogEntry(new LogEventArgs($"Framework hello accepted from {connectionId.Highlight(HighlightType.ConnectionID)}. Responding with {serverCapabilities.Count} capability/capabilities."));
             sendPacketDirect(connectionId, response);
         }
 
@@ -344,6 +345,21 @@ namespace PhinixServer.Framework
 
             var itemCodecs = discoveredExtensions.ItemCodecs.ToList();
 
+            var inboundItemInterceptors = discoveredExtensions.ServerInboundItemInterceptors
+                .Select(interceptor => new BoundServerInboundItemInterceptor(interceptor, getExtensionId(interceptor)))
+                .OrderBy(i => i.Priority)
+                .ToList();
+
+            var defaultItemHandlers = discoveredExtensions.ServerDefaultItemHandlers
+                .Select(handler => new BoundServerDefaultItemHandler(handler, getExtensionId(handler)))
+                .OrderBy(h => h.Priority)
+                .ToList();
+
+            var itemObservers = discoveredExtensions.ServerItemObservers
+                .Select(observer => new BoundServerItemObserver(observer, getExtensionId(observer)))
+                .OrderBy(o => o.Priority)
+                .ToList();
+
             return new ServerPipelineRunner(
                 inboundMessageInterceptors,
                 defaultMessageHandlers,
@@ -352,7 +368,10 @@ namespace PhinixServer.Framework
                 defaultCommandHandlers,
                 commandObservers,
                 outboundPacketInterceptors,
-                itemCodecs);
+                itemCodecs,
+                inboundItemInterceptors,
+                defaultItemHandlers,
+                itemObservers);
         }
 
         private ServerFrameworkContext createServerContext(string connectionId, string senderUuid, string sessionId, string sourceExtensionId)
@@ -580,6 +599,72 @@ namespace PhinixServer.Framework
             {
                 context.SourceExtensionId = extensionId;
                 inner.ObserveIncomingCommand(command, context, terminalAction);
+            }
+        }
+
+        private sealed class BoundServerInboundItemInterceptor : IServerInboundItemInterceptor
+        {
+            private readonly IServerInboundItemInterceptor inner;
+            private readonly string extensionId;
+
+            public BoundServerInboundItemInterceptor(IServerInboundItemInterceptor inner, string extensionId)
+            {
+                this.inner = inner;
+                this.extensionId = extensionId;
+            }
+
+            public int Priority => inner.Priority;
+
+            public bool CanInterceptIncomingItem(FrameworkPacket itemPacket) => inner.CanInterceptIncomingItem(itemPacket);
+
+            public ServerIncomingItemResult InterceptIncomingItem(FrameworkPacket itemPacket, ServerFrameworkContext context)
+            {
+                context.SourceExtensionId = extensionId;
+                return inner.InterceptIncomingItem(itemPacket, context);
+            }
+        }
+
+        private sealed class BoundServerDefaultItemHandler : IServerDefaultItemHandler
+        {
+            private readonly IServerDefaultItemHandler inner;
+            private readonly string extensionId;
+
+            public BoundServerDefaultItemHandler(IServerDefaultItemHandler inner, string extensionId)
+            {
+                this.inner = inner;
+                this.extensionId = extensionId;
+            }
+
+            public int Priority => inner.Priority;
+
+            public bool CanHandleIncomingItem(FrameworkPacket itemPacket) => inner.CanHandleIncomingItem(itemPacket);
+
+            public ServerIncomingItemResult HandleIncomingItem(FrameworkPacket itemPacket, ServerFrameworkContext context, IReadOnlyList<IItemCodec> codecs)
+            {
+                context.SourceExtensionId = extensionId;
+                return inner.HandleIncomingItem(itemPacket, context, codecs);
+            }
+        }
+
+        private sealed class BoundServerItemObserver : IServerItemObserver
+        {
+            private readonly IServerItemObserver inner;
+            private readonly string extensionId;
+
+            public BoundServerItemObserver(IServerItemObserver inner, string extensionId)
+            {
+                this.inner = inner;
+                this.extensionId = extensionId;
+            }
+
+            public int Priority => inner.Priority;
+
+            public bool CanObserveIncomingItem(FrameworkPacket itemPacket) => inner.CanObserveIncomingItem(itemPacket);
+
+            public void ObserveIncomingItem(FrameworkPacket itemPacket, ServerFrameworkContext context, ItemHandlingResultAction terminalAction)
+            {
+                context.SourceExtensionId = extensionId;
+                inner.ObserveIncomingItem(itemPacket, context, terminalAction);
             }
         }
     }

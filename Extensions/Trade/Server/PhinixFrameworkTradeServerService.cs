@@ -14,12 +14,16 @@ namespace Phinix.TradeExtension.Server
         void HandleCreateRequest(FrameworkPacket command, ServerFrameworkContext context);
         void HandleOfferUpdateRequest(FrameworkPacket command, ServerFrameworkContext context);
         void HandleStatusUpdateRequest(FrameworkPacket command, ServerFrameworkContext context);
+        void CacheItemPacket(string packetId, FrameworkItemPayload payload);
+        bool TryGetCachedItemPacket(string packetId, out FrameworkItemPayload payload);
     }
 
     public sealed class PhinixFrameworkTradeServerService : IFrameworkTradeServerApi
     {
         private readonly IServerUserManager userManager;
         private readonly PhinixFrameworkTradeStore store = new PhinixFrameworkTradeStore();
+        private readonly Dictionary<string, FrameworkItemPayload> itemPacketCache = new Dictionary<string, FrameworkItemPayload>(StringComparer.OrdinalIgnoreCase);
+        private const int MaxCachedItemPackets = 200;
 
         public event EventHandler<LogEventArgs> OnLogEntry;
 
@@ -28,6 +32,52 @@ namespace Phinix.TradeExtension.Server
         public PhinixFrameworkTradeServerService(IServerUserManager userManager)
         {
             this.userManager = userManager;
+        }
+
+        public void CacheItemPacket(string packetId, FrameworkItemPayload payload)
+        {
+            if (string.IsNullOrEmpty(packetId) || payload == null) return;
+
+            lock (itemPacketCache)
+            {
+                if (itemPacketCache.Count >= MaxCachedItemPackets)
+                {
+                    string oldestKey = null;
+                    foreach (string key in itemPacketCache.Keys)
+                    {
+                        oldestKey = key;
+                        break;
+                    }
+
+                    if (oldestKey != null)
+                    {
+                        itemPacketCache.Remove(oldestKey);
+                    }
+                }
+
+                itemPacketCache[packetId] = payload;
+            }
+        }
+
+        public bool TryGetCachedItemPacket(string packetId, out FrameworkItemPayload payload)
+        {
+            if (string.IsNullOrEmpty(packetId))
+            {
+                payload = null;
+                return false;
+            }
+
+            lock (itemPacketCache)
+            {
+                if (itemPacketCache.TryGetValue(packetId, out payload))
+                {
+                    itemPacketCache.Remove(packetId);
+                    return true;
+                }
+            }
+
+            payload = null;
+            return false;
         }
 
         public void HandleSnapshotRequest(ServerFrameworkContext context)
@@ -115,14 +165,48 @@ namespace Phinix.TradeExtension.Server
                 return;
             }
 
-            if (!store.TrySetOffer(payload.TradeId, context.SenderUuid, payload.Items, out FrameworkTradeStateSnapshot snapshot, out FrameworkTradeFailureReason failureReason))
+            List<FrameworkItemPayload> items = ResolveOfferItems(payload);
+
+            if (!store.TrySetOffer(payload.TradeId, context.SenderUuid, items, out FrameworkTradeStateSnapshot snapshot, out FrameworkTradeFailureReason failureReason))
             {
-                SendOfferUpdateResponse(context.ConnectionId, context, false, payload.TradeId, payload.Items ?? new List<FrameworkItemPayload>(), failureReason, "Trade offer update failed.", command.GetCorrelationId());
+                SendOfferUpdateResponse(context.ConnectionId, context, false, payload.TradeId, items ?? new List<FrameworkItemPayload>(), failureReason, "Trade offer update failed.", command.GetCorrelationId());
                 return;
             }
 
-            SendOfferUpdateResponse(context.ConnectionId, context, true, payload.TradeId, payload.Items ?? new List<FrameworkItemPayload>(), FrameworkTradeFailureReason.None, null, command.GetCorrelationId());
+            SendOfferUpdateResponse(context.ConnectionId, context, true, payload.TradeId, items ?? new List<FrameworkItemPayload>(), FrameworkTradeFailureReason.None, null, command.GetCorrelationId());
             BroadcastSnapshot(snapshot, context, payload.TradeId, command.GetCorrelationId());
+        }
+
+        private List<FrameworkItemPayload> ResolveOfferItems(FrameworkTradeOfferUpdateRequest payload)
+        {
+            if (payload.ItemPacketRefs != null && payload.ItemPacketRefs.Count > 0)
+            {
+                List<FrameworkItemPayload> resolvedItems = new List<FrameworkItemPayload>();
+                foreach (string packetId in payload.ItemPacketRefs)
+                {
+                    if (TryGetCachedItemPacket(packetId, out FrameworkItemPayload cachedPayload))
+                    {
+                        resolvedItems.Add(cachedPayload);
+                    }
+                    else
+                    {
+                        RaiseLogEntry(new LogEventArgs(
+                            $"[TradeServer] ItemPacketRef '{packetId}' not found in cache. Possibly out of order or already consumed.",
+                            LogLevel.WARNING));
+                    }
+                }
+
+                if (resolvedItems.Count > 0)
+                {
+                    RaiseLogEntry(new LogEventArgs(
+                        $"[TradeServer] Resolved {resolvedItems.Count}/{payload.ItemPacketRefs.Count} items from ItemPacketRefs for trade '{payload.TradeId}'.",
+                        LogLevel.DEBUG));
+                }
+
+                return resolvedItems;
+            }
+
+            return payload.Items ?? new List<FrameworkItemPayload>();
         }
 
         public void HandleStatusUpdateRequest(FrameworkPacket command, ServerFrameworkContext context)

@@ -6,7 +6,7 @@ using Utils.Framework;
 namespace Phinix.TradeExtension.Server
 {
     [PhinixExtension(FrameworkTradeProtocol.Capability)]
-    public sealed class BuiltInTradeServerExtension : IPhinixExtensionModule, IActivatablePhinixExtensionModule, ICapabilityProvider, IServerDefaultCommandHandler
+    public sealed class BuiltInTradeServerExtension : IPhinixExtensionModule, IActivatablePhinixExtensionModule, ICapabilityProvider, IServerDefaultCommandHandler, IServerDefaultItemHandler
     {
         private const string TradeStateStorageName = "trade-state.bin";
 
@@ -29,6 +29,7 @@ namespace Phinix.TradeExtension.Server
             builder.HostContext.RegisterPersistent(ExtensionId, TradeStateStorageName, tradeApi);
             builder.AddCapabilityProvider(this);
             builder.AddServerDefaultCommandHandler(this);
+            builder.AddServerDefaultItemHandler(this);
         }
 
         public void Activate(ExtensionHostContext hostContext)
@@ -119,6 +120,60 @@ namespace Phinix.TradeExtension.Server
             return new ServerIncomingCommandResult
             {
                 Action = MessageHandlingResultAction.Handle
+            };
+        }
+
+        public bool CanHandleIncomingItem(FrameworkPacket itemPacket)
+        {
+            return itemPacket != null && !string.IsNullOrEmpty(itemPacket.PayloadJson);
+        }
+
+        public ServerIncomingItemResult HandleIncomingItem(FrameworkPacket itemPacket, ServerFrameworkContext context, IReadOnlyList<IItemCodec> codecs)
+        {
+            if (string.IsNullOrEmpty(itemPacket.PayloadJson))
+            {
+                return new ServerIncomingItemResult
+                {
+                    Action = ItemHandlingResultAction.Continue,
+                    FailureReason = "Item packet has no PayloadJson"
+                };
+            }
+
+            FrameworkItemPayload payload;
+            try
+            {
+                payload = FrameworkSerialization.DeserializePayload<FrameworkItemPayload>(itemPacket.PayloadJson);
+            }
+            catch (Exception ex)
+            {
+                return new ServerIncomingItemResult
+                {
+                    Action = ItemHandlingResultAction.Continue,
+                    FailureReason = $"Failed to deserialize item payload: {ex.Message}",
+                    FailureException = ex
+                };
+            }
+
+            if (payload == null || string.IsNullOrEmpty(payload.CodecId))
+            {
+                return new ServerIncomingItemResult
+                {
+                    Action = ItemHandlingResultAction.Continue,
+                    FailureReason = "Payload or CodecId is empty"
+                };
+            }
+
+            tradeApi.CacheItemPacket(itemPacket.MessageId, payload);
+
+            context.Log?.Invoke(
+                $"[TradeServer] Cached item packet id={itemPacket.MessageId}, codec={payload.CodecId}",
+                LogLevel.DEBUG);
+
+            return new ServerIncomingItemResult
+            {
+                Action = ItemHandlingResultAction.Handled,
+                DecodedItem = payload,
+                HandledByHandlerId = ExtensionId
             };
         }
     }

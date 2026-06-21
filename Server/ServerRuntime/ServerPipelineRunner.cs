@@ -24,6 +24,12 @@ namespace ServerRuntime
 
         public IReadOnlyList<IItemCodec> ItemCodecs { get; }
 
+        public IReadOnlyList<IServerInboundItemInterceptor> InboundItemInterceptors { get; }
+
+        public IReadOnlyList<IServerDefaultItemHandler> DefaultItemHandlers { get; }
+
+        public IReadOnlyList<IServerItemObserver> ItemObservers { get; }
+
         public ServerPipelineRunner(
             IReadOnlyList<IServerInboundMessageInterceptor> inboundMessageInterceptors,
             IReadOnlyList<IServerDefaultMessageHandler> defaultMessageHandlers,
@@ -32,7 +38,10 @@ namespace ServerRuntime
             IReadOnlyList<IServerDefaultCommandHandler> defaultCommandHandlers,
             IReadOnlyList<IServerCommandObserver> commandObservers,
             IReadOnlyList<IServerOutboundPacketInterceptor> outboundPacketInterceptors,
-            IReadOnlyList<IItemCodec> itemCodecs)
+            IReadOnlyList<IItemCodec> itemCodecs,
+            IReadOnlyList<IServerInboundItemInterceptor> inboundItemInterceptors = null,
+            IReadOnlyList<IServerDefaultItemHandler> defaultItemHandlers = null,
+            IReadOnlyList<IServerItemObserver> itemObservers = null)
         {
             InboundMessageInterceptors = inboundMessageInterceptors ?? Array.Empty<IServerInboundMessageInterceptor>();
             DefaultMessageHandlers = defaultMessageHandlers ?? Array.Empty<IServerDefaultMessageHandler>();
@@ -42,6 +51,9 @@ namespace ServerRuntime
             CommandObservers = commandObservers ?? Array.Empty<IServerCommandObserver>();
             OutboundPacketInterceptors = outboundPacketInterceptors ?? Array.Empty<IServerOutboundPacketInterceptor>();
             ItemCodecs = itemCodecs ?? Array.Empty<IItemCodec>();
+            InboundItemInterceptors = inboundItemInterceptors ?? Array.Empty<IServerInboundItemInterceptor>();
+            DefaultItemHandlers = defaultItemHandlers ?? Array.Empty<IServerDefaultItemHandler>();
+            ItemObservers = itemObservers ?? Array.Empty<IServerItemObserver>();
         }
 
         public bool ProcessIncomingMessage(FrameworkPacket message, ServerFrameworkContext context)
@@ -240,25 +252,191 @@ namespace ServerRuntime
 
         public bool ProcessIncomingItem(FrameworkPacket item, ServerFrameworkContext context)
         {
-            if (item == null || string.IsNullOrEmpty(item.PayloadJson))
+            if (item == null)
             {
                 return false;
             }
 
-            FrameworkItemPayload payload;
+            FrameworkPacket currentItem = item;
+            ItemHandlingResultAction terminalAction = ItemHandlingResultAction.Continue;
+            ServerIncomingItemResult terminalResult = null;
+
+            // 1. InboundInterception
+            foreach (IServerInboundItemInterceptor interceptor in InboundItemInterceptors.Where(candidate => safeCanInterceptItem(candidate, currentItem, context)))
+            {
+                ServerIncomingItemResult result = null;
+                try
+                {
+                    result = interceptor.InterceptIncomingItem(currentItem, context);
+                }
+                catch (Exception ex)
+                {
+                    context.Log?.Invoke(
+                        $"Item interceptor {interceptor.GetType().FullName} threw for '{currentItem.MessageType}': {ex}",
+                        LogLevel.ERROR);
+                    continue;
+                }
+
+                if (result?.Action == ItemHandlingResultAction.LegacyFallback)
+                {
+                    context.Log?.Invoke(
+                        $"Item interceptor {interceptor.GetType().FullName} returned LegacyFallback for '{currentItem.MessageType}' — treating as Continue.",
+                        LogLevel.WARNING);
+                }
+
+                if (shouldContinueItem(result?.Action))
+                {
+                    continue;
+                }
+
+                if (isReplaceItem(result?.Action) && result?.Item != null)
+                {
+                    currentItem = result.Item;
+                    terminalResult = result;
+                    continue;
+                }
+
+                if (isBlockedItem(result?.Action) || isHandledItem(result?.Action))
+                {
+                    terminalAction = normalizeTerminalItemAction(result.Action);
+                    terminalResult = result;
+                    observeItem(currentItem, context, terminalAction, terminalResult);
+                    return true;
+                }
+            }
+
+            // 2. DefaultProcess (注册的 handlers)
+            bool matchedHandler = false;
+            foreach (IServerDefaultItemHandler handler in DefaultItemHandlers.Where(candidate => safeCanHandleItem(candidate, currentItem, context)))
+            {
+                matchedHandler = true;
+                ServerIncomingItemResult result = null;
+                try
+                {
+                    result = handler.HandleIncomingItem(currentItem, context, ItemCodecs);
+                }
+                catch (Exception ex)
+                {
+                    context.Log?.Invoke(
+                        $"Item handler {handler.GetType().FullName} threw for '{currentItem.MessageType}': {ex}",
+                        LogLevel.ERROR);
+                    result = new ServerIncomingItemResult
+                    {
+                        Action = ItemHandlingResultAction.Continue,
+                        FailureReason = $"Handler '{handler.GetType().FullName}' threw exception",
+                        FailureException = ex
+                    };
+                    continue;
+                }
+
+                if (result?.Action == ItemHandlingResultAction.LegacyFallback)
+                {
+                    context.Log?.Invoke(
+                        $"Item handler {handler.GetType().FullName} returned LegacyFallback for '{currentItem.MessageType}' — treating as Continue.",
+                        LogLevel.WARNING);
+                }
+
+                if (shouldContinueItem(result?.Action))
+                {
+                    continue;
+                }
+
+                if (isReplaceItem(result?.Action) && result?.Item != null)
+                {
+                    currentItem = result.Item;
+                    terminalResult = result;
+                    continue;
+                }
+
+                if (isHandledItem(result?.Action))
+                {
+                    terminalAction = normalizeTerminalItemAction(result.Action);
+                    terminalResult = result;
+                    observeItem(currentItem, context, terminalAction, terminalResult);
+                    return true;
+                }
+
+                if (isBlockedItem(result?.Action))
+                {
+                    terminalAction = normalizeTerminalItemAction(result.Action);
+                    terminalResult = result;
+                    observeItem(currentItem, context, terminalAction, terminalResult);
+                    return true;
+                }
+            }
+
+            // 3. 内置兜底：如果没有 handler 处理，用注册的 codec 尝试解码（保留旧行为）
+            if (terminalResult == null || shouldContinueItem(terminalResult?.Action))
+            {
+                ServerIncomingItemResult builtinResult = decodeWithCodecsBuiltin(currentItem, context);
+                if (builtinResult != null && isHandledItem(builtinResult.Action))
+                {
+                    terminalResult = builtinResult;
+                    terminalAction = ItemHandlingResultAction.Handled;
+                    matchedHandler = true;
+                }
+                else if (builtinResult != null && !string.IsNullOrEmpty(builtinResult.FailureReason))
+                {
+                    terminalResult = builtinResult;
+                }
+            }
+
+            if (matchedHandler || (terminalResult != null && isHandledItem(terminalResult.Action)))
+            {
+                observeItem(currentItem, context, terminalAction, terminalResult);
+            }
+
+            return matchedHandler || (terminalResult != null && isHandledItem(terminalResult.Action));
+        }
+
+        private static bool safeCanInterceptItem(IServerInboundItemInterceptor interceptor, FrameworkPacket item, ServerFrameworkContext context)
+        {
             try
             {
-                payload = FrameworkSerialization.DeserializePayload<FrameworkItemPayload>(item.PayloadJson);
+                return interceptor.CanInterceptIncomingItem(item);
             }
             catch (Exception ex)
             {
-                context.Log?.Invoke($"Failed to deserialize item payload: {ex.Message}", LogLevel.WARNING);
+                context.Log?.Invoke(
+                    $"Item interceptor {interceptor.GetType().FullName}.CanIntercept threw for '{item.MessageType}': {ex}",
+                    LogLevel.ERROR);
                 return false;
+            }
+        }
+
+        private static bool safeCanHandleItem(IServerDefaultItemHandler handler, FrameworkPacket item, ServerFrameworkContext context)
+        {
+            try
+            {
+                return handler.CanHandleIncomingItem(item);
+            }
+            catch (Exception ex)
+            {
+                context.Log?.Invoke(
+                    $"Item handler {handler.GetType().FullName}.CanHandle threw for '{item.MessageType}': {ex}",
+                    LogLevel.ERROR);
+                return false;
+            }
+        }
+
+        private ServerIncomingItemResult decodeWithCodecsBuiltin(FrameworkPacket item, ServerFrameworkContext context)
+        {
+            if (!FrameworkSerialization.TryExtractItemPayload(item, out FrameworkItemPayload payload))
+            {
+                return new ServerIncomingItemResult
+                {
+                    Action = ItemHandlingResultAction.Continue,
+                    FailureReason = "Item packet has no extractable payload (neither PayloadBytes nor PayloadJson)"
+                };
             }
 
             if (payload == null || string.IsNullOrEmpty(payload.CodecId))
             {
-                return false;
+                return new ServerIncomingItemResult
+                {
+                    Action = ItemHandlingResultAction.Continue,
+                    FailureReason = "Payload or CodecId is empty"
+                };
             }
 
             ItemCodecContext codecContext = new ItemCodecContext
@@ -277,12 +455,17 @@ namespace ServerRuntime
                 try
                 {
                     object decoded = codec.Decode(payload, codecContext);
-                    if (codec.CanEncode(decoded, codecContext))
+                    if (decoded != null && codec.CanEncode(decoded, codecContext))
                     {
                         codec.Encode(decoded, codecContext);
                     }
 
-                    return true;
+                    return new ServerIncomingItemResult
+                    {
+                        Action = ItemHandlingResultAction.Handled,
+                        DecodedItem = decoded,
+                        HandledByHandlerId = "builtin.codec-decoder"
+                    };
                 }
                 catch (Exception ex)
                 {
@@ -293,7 +476,15 @@ namespace ServerRuntime
                 }
             }
 
-            return false;
+            context.Log?.Invoke(
+                $"No item codec registered for item type '{item.MessageType}' (codec_id='{payload.CodecId}').",
+                LogLevel.DEBUG);
+
+            return new ServerIncomingItemResult
+            {
+                Action = ItemHandlingResultAction.Continue,
+                FailureReason = $"No codec matched codec_id='{payload.CodecId}'"
+            };
         }
 
         public void DispatchOutbound(FrameworkPacket packet, ServerOutboundPacketContext context)
@@ -506,6 +697,88 @@ namespace ServerRuntime
                         LogLevel.ERROR);
                 }
             }
+        }
+
+        private void observeItem(FrameworkPacket item, ServerFrameworkContext context, ItemHandlingResultAction terminalAction, ServerIncomingItemResult result)
+        {
+            foreach (IServerItemObserver observer in ItemObservers)
+            {
+                bool canObserve;
+                try
+                {
+                    canObserve = observer.CanObserveIncomingItem(item);
+                }
+                catch (Exception ex)
+                {
+                    context.Log?.Invoke(
+                        $"Item observer {observer.GetType().FullName}.CanObserve threw for '{item.MessageType}': {ex}",
+                        LogLevel.ERROR);
+                    continue;
+                }
+
+                if (!canObserve)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    observer.ObserveIncomingItem(item, context, terminalAction);
+                }
+                catch (Exception ex)
+                {
+                    context.Log?.Invoke(
+                        $"Item observer {observer.GetType().FullName} threw for '{item.MessageType}': {ex}",
+                        LogLevel.ERROR);
+                }
+            }
+        }
+
+        private static bool shouldContinueItem(ItemHandlingResultAction? action)
+        {
+            return !action.HasValue ||
+                   action.Value == ItemHandlingResultAction.Continue ||
+                   action.Value == ItemHandlingResultAction.LegacyFallback;
+        }
+
+        private static bool isReplaceItem(ItemHandlingResultAction? action)
+        {
+            return action == ItemHandlingResultAction.ReplacePayload;
+        }
+
+        private static bool isHandledItem(ItemHandlingResultAction? action)
+        {
+            return action == ItemHandlingResultAction.Handled;
+        }
+
+        private static bool isBlockedItem(ItemHandlingResultAction? action)
+        {
+            return action == ItemHandlingResultAction.StopPropagation ||
+                   action == ItemHandlingResultAction.SuppressDefault;
+        }
+
+        private static ItemHandlingResultAction normalizeTerminalItemAction(ItemHandlingResultAction action)
+        {
+            if (isReplaceItem(action))
+            {
+                return ItemHandlingResultAction.ReplacePayload;
+            }
+
+            if (isBlockedItem(action))
+            {
+                if (action == ItemHandlingResultAction.SuppressDefault)
+                {
+                    return ItemHandlingResultAction.SuppressDefault;
+                }
+                return ItemHandlingResultAction.StopPropagation;
+            }
+
+            if (isHandledItem(action))
+            {
+                return ItemHandlingResultAction.Handled;
+            }
+
+            return action;
         }
 
         private static MessageHandlingResultAction normalizeTerminalAction(MessageHandlingResultAction action)

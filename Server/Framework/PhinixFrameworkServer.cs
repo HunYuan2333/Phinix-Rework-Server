@@ -10,7 +10,7 @@ using ServerRuntime;
 
 namespace PhinixServer.Framework
 {
-    public class PhinixFrameworkServer : ILoggable
+    public class PhinixFrameworkServer : ILoggable, IFrameworkServerBroadcaster
     {
         public event EventHandler<LogEventArgs> OnLogEntry;
 
@@ -122,6 +122,11 @@ namespace PhinixServer.Framework
         public void DispatchExtensionPacket(string sourceExtensionId, string connectionId, FrameworkPacket packet)
         {
             dispatchOutboundToConnection(sourceExtensionId, connectionId, packet);
+        }
+
+        public void Broadcast(string sourceExtensionId, FrameworkPacket packet, string[] excludedConnectionIds = null)
+        {
+            dispatchOutboundBroadcast(sourceExtensionId, packet, excludedConnectionIds);
         }
 
         private void packetHandler(string module, string connectionId, byte[] data)

@@ -67,6 +67,7 @@ namespace PhinixServer
             Framework = new PhinixFrameworkServer(Connections, Authenticator, UserManager, extensionHostContext);
             frameworkPacketDispatcher.Configure((connectionId, sourceExtensionId, packet) =>
                 Framework?.DispatchExtensionPacket(sourceExtensionId, connectionId, packet));
+            extensionHostContext.AddService<IFrameworkServerBroadcaster>(Framework);
 
             // Add handler for ILoggable modules
             Authenticator.OnLogEntry += ILoggableHandler;
@@ -98,7 +99,8 @@ namespace PhinixServer
             Console.CancelKeyPress += shutdownHandler;
 
             // Start interpreting commands
-            CommandInterpreter interpreter = new CommandInterpreter();
+            CommandInterpreter interpreter = new CommandInterpreter(
+                () => Framework?.ResolveExtensionApis<IServerConsoleCommandProvider>() ?? Array.Empty<IServerConsoleCommandProvider>());
             while (!exiting)
             {
                 // Wait until we've got a command to interpret
@@ -172,6 +174,10 @@ namespace PhinixServer
             saveTimer.Stop();
             saveTimer.Dispose();
 
+            // Shut down extensions first so they can send final notifications before transport layer is down
+            Framework.ShutdownExtensions();
+            Framework.SaveExtensionState();
+
             // Log everyone out
             UserManager.LogOutAll();
 
@@ -182,8 +188,6 @@ namespace PhinixServer
             Authenticator.Stop();
             Authenticator.Save(Config.CredentialDatabasePath);
             UserManager.Save(Config.UserDatabasePath);
-            Framework.SaveExtensionState();
-            Framework.ShutdownExtensions();
 
             // Save the config
             Config.Save(CONFIG_FILE);

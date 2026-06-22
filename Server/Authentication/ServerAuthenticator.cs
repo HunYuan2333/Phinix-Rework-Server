@@ -479,7 +479,7 @@ namespace Authentication
 
                     // Check if the password does not match the stored credential
                     // This check is ignored if the auth type is 'ClientKey' as the password does not matter
-                    if (authType == AuthTypes.ClientKey && packet.Password != credential.Password)
+                    if (authType != AuthTypes.ClientKey && packet.Password != credential.Password)
                     {
                         // Fail the authentication attempt due to mismatching password
                         sendFailedAuthResponsePacket(connectionId, AuthFailureReason.Credentials, "Invalid password provided.");

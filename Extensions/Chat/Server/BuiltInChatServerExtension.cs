@@ -30,12 +30,16 @@ namespace Phinix.ChatExtension.Server
 
             chatApi = chatApi ?? new PhinixFrameworkChatService(
                 config.HistoryLength,
+                config.NoticeHistoryLength,
+                config.NoticeRetentionWindowHours,
                 builder.HostContext.GetRequiredService<UserManagement.IServerUserManager>());
             builder.RegisterApi(chatApi);
             builder.HostContext.RegisterPersistent(ExtensionId, HistoryStorageName, chatApi);
             builder.AddCapabilityProvider(this);
             builder.AddServerDefaultMessageHandler(this);
             builder.AddServerDefaultCommandHandler(this);
+            builder.AddConsoleCommandProvider(new NoticeConsoleCommand(chatApi,
+                () => builder.HostContext.TryGetService<IFrameworkServerBroadcaster>(out var b) ? b : null));
         }
 
         public void Activate(ExtensionHostContext hostContext)
@@ -85,7 +89,12 @@ namespace Phinix.ChatExtension.Server
                 return new ServerIncomingMessageResult { Action = MessageHandlingResultAction.Handle };
             }
 
-            global::Phinix.Framework.BuiltInChatMessagePayload storedMessage = chatApi.AddMessage(context.SenderUuid, incomingPacket.Message);
+            global::Phinix.Framework.BuiltInChatMessagePayload storedMessage = chatApi.AddMessage(
+                context.SenderUuid,
+                incomingPacket.Message,
+                incomingPacket.MentionedUuids,
+                incomingPacket.ReplyToMessageId,
+                incomingPacket.ReplyToSnippet);
             context.BroadcastMessage?.Invoke(chatApi.BuildBroadcastPacket(storedMessage), null);
 
             return new ServerIncomingMessageResult
@@ -104,6 +113,13 @@ namespace Phinix.ChatExtension.Server
             foreach (global::Phinix.Framework.BuiltInChatMessagePayload historyMessage in chatApi.GetHistory())
             {
                 context.SendMessage?.Invoke(context.ConnectionId, chatApi.BuildBroadcastPacket(historyMessage));
+            }
+
+            DateTime cutoff = DateTime.UtcNow.AddHours(-chatApi.NoticeRetentionWindowHours);
+            foreach (global::Phinix.Framework.BuiltInChatMessagePayload notice in chatApi.GetNoticesSince(cutoff))
+            {
+                FrameworkPacket packet = chatApi.BuildBroadcastPacket(notice);
+                context.SendMessage?.Invoke(context.ConnectionId, packet);
             }
 
             context.SendMessage?.Invoke(context.ConnectionId, chatApi.BuildHistorySyncCompletePacket());

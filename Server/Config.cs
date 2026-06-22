@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -249,9 +250,10 @@ namespace PhinixServer
                         }
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // If deserialization fails, use defaults
+                    // If deserialization fails, use defaults — but log the failure
+                    Server.Logger?.Log(Verbosity.WARN, $"Config deserialization failed for section '{section.SectionName}': {ex.Message}");
                 }
             }
 

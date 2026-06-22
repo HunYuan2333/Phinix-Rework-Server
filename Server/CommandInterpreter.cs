@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Utils.Framework;
 
 namespace PhinixServer
 {
@@ -16,6 +17,13 @@ namespace PhinixServer
             { "exit", new ExitCommand() },
             { "log", new LogCommand() }
         };
+
+        private readonly Func<IReadOnlyList<IServerConsoleCommandProvider>> pluginCommandResolver;
+
+        public CommandInterpreter(Func<IReadOnlyList<IServerConsoleCommandProvider>> pluginCommandResolver = null)
+        {
+            this.pluginCommandResolver = pluginCommandResolver;
+        }
 
         /// <summary>
         /// Attempts to run a command with the given arguments.
@@ -33,6 +41,34 @@ namespace PhinixServer
                 if (!commands[command].Execute(args)) // Try to execute the command and report if it failed
                 {
                     Console.WriteLine("Failed to run command '{0}' with arguments '{1}'", command, string.Join(" ", args.ToArray()));
+                }
+            }
+            else if (pluginCommandResolver != null)
+            {
+                bool handled = false;
+                foreach (IServerConsoleCommandProvider provider in pluginCommandResolver())
+                {
+                    if (string.Equals(provider.CommandName, command, StringComparison.OrdinalIgnoreCase))
+                    {
+                        handled = true;
+                        try
+                        {
+                            if (!provider.Execute(args))
+                            {
+                                Console.WriteLine("Plugin command '{0}' failed.", command);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine("Plugin command '{0}' threw: {1}", command, ex.Message);
+                        }
+                        break;
+                    }
+                }
+
+                if (!handled)
+                {
+                    Console.WriteLine($"Unknown command '{command}'");
                 }
             }
             else // Spit out an unknown command warning

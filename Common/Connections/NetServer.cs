@@ -9,7 +9,7 @@ using Utils;
 
 namespace Connections
 {
-    public class NetServer : NetCommon
+    public class NetServer : NetCommon, IDisposable
     {
         /// <inheritdoc />
         public override event EventHandler<LogEventArgs> OnLogEntry;
@@ -207,31 +207,24 @@ namespace Connections
                 
                 return true;
             }
-            catch (NotConnectedException e)
-            {
-                // Catch connection exceptions
-                RaiseLogEntry(new LogEventArgs("Cannot send message, " + e.Message, LogLevel.ERROR));
-                
-                return false;
-            }
-            catch (ArgumentNullException e)
-            {
-                // Catch argument exceptions
-                RaiseLogEntry(new LogEventArgs(string.Format("Cannot send message, argument {0} is null or empty", e.ParamName), LogLevel.ERROR));
-                
-                return false;
-            }
             catch (ArgumentException e)
             {
                 // Catch more argument exceptions
                 RaiseLogEntry(new LogEventArgs(string.Format("Cannot send message, argument {0} is null or empty", e.ParamName), LogLevel.ERROR));
-                
+
+                return false;
+            }
+            catch (NotConnectedException e)
+            {
+                // Catch connection exceptions
+                RaiseLogEntry(new LogEventArgs("Cannot send message, " + e.Message, LogLevel.ERROR));
+
                 return false;
             }
             catch (Exception e)
             {
-                // Catch anything else
-                RaiseLogEntry(new LogEventArgs("Got an unusual exception when sending a message\n" + e, LogLevel.ERROR));
+                // Catch anything else — but log it, don't silently swallow
+                RaiseLogEntry(new LogEventArgs("Got an unusual exception when sending a message: " + e, LogLevel.ERROR));
 
                 return false;
             }
@@ -250,6 +243,15 @@ namespace Connections
                 connectedPeers.Remove(connectionId);
             }
             server.DisconnectPeer(peer);
+        }
+
+        /// <summary>
+        /// Disposes managed resources: server NetManager, poll thread.
+        /// </summary>
+        public void Dispose()
+        {
+            Stop();
+            server = null;
         }
 
     }

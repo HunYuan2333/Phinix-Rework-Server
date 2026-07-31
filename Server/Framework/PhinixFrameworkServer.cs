@@ -225,7 +225,8 @@ namespace PhinixServer.Framework
 
         private void handleCommand(string connectionId, FrameworkPacket command)
         {
-            RaiseLogEntry(new LogEventArgs($"Received framework command '{command.MessageType}' flow={command.Flow} kind={command.Kind} from {connectionId}", LogLevel.INFO));
+            // 管线消息路由细节 → DEBUG（设计哲学 §3.8），避免每条命令刷服务端日志
+            RaiseLogEntry(new LogEventArgs($"Received framework command '{command.MessageType}' flow={command.Flow} kind={command.Kind} from {connectionId}", LogLevel.DEBUG));
 
             if (!authenticator.IsAuthenticated(connectionId, command.SessionId) || !userManager.IsLoggedIn(connectionId, command.SenderUuid))
             {
@@ -248,13 +249,14 @@ namespace PhinixServer.Framework
             }
             else
             {
-                RaiseLogEntry(new LogEventArgs($"Framework command '{command.MessageType}' processed successfully.", LogLevel.INFO));
+                RaiseLogEntry(new LogEventArgs($"Framework command '{command.MessageType}' processed successfully.", LogLevel.DEBUG));
             }
         }
 
         private void handleItem(string connectionId, FrameworkPacket item)
         {
-            RaiseLogEntry(new LogEventArgs($"Received framework item '{item.MessageType}' flow={item.Flow} kind={item.Kind} from {connectionId}", LogLevel.INFO));
+            // 管线消息路由细节 → DEBUG（设计哲学 §3.8）
+            RaiseLogEntry(new LogEventArgs($"Received framework item '{item.MessageType}' flow={item.Flow} kind={item.Kind} from {connectionId}", LogLevel.DEBUG));
 
             if (!authenticator.IsAuthenticated(connectionId, item.SessionId) || !userManager.IsLoggedIn(connectionId, item.SenderUuid))
             {
@@ -277,7 +279,7 @@ namespace PhinixServer.Framework
             }
             else
             {
-                RaiseLogEntry(new LogEventArgs($"Framework item '{item.MessageType}' processed successfully.", LogLevel.INFO));
+                RaiseLogEntry(new LogEventArgs($"Framework item '{item.MessageType}' processed successfully.", LogLevel.DEBUG));
             }
         }
 

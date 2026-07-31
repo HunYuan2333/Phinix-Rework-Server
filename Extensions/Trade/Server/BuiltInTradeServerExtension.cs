@@ -99,7 +99,8 @@ namespace Phinix.TradeExtension.Server
 
         public ServerIncomingCommandResult HandleIncomingCommand(FrameworkPacket command, ServerFrameworkContext context)
         {
-            context.Log?.Invoke($"[TradeServer] HandleIncomingCommand: type={command.MessageType}, from={context.SenderUuid}", LogLevel.INFO);
+            // 管线路由细节 → DEBUG（设计哲学 §3.8），避免每条交易命令刷服务端日志
+            context.Log?.Invoke($"[TradeServer] HandleIncomingCommand: type={command.MessageType}, from={context.SenderUuid}", LogLevel.DEBUG);
 
             switch (command.MessageType)
             {

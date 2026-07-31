@@ -252,7 +252,8 @@ namespace Phinix.TradeExtension.Server
                 return;
             }
 
-            RaiseLogEntry(new LogEventArgs($"[TradeServer] HandleStatusUpdate: broadcasting snapshot to participants", LogLevel.INFO));
+            // 快照广播随物品更新高频发生 → DEBUG（设计哲学 §3.8）
+            RaiseLogEntry(new LogEventArgs($"[TradeServer] HandleStatusUpdate: broadcasting snapshot to participants", LogLevel.DEBUG));
             BroadcastSnapshot(snapshot, context, payload.TradeId, command.GetCorrelationId());
         }
 

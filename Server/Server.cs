@@ -225,7 +225,9 @@ namespace PhinixServer
                     break;
             }
 
-            Logger.Log(verbosity, args.Message, sender.GetType().Namespace);
+            Type sourceType = sender as Type;
+            string module = sourceType != null ? (sourceType.Namespace ?? sourceType.Name) : sender?.GetType().Namespace;
+            Logger.Log(verbosity, args.Message, module);
         }
     }
 }

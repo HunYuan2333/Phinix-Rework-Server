@@ -33,8 +33,8 @@ namespace PhinixServer.Framework
             this.userManager = userManager;
             this.extensionHostContext = extensionHostContext ?? ExtensionHostContext.Empty;
             this.discoveredExtensions = PhinixExtensionRegistry.DiscoverExtensions(this.extensionHostContext);
-            this.serverCapabilities = new HashSet<string>(PhinixExtensionRegistry.CollectCapabilities(discoveredExtensions), StringComparer.OrdinalIgnoreCase);
             PhinixExtensionRegistry.ActivateExtensions(discoveredExtensions, this.extensionHostContext);
+            this.serverCapabilities = new HashSet<string>(PhinixExtensionRegistry.CollectCapabilities(discoveredExtensions), StringComparer.OrdinalIgnoreCase);
             LoadExtensionState();
             this.pipelineRunner = buildPipelineRunner();
 
@@ -68,16 +68,22 @@ namespace PhinixServer.Framework
         {
             foreach (ExtensionPersistenceRegistration registration in extensionHostContext.Persistents)
             {
-                string path = extensionHostContext.GetStoragePath(registration.ExtensionId, registration.LogicalName);
-                if (string.IsNullOrEmpty(path))
+                IExtensionLogger logger = extensionHostContext.GetExtensionLogger(registration.ExtensionId);
+                try
                 {
-                    RaiseLogEntry(new LogEventArgs(
-                        $"Skipped loading persistent state '{registration.ExtensionId}/{registration.LogicalName}' because no storage path was available.",
-                        LogLevel.WARNING));
-                    continue;
-                }
+                    string path = extensionHostContext.GetStoragePath(registration.ExtensionId, registration.LogicalName);
+                    if (string.IsNullOrEmpty(path))
+                    {
+                        logger.Log($"Skipped loading persistent state '{registration.LogicalName}' because no storage path was available.", LogLevel.WARNING);
+                        continue;
+                    }
 
-                registration.Persistent.Load(path);
+                    registration.Persistent.Load(path);
+                }
+                catch (Exception exception)
+                {
+                    logger.Log($"Failed to load persistent state '{registration.LogicalName}'.", LogLevel.ERROR, exception);
+                }
             }
         }
 
@@ -85,16 +91,22 @@ namespace PhinixServer.Framework
         {
             foreach (ExtensionPersistenceRegistration registration in extensionHostContext.Persistents)
             {
-                string path = extensionHostContext.GetStoragePath(registration.ExtensionId, registration.LogicalName);
-                if (string.IsNullOrEmpty(path))
+                IExtensionLogger logger = extensionHostContext.GetExtensionLogger(registration.ExtensionId);
+                try
                 {
-                    RaiseLogEntry(new LogEventArgs(
-                        $"Skipped saving persistent state '{registration.ExtensionId}/{registration.LogicalName}' because no storage path was available.",
-                        LogLevel.WARNING));
-                    continue;
-                }
+                    string path = extensionHostContext.GetStoragePath(registration.ExtensionId, registration.LogicalName);
+                    if (string.IsNullOrEmpty(path))
+                    {
+                        logger.Log($"Skipped saving persistent state '{registration.LogicalName}' because no storage path was available.", LogLevel.WARNING);
+                        continue;
+                    }
 
-                registration.Persistent.Save(path);
+                    registration.Persistent.Save(path);
+                }
+                catch (Exception exception)
+                {
+                    logger.Log($"Failed to save persistent state '{registration.LogicalName}'.", LogLevel.ERROR, exception);
+                }
             }
         }
 

@@ -1,11 +1,13 @@
 <Project>
+  <!-- SDK projects acquire reference assemblies automatically; classic client projects do not.
+       Restore the compile-only targeting pack so they also build with dotnet MSBuild on Linux. -->
+  <ItemGroup Condition="'$(UsingMicrosoftNETSdk)' != 'true' and '$(TargetFrameworkVersion)' == 'v4.7.2'">
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
   <!-- Keep protobuf SDK compatibility patches in the main repo instead of modifying the vendored submodule. -->
   <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Google.Protobuf'">
     <NoWarn>$(NoWarn);NETSDK1215</NoWarn>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Google.Protobuf' and '$(TargetFramework)' == 'net50'">
-    <IsTrimmable>true</IsTrimmable>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Google.Protobuf' and '$(TargetFramework)' != 'net50'">

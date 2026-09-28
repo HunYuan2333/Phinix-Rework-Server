@@ -14,6 +14,7 @@ namespace Phinix.TradeExtension.Server
         void HandleCreateRequest(FrameworkPacket command, ServerFrameworkContext context);
         void HandleOfferUpdateRequest(FrameworkPacket command, ServerFrameworkContext context);
         void HandleStatusUpdateRequest(FrameworkPacket command, ServerFrameworkContext context);
+        void HandleCompletionAckRequest(FrameworkPacket command, ServerFrameworkContext context);
         void CacheItemPacket(string packetId, FrameworkItemPayload payload);
         bool TryGetCachedItemPacket(string packetId, out FrameworkItemPayload payload);
     }
@@ -107,8 +108,32 @@ namespace Phinix.TradeExtension.Server
             foreach (PhinixFrameworkTradeStore.PendingCompletionNotification notification in store.GetPendingCompletionNotificationsFor(uuid))
             {
                 SendCompletionEvent(connectionId, sessionId, notification, sendMessage);
-                store.MarkCompletionNotificationDelivered(notification.TradeId, uuid);
             }
+        }
+
+        public void HandleCompletionAckRequest(FrameworkPacket command, ServerFrameworkContext context)
+        {
+            FrameworkTradeCompletionAckRequest request =
+                FrameworkSerialization.DeserializePayload<FrameworkTradeCompletionAckRequest>(command.PayloadJson);
+            bool accepted = request != null &&
+                store.TryAcknowledgeCompletion(request.TradeId, context.SenderUuid, request.Cancelled);
+            FrameworkTradeCompletionAckResponse response = new FrameworkTradeCompletionAckResponse
+            {
+                TradeId = request?.TradeId,
+                Accepted = accepted,
+                FailureMessage = accepted ? null : "No matching pending trade completion was found."
+            };
+            FrameworkPacket packet = new FrameworkPacket
+            {
+                Flow = global::Phinix.Framework.FrameworkFlow.Command,
+                CommandKind = global::Phinix.Framework.FrameworkCommandKind.Response,
+                MessageType = FrameworkTradeProtocol.CompletionAckResponseType,
+                SessionId = context.SessionId,
+                SenderUuid = FrameworkProtocol.SystemSenderUuid,
+                PayloadJson = FrameworkSerialization.SerializePayload(response)
+            };
+            packet.SetCorrelationId(command.GetCorrelationId());
+            context.SendMessage?.Invoke(context.ConnectionId, packet);
         }
 
         public void HandleCreateRequest(FrameworkPacket command, ServerFrameworkContext context)
@@ -406,7 +431,6 @@ namespace Phinix.TradeExtension.Server
                     $"[TradeServer] SendCompletionEvents: sending completion to uuid={participant.Uuid} via connectionId={connectionId}, cancelled={cancelled}",
                     LogLevel.INFO));
                 SendCompletionEvent(connectionId, context.SessionId, notification, context.SendMessage, correlationId);
-                store.MarkCompletionNotificationDelivered(notification.TradeId, participant.Uuid);
             }
         }
 

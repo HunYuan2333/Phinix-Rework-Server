@@ -144,18 +144,22 @@ namespace Phinix.TradeExtension.Server
             }
         }
 
-        public void MarkCompletionNotificationDelivered(string tradeId, string recipientUuid)
+        public bool TryAcknowledgeCompletion(string tradeId, string recipientUuid, bool cancelled)
         {
             if (string.IsNullOrEmpty(tradeId) || string.IsNullOrEmpty(recipientUuid))
             {
-                return;
+                return false;
             }
 
             lock (syncLock)
             {
-                pendingCompletionNotifications.RemoveAll(notification =>
+                PendingCompletionNotification pending = pendingCompletionNotifications.FirstOrDefault(notification =>
                     string.Equals(notification.TradeId, tradeId, StringComparison.OrdinalIgnoreCase) &&
                     string.Equals(notification.RecipientUuid, recipientUuid, StringComparison.OrdinalIgnoreCase));
+                if (pending == null) return true;
+                if (pending.Cancelled != cancelled) return false;
+                pendingCompletionNotifications.Remove(pending);
+                return true;
             }
         }
 

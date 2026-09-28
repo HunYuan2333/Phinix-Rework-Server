@@ -85,6 +85,8 @@ namespace Phinix.TradeExtension.Server
             yield return FrameworkTradeProtocol.StatusUpdateResponseType;
             yield return FrameworkTradeProtocol.CompletedEventType;
             yield return FrameworkTradeProtocol.CancelledEventType;
+            yield return FrameworkTradeProtocol.CompletionAckRequestType;
+            yield return FrameworkTradeProtocol.CompletionAckResponseType;
         }
 
         public bool CanHandleIncomingCommand(FrameworkPacket command)
@@ -94,7 +96,8 @@ namespace Phinix.TradeExtension.Server
                    (command.MessageType == FrameworkTradeProtocol.SnapshotType ||
                     command.MessageType == FrameworkTradeProtocol.CreateRequestType ||
                     command.MessageType == FrameworkTradeProtocol.OfferUpdateRequestType ||
-                    command.MessageType == FrameworkTradeProtocol.StatusUpdateRequestType);
+                    command.MessageType == FrameworkTradeProtocol.StatusUpdateRequestType ||
+                    command.MessageType == FrameworkTradeProtocol.CompletionAckRequestType);
         }
 
         public ServerIncomingCommandResult HandleIncomingCommand(FrameworkPacket command, ServerFrameworkContext context)
@@ -115,6 +118,9 @@ namespace Phinix.TradeExtension.Server
                     break;
                 case FrameworkTradeProtocol.StatusUpdateRequestType:
                     tradeApi.HandleStatusUpdateRequest(command, context);
+                    break;
+                case FrameworkTradeProtocol.CompletionAckRequestType:
+                    tradeApi.HandleCompletionAckRequest(command, context);
                     break;
             }
 

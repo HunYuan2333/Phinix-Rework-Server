@@ -5,6 +5,7 @@
 **/Output
 Client/
 GameDlls/
+Extensions/PluginStore/RepositoryWorker/
 docs/
 .claude/
 *.md

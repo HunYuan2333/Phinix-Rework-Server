@@ -42,7 +42,7 @@ jobs:
       id: tags
       uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
       with:
-        images: hunyuan23333/phinix-rework
+        images: hunyuan2333/phinix-rework
         flavor: latest=false
         tags: |
           type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}

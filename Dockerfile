@@ -12,10 +12,8 @@ WORKDIR /src
 COPY nuget.config ./
 COPY Directory.Build.props Directory.Build.targets ./
 COPY Server/ ./Server/
-COPY Common/ ./Common/
 COPY Dependencies/ ./Dependencies/
 COPY Extensions/ ./Extensions/
-COPY libs/ ./libs/
 
 # Publish only the server graph. Official plugins use the normal Extensions discovery path.
 RUN dotnet publish Server/Server.csproj -c Release -o /out --no-self-contained && \

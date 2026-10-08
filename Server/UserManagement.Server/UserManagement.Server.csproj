@@ -14,11 +14,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Dependencies\protobuf\csharp\src\Google.Protobuf\Google.Protobuf.csproj" />
+    <ProjectReference Include="../../Dependencies/Phinix.Common/Dependencies/protobuf/csharp/src/Google.Protobuf/Google.Protobuf.csproj" />
     <ProjectReference Include="..\Authentication.Server\Authentication.Server.csproj" />
-    <ProjectReference Include="..\..\Common\Connections\Connections.csproj" />
-    <ProjectReference Include="..\..\Common\UserManagement\UserManagement.csproj" />
-    <ProjectReference Include="..\..\Common\Utils\Utils.csproj" />
+    <ProjectReference Include="../../Dependencies/Phinix.Common/Common/Connections/Connections.csproj" />
+    <ProjectReference Include="../../Dependencies/Phinix.Common/Common/UserManagement/UserManagement.csproj" />
+    <ProjectReference Include="../../Dependencies/Phinix.Common/Common/Utils/Utils.csproj" />
     <ProjectReference Include="..\ServerRuntime\ServerRuntime.csproj" />
   </ItemGroup>
 </Project>

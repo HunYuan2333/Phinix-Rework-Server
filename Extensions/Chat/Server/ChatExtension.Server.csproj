@@ -9,10 +9,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Dependencies\protobuf\csharp\src\Google.Protobuf\Google.Protobuf.csproj" />
-    <ProjectReference Include="..\Contracts\ChatExtension.csproj" />
-    <ProjectReference Include="..\..\..\Common\UserManagement\UserManagement.csproj" />
+    <ProjectReference Include="../../../Dependencies/Phinix.Common/Dependencies/protobuf/csharp/src/Google.Protobuf/Google.Protobuf.csproj" />
+    <ProjectReference Include="../../../Dependencies/Phinix.Common/Extensions/Chat/Contracts/ChatExtension.csproj" />
+    <ProjectReference Include="../../../Dependencies/Phinix.Common/Common/UserManagement/UserManagement.csproj" />
     <ProjectReference Include="..\..\..\Server\ServerRuntime\ServerRuntime.csproj" />
-    <ProjectReference Include="..\..\..\Common\Utils\Utils.csproj" />
+    <ProjectReference Include="../../../Dependencies/Phinix.Common/Common/Utils/Utils.csproj" />
   </ItemGroup>
 </Project>

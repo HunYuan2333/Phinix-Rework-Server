@@ -15,3 +15,5 @@ docs/
 .travis.yml
 .abstruse.yml
 .editorconfig
+
+Tests/

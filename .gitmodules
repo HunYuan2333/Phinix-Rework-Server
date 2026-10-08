@@ -1,0 +1,3 @@
+[submodule "Dependencies/Phinix.Common"]
+	path = Dependencies/Phinix.Common
+	url = https://github.com/HunYuan2333/Phinix-Common.git

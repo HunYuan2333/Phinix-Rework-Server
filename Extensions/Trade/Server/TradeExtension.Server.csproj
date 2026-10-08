@@ -9,8 +9,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Contracts\TradeExtension.csproj" />
-    <ProjectReference Include="..\..\..\Common\UserManagement\UserManagement.csproj" />
-    <ProjectReference Include="..\..\..\Common\Utils\Utils.csproj" />
+    <ProjectReference Include="../../../Dependencies/Phinix.Common/Extensions/Trade/Contracts/TradeExtension.csproj" />
+    <ProjectReference Include="../../../Dependencies/Phinix.Common/Common/UserManagement/UserManagement.csproj" />
+    <ProjectReference Include="../../../Dependencies/Phinix.Common/Common/Utils/Utils.csproj" />
   </ItemGroup>
 </Project>

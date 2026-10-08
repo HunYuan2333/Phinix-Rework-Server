@@ -25,11 +25,11 @@
 
   <ItemGroup>
     <ProjectReference Include="Authentication.Server\Authentication.Server.csproj" />
-    <ProjectReference Include="..\Common\Connections\Connections.csproj" />
+    <ProjectReference Include="../Dependencies/Phinix.Common/Common/Connections/Connections.csproj" />
     <ProjectReference Include="Connections.Server\Connections.Server.csproj" />
-    <ProjectReference Include="..\Common\UserManagement\UserManagement.csproj" />
+    <ProjectReference Include="../Dependencies/Phinix.Common/Common/UserManagement/UserManagement.csproj" />
     <ProjectReference Include="UserManagement.Server\UserManagement.Server.csproj" />
-    <ProjectReference Include="..\Common\Utils\Utils.csproj" />
+    <ProjectReference Include="../Dependencies/Phinix.Common/Common/Utils/Utils.csproj" />
     <ProjectReference Include="ServerRuntime\ServerRuntime.csproj" />
     <ProjectReference Include="..\Extensions\Chat\Server\ChatExtension.Server.csproj">
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
@@ -37,10 +37,10 @@
     <ProjectReference Include="..\Extensions\Trade\Server\TradeExtension.Server.csproj">
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
-    <ProjectReference Include="..\Extensions\Chat\Contracts\ChatExtension.csproj">
+    <ProjectReference Include="../Dependencies/Phinix.Common/Extensions/Chat/Contracts/ChatExtension.csproj">
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
-    <ProjectReference Include="..\Extensions\Trade\Contracts\TradeExtension.csproj">
+    <ProjectReference Include="../Dependencies/Phinix.Common/Extensions/Trade/Contracts/TradeExtension.csproj">
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
   </ItemGroup>
@@ -48,8 +48,8 @@
   <ItemGroup>
     <OfficialServerExtensionProject Include="..\Extensions\Chat\Server\ChatExtension.Server.csproj" />
     <OfficialServerExtensionProject Include="..\Extensions\Trade\Server\TradeExtension.Server.csproj" />
-    <OfficialServerExtensionContractProject Include="..\Extensions\Chat\Contracts\ChatExtension.csproj" />
-    <OfficialServerExtensionContractProject Include="..\Extensions\Trade\Contracts\TradeExtension.csproj" />
+    <OfficialServerExtensionContractProject Include="../Dependencies/Phinix.Common/Extensions/Chat/Contracts/ChatExtension.csproj" />
+    <OfficialServerExtensionContractProject Include="../Dependencies/Phinix.Common/Extensions/Trade/Contracts/TradeExtension.csproj" />
   </ItemGroup>
 
   <Target Name="CopyOfficialServerExtensions" AfterTargets="Build">
@@ -61,9 +61,9 @@
 
     <ItemGroup>
       <_OfficialServerExtensionFile Include="$(_ExtensionsBase)\Chat\Server\$(_ExtensionsConfigBin)\ChatExtension.Server.dll" />
-      <_OfficialServerExtensionFile Include="$(_ExtensionsBase)\Chat\Contracts\$(_ExtensionsConfigBin)\ChatExtension.dll" />
+      <_OfficialServerExtensionFile Include="$(MSBuildThisFileDirectory)../Dependencies/Phinix.Common/Extensions/Chat/Contracts/$(_ExtensionsConfigBin)\ChatExtension.dll" />
       <_OfficialServerExtensionFile Include="$(_ExtensionsBase)\Trade\Server\$(_ExtensionsConfigBin)\TradeExtension.Server.dll" />
-      <_OfficialServerExtensionFile Include="$(_ExtensionsBase)\Trade\Contracts\$(_ExtensionsConfigBin)\TradeExtension.dll" />
+      <_OfficialServerExtensionFile Include="$(MSBuildThisFileDirectory)../Dependencies/Phinix.Common/Extensions/Trade/Contracts/$(_ExtensionsConfigBin)\TradeExtension.dll" />
       <_OfficialServerExtensionFile Include="$(OutDir)ChatExtension.Server.dll" />
       <_OfficialServerExtensionFile Include="$(OutDir)ChatExtension.dll" />
       <_OfficialServerExtensionFile Include="$(OutDir)TradeExtension.Server.dll" />

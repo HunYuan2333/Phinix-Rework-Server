@@ -1,4 +1,4 @@
-# Phinix-Server
+# Phinix-Rework-Server
 
 Phinix 独立服务端，包含服务端网络适配、宿主及官方服务端插件。
 
@@ -12,8 +12,8 @@ Dedicated server host, server networking adapters and official server extensions
 正式远端就绪后 / Once the reviewed remote commits are published:
 
 ```bash
-git clone --recurse-submodules https://github.com/HunYuan2333/Phinix-Server.git
-cd Phinix-Server
+git clone --recurse-submodules https://github.com/HunYuan2333/Phinix-Rework-Server.git
+cd Phinix-Rework-Server
 ```
 
 已有 checkout 可执行 / For an existing checkout:

@@ -177,7 +177,7 @@ Collaboration between plugins is the responsibility of the plugins themselves; t
 
 ### 3.4 General Event Stream Replaces Dedicated Bridges
 
-Plugins do not obtain host events through host-customized bridge interfaces tailored for them, but instead consume general event streams (`IClientUserEventStream`, `IClientMainThreadDispatcher`, `IClientSettingsContext`, `IClientSessionContext`, etc.). See the "Submod Developer Guide" §8 for the specific interface list and usage.
+Plugins do not obtain host events through host-customized bridge interfaces tailored for them, but instead consume general event streams (`IClientUserEventStream`, `IClientMainThreadDispatcher`, `IClientSettingsContext`, `IClientSessionContext`, etc.). See the client repository `docs/Plugin-Development.md` §2 for the specific interface list and usage.
 
 **Anti-pattern**: The host defines plugin-specific interfaces such as `IChatUiEventSink`, `ITradeUiHostContext`, creating a new set each time a plugin is added.
 
@@ -440,7 +440,7 @@ Server/
     TradeExtension.Server.dll
 ```
 
-On startup, `ExtensionAssemblyLoader` scans `Common/Extensions/`, and also natively probes the `Assemblies/` directory of all active RimWorld mods, allowing third-party plugins to be distributed as standalone mods or placed in the Extensions directory (see the "Submod Developer Guide" §2.4 for details).
+On startup, `ExtensionAssemblyLoader` scans `Common/Extensions/`, and also natively probes the `Assemblies/` directory of all active RimWorld mods, allowing third-party plugins to be distributed as standalone mods or placed in the Extensions directory (see the client repository `docs/Plugin-Development.md` §1 and §5 for details).
 
 ### 5.3 Versioning and API Compatibility
 

@@ -53,17 +53,16 @@ internal static partial class Program
         { AuditChat(args[0]); return; }
         if (args.Length == 2 && (args[0] == "--write-config" || args[0] == "--write-trade-config"))
         {
-            using var xml = new MemoryStream(); new DataContractSerializer(typeof(LegacyChatServerConfig)).WriteObject(xml, new LegacyChatServerConfig { Enabled = true });
             var config = new Config { Address = IPAddress.Any, Port = 0, SaveInterval = 60000, LogPath = "server.log", UserDatabasePath = "users", CredentialDatabasePath = "credentials" };
-            config.ExtensionConfigs["builtin.legacy-chat-adapter"] = System.Text.Encoding.UTF8.GetString(xml.ToArray());
-            if (args[0] == "--write-trade-config")
+            // The chat-only probe exercises explicit trade refusal. The mixed-trade probe uses defaults.
+            if (args[0] == "--write-config")
             {
-                using var tradeXml = new MemoryStream(); new DataContractSerializer(typeof(OriginalTradeServerConfig)).WriteObject(tradeXml, new OriginalTradeServerConfig { Enabled = true });
+                using var tradeXml = new MemoryStream(); new DataContractSerializer(typeof(OriginalTradeServerConfig)).WriteObject(tradeXml, new OriginalTradeServerConfig { Enabled = false });
                 config.ExtensionConfigs["builtin.original-trade-adapter"] = System.Text.Encoding.UTF8.GetString(tradeXml.ToArray());
             }
             config.Save(args[1]); return;
         }
-        Check(!new LegacyChatServerConfig().Enabled, "Raw original profile must be opt-in");
+        Check(new Config().GetConfig<LegacyChatServerConfig>().Enabled, "Original chat must be enabled with no saved section");
         var decoded = OriginalChatCodec.DecodeRequest(Request("id"));
         Check(decoded.OriginalId == "id" && decoded.Text == "synthetic-message" && decoded.PrincipalId == "a", "Independent original fields misread");
         Refused(() => OriginalChatCodec.DecodeRequest(new byte[32 * 1024 + 1]));

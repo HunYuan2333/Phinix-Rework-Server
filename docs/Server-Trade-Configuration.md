@@ -48,7 +48,7 @@ python3 tools/configure_trade_limits.py --input /opt/phinix/data/server.conf --o
 
 ## 原版交易兼容开关（2026-11-04）
 
-`builtin.original-trade-adapter` / `OriginalTradeServerConfig.Enabled` 默认 **false**。开启代表采用用户已接受的原版较弱交易规则：基础物品投影、当前报价确认、tokenless 请求不承诺跨重连应用幂等、无可靠交付 ACK。普通 Rework 双方仍使用原有严格规则。
+`builtin.original-trade-adapter` / `OriginalTradeServerConfig.Enabled` 默认 **true**。已有配置明确写入 `Enabled=false` 时继续关闭。开启代表采用用户已接受的原版较弱交易规则：基础物品投影、当前报价确认、tokenless 请求不承诺跨重连应用幂等、无可靠交付 ACK。普通 Rework 双方仍使用原有严格规则。
 
 ```sh
 python3 tools/configure_trade_limits.py --input /opt/phinix/data/server.conf --output /opt/phinix/data/server.conf.next --original-trading on
@@ -60,4 +60,4 @@ python3 tools/configure_trade_limits.py --input /opt/phinix/data/server.conf --o
 
 ## 原版聊天独立开关（2026-11-04 热修复）
 
-候选工具新增 `--original-chat on/off`，配置键为 `builtin.legacy-chat-adapter.Enabled`。原版交易开关不会自动开启聊天；需要两者时可同时指定 `--original-chat on --original-trading on`。聊天会将回复/艾特显式显示为普通文本，现代端结构不变。云端已在本次热修复中开启两者。仍须停服后审阅/替换候选并重启，工具不覆盖原文件或其他配置。
+候选工具新增 `--original-chat on/off`，配置键为 `builtin.legacy-chat-adapter.Enabled`，默认 **true**，已有显式关闭设置继续生效。原版交易开关不会自动开启聊天；需要两者时可同时指定 `--original-chat on --original-trading on`。聊天会将回复/艾特显式显示为普通文本，现代端结构不变。云端已在本次热修复中开启两者。仍须停服后审阅/替换候选并重启，工具不覆盖原文件或其他配置。

@@ -14,7 +14,7 @@ namespace Phinix.LegacyAdapter.Server
     {
         [DataMember(Order = 0)] public bool Enabled { get; set; }
         public string SectionName => "builtin.original-trade-adapter";
-        public void LoadDefaults() => Enabled = false;
+        public void LoadDefaults() => Enabled = true;
         public void Validate() { }
     }
 

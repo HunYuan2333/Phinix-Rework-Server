@@ -1,0 +1,53 @@
+name: Server quality
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          submodules: recursive
+          persist-credentials: false
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: '10.0.402'
+      - name: Audit server direct, transitive and build-target packages
+        run: python3 tools/security/audit_dependencies.py --output "$RUNNER_TEMP/server-security"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: server-security
+          path: ${{ runner.temp }}/server-security
+          if-no-files-found: error
+          retention-days: 14
+  stage:
+    needs: security
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          submodules: recursive
+          persist-credentials: false
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: '10.0.402'
+      - name: Test process supervision
+        run: python3 -m unittest discover -s tools/quality -p 'test_*.py' -v
+      - name: Restore, build, regressions and publish
+        run: python3 tools/quality/check.py --suite stage --isolated --output "$RUNNER_TEMP/server-quality"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: server-quality
+          path: ${{ runner.temp }}/server-quality
+          if-no-files-found: error
+          retention-days: 14

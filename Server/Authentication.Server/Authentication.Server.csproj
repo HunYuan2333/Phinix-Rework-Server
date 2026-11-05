@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../ServerStorage/ServerStorage.csproj" />
     <Compile Include="..\Authentication\ServerAuthenticator.cs">
       <Link>ServerAuthenticator.cs</Link>
     </Compile>

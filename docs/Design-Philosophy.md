@@ -187,7 +187,7 @@ A single failure in network processing, message parsing, or extension execution 
 
 **In-pipeline isolation:**
 
-- Exceptions thrown by individual interceptors/handlers are caught and logged by PipelineRunner, and the pipeline continues processing the next candidate
+- Failure isolation is request-scoped. In the dedicated server, a failing predicate, interceptor, handler or selected item codec stops that request; unknown side effects must not be retried through another candidate. Explicit Continue/non-match permits normal chaining. Independent observers are isolated individually, and subsequent requests remain usable. A stopped/consumed request is not a success, rollback or delivery receipt.
 - A single message parsing failure (e.g., Protobuf `ParseFrom` exception) only skips that message, without affecting other messages in the same frame
 - Extension `Activate()` / `Shutdown()` failures do not affect the lifecycle of other extensions
 
@@ -542,7 +542,7 @@ Before each milestone release, review item by item against the following categor
 **Review points:**
 
 - Network layer: Are reads/writes to `connectedPeers` / `probePeers` lock-protected? Are callbacks triggered by background threads marshalled to the main thread?
-- Pipeline layer: Are individual interceptor/handler exceptions caught by PipelineRunner? Does the pipeline continue processing the next candidate after an exception?
+- Pipeline layer: Are individual interceptor/handler exceptions caught by PipelineRunner? Does the server stop the failed request while allowing later independent requests to proceed?
 - Parsing layer: Do Protobuf `ParseFrom`, `Unpack` and other deserialization operations have try-catch? Are malicious or corrupted messages only skipped without interrupting the pipeline?
 - Critical handshake packets: Does a Hello / Auth / Login / SessionExtend response send failure trigger connection disconnect and resource cleanup?
 - Client disconnection: Do messages sent when not connected trigger Error-level logging or callback notification, rather than silent discard?
@@ -640,3 +640,7 @@ The host provides package-scoped localization: plugins bind during Activate, res
 RimWorld selects and loads ordinary mods and their effective version/conditional folders. The client discovers Phinix modules in assemblies already loaded by the game; it does not proactively scan other mods' root `Assemblies` directories or the game executable directory. Proactive Phinix loading uses its own `ModContentPack.RootDir` runtime/bundle roots.
 
 The owned loader prepares complete assembly identities before loading, handles only owned requesters and declared exact references, and detaches its resolver after plugin shutdown. This is an ownership boundary for our loader, not CLR isolation. Managed plugin payload verification and startup conflict/dependency gates remain separate. The legacy server loader remains available until a separate migration is accepted.
+
+## Server protocol and identity boundary (2026-10-14)
+
+For dedicated-server work, read [Server protocol and passwordless identity assessment](Server-Protocol-and-Passwordless-Identity.md). Legacy compatibility compromises belong exclusively to the Legacy adapter, which translates wire formats into unified domain intents and results. Domain services must not branch on Legacy/V2 or weaken atomicity, durable confirmation, or delivery semantics. Unsupported semantics must be rejected at the adapter boundary. Default player identity remains automatic and passwordless; historical bearer-credential rules must not leak into modern identity verification. This is a proposed migration contract, not an implemented upgrade.

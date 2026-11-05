@@ -26,6 +26,11 @@ The server repository pins the shared layer as a Git submodule at `Dependencies/
 
 ## 部署运行（面向部署者） / Deployment (For Deployers)
 
+原版普通聊天 Adapter 默认关闭；独立原版/Framework 普通聊天混合网络检查已通过，真实游戏仍待 P6。原版完整资产交易不支持：raw Trading 会明确断开，Framework 向未协商交易能力的对端创建交易会持久拒绝。不要用内部报价 bridge 的组件检查推导原版交易可用。参见 [P5 支持矩阵与证据](docs/Server-Upgrade-P5-Closeout-2026-11-02.md)。 后续 [服务端设计哲学复审及修复](docs/Server-P5-Design-and-Reliability-Audit-2026-11-02.md) 已补生命周期与故障隔离。固定UDP后端只支持 `IPAddress=0.0.0.0`；其他监听地址明确拒绝启动，不会静默忽略配置。
+
+默认部署使用 UDP / ClientKey，无需证书。TCP＋TLS 与现代无密码身份已有实验实现，不建议使用，尚未完成真实客户端及部署者实机验收；本轮取消现代身份切换及旧登录退役，后续列为 TODO，不是默认部署要求；已有自动化证据见 [P4 收口记录](docs/Server-Upgrade-P4-Closeout-2026-11-01.md)。
+
+
 ### 方式 A：Docker 快速部署（推荐） / Option A: Docker (Recommended)
 
 使用官方已验证发布的 Docker Hub 镜像启动服务：
@@ -129,7 +134,13 @@ Building produces binaries only; it does not start the service or touch player d
 
 ---
 
+## 交易限额配置
+
+主体交易条数、归源载荷和辅助文本配额可配置，`0` 关闭对应主体配额；恢复页可设为 1～64，重启生效。生成配置候选、默认值及全局存储限制见 [交易配置](docs/Server-Trade-Configuration.md)。[P3 服务端最小验收及尚未完成范围](docs/Server-Upgrade-P3-Closeout-2026-10-22.md) 与真实游戏验收分开记录。
+
 ## 本地镜像与 CI 发布 / Docker Image & CI Publication
+
+2026-10-22 服务端安全准备：SDK 10.0.402、runtime 10.0.13/Noble、CA 修复版本检查和独立 NuGet 安全门禁已加入；本机尚未实际构建新 Docker 镜像或更新 ECS。现有运行中容器不会自动随 tag/宿主更新。[核验、准备步骤及 protobuf 升级范围](docs/Server-Security-Upgrade-2026-10-22.md)。
 
 ### 本地构建 Docker 镜像 / Local Docker Build
 
@@ -163,3 +174,15 @@ docker build -t phinix-rework:local .
 - Builds restore dependencies through `nuget.config`. Offline builds require preinstalled SDKs and cached packages.
 - NU1900 reports unavailable vulnerability data; it is an advisory notice, not a compile failure or a completed security audit.
 - Do not modify vendored protobuf SDK pins or submodule configuration.
+
+## 服务端评估与迁移约束 / Server Assessment & Migration
+
+[服务端协议边界与无密码身份升级评估](docs/Server-Protocol-and-Passwordless-Identity.md)（2026-10-14）：记录当前构建与协议缺口、Legacy adapter 翻译边界、会话能力拒绝、SQLite 事务方向，以及保持用户无密码体验的自动身份与迁移方案。所有旧协议妥协只存在于 Legacy adapter；新业务保持统一语义。本文件是待实施方案，不表示安全传输、SQLite 或 adapter 已完成升级。
+
+配套文档：[服务端现状评估](docs/Server-Assessment-2026-10-14.md) · [服务端升级 RoadMap](docs/Server-Upgrade-Roadmap.md)。当前发布主线为 UDP / ClientKey；现代身份切换及旧登录退役已移至 [后续 TODO](docs/Server-Modern-Identity-TODO.md)，不作为本轮发布门槛。
+
+补充审计：[静态性能](docs/Server-Static-Performance-Audit-2026-10-14.md) · [容错与可恢复性](docs/Server-Fault-Tolerance-and-Recoverability-2026-10-14.md)。已接入 RoadMap 的性能预算、故障注入与发布门槛；静态审计不表示已通过压测或崩溃恢复测试。
+
+测试保障：[测试与质量保障专项规划](docs/Server-Test-and-Quality-Assurance-Plan.md)，包含从 P0 开始的 L1～L4、Headless 协议 Harness、独立 Legacy golden、资产与故障 oracle、CI/专用环境及逐阶段退出门槛。P0～P5 封闭开发不要求独立发布；测试任务已关联 RoadMap，尚未实施。
+
+原版交易显式兼容入口及 P3 业务客户端提示已接通，部署开关、真实原版模块/UDP 证据和识别限制见 [2026-11-04 实施记录](docs/Server-Upgrade-P5-Original-Trade-Network-2026-11-04.md)。默认关闭该有损兼容开关，未部署 ECS，未替代真实游戏到账验收。

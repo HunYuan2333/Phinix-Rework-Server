@@ -20,6 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../ServerTransport/ServerTransport.csproj" />
     <ProjectReference Include="../../Dependencies/Phinix.Common/Common/Connections/Connections.csproj" />
     <ProjectReference Include="../../Dependencies/Phinix.Common/Common/Utils/Utils.csproj" />
   </ItemGroup>

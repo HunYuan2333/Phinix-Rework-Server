@@ -9,6 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../../../Server/ServerStorage/ServerStorage.csproj" />
     <ProjectReference Include="../../../Dependencies/Phinix.Common/Dependencies/protobuf/csharp/src/Google.Protobuf/Google.Protobuf.csproj" />
     <ProjectReference Include="../../../Dependencies/Phinix.Common/Extensions/Chat/Contracts/ChatExtension.csproj" />
     <ProjectReference Include="../../../Dependencies/Phinix.Common/Common/UserManagement/UserManagement.csproj" />

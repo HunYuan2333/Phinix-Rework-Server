@@ -5,3 +5,10 @@
 Output/
 GameDlls/
 .nuget/
+**/__pycache__/
+/framework-journals/
+/framework-extensions/
+
+/identity-authority.required
+/identities.sqlite3*
+/*.modern-identity-required

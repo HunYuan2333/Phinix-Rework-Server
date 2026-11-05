@@ -1,0 +1,1799 @@
+{
+  "schema": 1,
+  "date": "2026-10-15",
+  "phase": "P0 partial; no phase exit or release acceptance",
+  "passed": true,
+  "repositories": [
+    {
+      "path": ".",
+      "sha": "5a0508acb703319e60dd5600e3e0facd0397b294",
+      "branch": "dev",
+      "status": " M .github/workflows/docker.yml\n M .gitignore\n M Extensions/Trade/Server/BuiltInTradeServerExtension.cs\n M Extensions/Trade/Server/PhinixFrameworkTradeServerService.cs\n M Extensions/Trade/Server/PhinixFrameworkTradeStore.cs\n M README.md\n M Server/Authentication/ServerAuthenticator.cs\n M Server/UserManagement.Server/UserManagement.Server.csproj\n M Server/UserManagement/ServerUserManager.cs\n M docs/Compatibility-Boundaries.md\n M docs/Design-Philosophy.md\n M \"docs/\\350\\256\\276\\350\\256\\241\\345\\223\\262\\345\\255\\246.md\"\n?? .github/workflows/server-quality.yml\n?? Tests/Fixtures/\n?? Tests/LegacyGoldenTests/\n?? Tests/LegacyModuleProbe/\n?? Tests/ServerArchitectureTests/\n?? Tests/ServerModelTests/\n?? Tests/ServerReferenceModel/\n?? Tests/ServerSafetyRegressionTests/\n?? docs/Server-Assessment-2026-10-14.md\n?? docs/Server-Fault-Tolerance-and-Recoverability-2026-10-14.md\n?? docs/Server-Protocol-and-Passwordless-Identity.md\n?? docs/Server-Static-Performance-Audit-2026-10-14.md\n?? docs/Server-Test-and-Quality-Assurance-Plan.md\n?? docs/Server-Upgrade-Evidence-2026-10-15.json\n?? docs/Server-Upgrade-Evidence-2026-10-15.md\n?? docs/Server-Upgrade-P0-Contracts.md\n?? docs/Server-Upgrade-Roadmap.md\n?? tools/",
+      "gitlinks": "160000 67f243d9edced77dc3fe669f8a435b1f14b59199 0\tDependencies/Phinix.Common"
+    },
+    {
+      "path": "Dependencies/Phinix.Common",
+      "sha": "67f243d9edced77dc3fe669f8a435b1f14b59199",
+      "branch": "",
+      "status": "",
+      "gitlinks": "160000 4b0c3aacf0657fbf38253b38918d3358dd4319ec 0\tDependencies/protobuf"
+    },
+    {
+      "path": "Dependencies/Phinix.Common/Dependencies/protobuf",
+      "sha": "4b0c3aacf0657fbf38253b38918d3358dd4319ec",
+      "branch": "",
+      "status": "",
+      "gitlinks": ""
+    }
+  ],
+  "configurationInputs": {
+    "Dockerfile": "6b027f5691a296e03e9dec1525d9353553bf2fc7b1e89ce940bf5fc6238e24a9",
+    ".gitmodules": "adedfaf69ddaf17f7a03ee726fb04d867a2e6b79f64c2c6303651c4b46f0de05",
+    ".github/workflows/server-quality.yml": "0249f5292ceac1486b597c7428c98de7219a830e73513ed76257e4c4a33accde",
+    ".github/workflows/docker.yml": "1974da589cfa1ec03f48604cd632394707a21b6672cc2cbb1236da8d6dcd83f2"
+  },
+  "runnerSha256": "2f559a5b4a2da404928c29f0870c154cd689f8e984929ba660d2da9380dac913",
+  "arguments": [
+    "--suite",
+    "stage",
+    "--isolated",
+    "--output",
+    "/tmp/phinix-p0-final-reviewed"
+  ],
+  "profile": "existing-rework-component",
+  "seed": [
+    20261015,
+    20261017
+  ],
+  "faultIds": [],
+  "coverage": {
+    "collected": false,
+    "reason": "No collector selected; no coverage percentage claimed"
+  },
+  "nugetAudit": "Disabled for build reproducibility; this run is not a package vulnerability audit",
+  "environment": {
+    "platform": "Linux-7.2.10-1-cachyos-x86_64-with-glibc2.44",
+    "cpuCount": 16,
+    "python": "3.14.8",
+    "diskFreeBytes": 16064917504
+  },
+  "sdk": ".NET SDK:\n Version:           10.0.112\n Commit:            95017c711e\n Workload version:  10.0.100-manifests.63b36e85\n MSBuild version:   18.0.11\n\nRuntime Environment:\n OS Name:     cachyos\n OS Version:  \n OS Platform: Linux\n RID:         arch-x64\n Base Path:   /usr/share/dotnet/sdk/10.0.112/\n\n.NET workloads installed:\nThere are no installed workloads to display.\nConfigured to use workload sets when installing new manifests.\nNo workload sets are installed. Run \"dotnet workload restore\" to install a workload set.\n\nHost:\n  Version:      10.0.12\n  Architecture: x64\n  Commit:       95017c711e\n\n.NET SDKs installed:\n  10.0.112 [/usr/share/dotnet/sdk]\n\n.NET runtimes installed:\n  Microsoft.NETCore.App 10.0.12 [/usr/share/dotnet/shared/Microsoft.NETCore.App]\n\nOther architectures found:\n  None\n\nEnvironment variables:\n  Not set\n\nglobal.json file:\n  Not found\n\nLearn more:\n  https://aka.ms/dotnet/info\n\nDownload .NET:\n  https://aka.ms/dotnet/download\n",
+  "sourceInputs": {
+    "Tests/Fixtures/OriginalLoginChat/normalized.json": "b4d425ab4d17bf8561c8bbb5f7efb57b7c6cf7b28e8bca2f5c62aa6d4488812c",
+    "Tests/Fixtures/OriginalLoginChat/provenance.json": "1013512edb0e0755af75bb5df336e77bcb4d8d4c67d83a7bfe6ee00ccd82f6cb",
+    "Tests/LegacyGoldenTests/test_original_golden.py": "5ecb6953d57a67aae2134715bb7afde22ea10674eb3e28f2f68f6beb8727a3a7",
+    "Tests/LegacyModuleProbe/LegacyModuleProbe.csproj": "40330fc3997053f035ab1ccd40089ca80c40768a2308e026746d9118c2f38ecc",
+    "Tests/LegacyModuleProbe/Program.cs": "a2d75a032488eb00b91dce2deb61538daae4a4cefc0a1bd87ce365e1f2d24370",
+    "Tests/ServerArchitectureTests/Program.cs": "00b6030491e33b0685678fc938987ed6763567e37816c4867064cd83141cb507",
+    "Tests/ServerArchitectureTests/ServerArchitectureTests.csproj": "70dd045e0fcf1ed9f85a9edd45a3cc81af73bf44d077f83148ea98e71a8e10c4",
+    "Tests/ServerArchitectureTests/architecture-scope.json": "cebaa91b13f1e86ec3e0a10a7f45054041395c4a86aab245fb71ed4258ee411c",
+    "Tests/ServerModelTests/Program.cs": "c4fc98ebdb59928c12665cf4e9f7d74dab93e0160f6335a65192283f7df4eda7",
+    "Tests/ServerModelTests/ServerModelTests.csproj": "860c3c6fa912bbf143b3a1fcc643aced9783ef2a2a04bde63628420b3df98b36",
+    "Tests/ServerModelTests/packages.lock.json": "3ffeb38e39bde51f455b4cc81e7c15ddf8d35125be749cb7f4ff5fb4a769b341",
+    "Tests/ServerReferenceModel/OfferModel.cs": "3033b69aa5d3f31998f64c0cdc7984c1d576288e92a1818cf9038a7bb7991f87",
+    "Tests/ServerReferenceModel/ServerReferenceModel.csproj": "ed7c0f20902846adddafbfc178137e3a0dd399bba0a8c656195f76855d2233bb",
+    "Tests/ServerSafetyRegressionTests/Program.cs": "ecff58fecfbbc10452b53bac7005f5769910105f89521ac5bd5428668584e011",
+    "Tests/ServerSafetyRegressionTests/ServerSafetyRegressionTests.csproj": "87aaef328f6922cb459e74ccd2b5ab01e2f8e9cf8e723ef82bb7dd0c1c4a98c2",
+    "tools/quality/check.py": "2f559a5b4a2da404928c29f0870c154cd689f8e984929ba660d2da9380dac913",
+    "tools/quality/legacy_probe.py": "9e4468ba17d3c857f112773a0f2998202266979a713a05639da6100fae40bf1c",
+    "tools/quality/test_check.py": "7d558b69b467800003278d39ce992c17d9005faa9496c9c1fac16335fd465565",
+    "Extensions/Chat/Server/BuiltInChatServerExtension.cs": "c8001d6eac36fc3ddd611aef7e38ae346bac06500e1fff47a19776699ec593a0",
+    "Extensions/Chat/Server/ChatExtension.Server.csproj": "909c4c49d965efcedb36b0710b9d98e615b825cb9de9510cf9c01e58007593c1",
+    "Extensions/Chat/Server/ChatServerConfig.cs": "4cf8b814ba3e156787711cac1f108490f807c815948a740c6c6e72c433ca3e75",
+    "Extensions/Chat/Server/NoticeConsoleCommand.cs": "528f69537541950b26e9bfbc977995cb14e6ab6721b778f100aa2021c73c1eda",
+    "Extensions/Chat/Server/PhinixFrameworkChatBroadcast.cs": "bb9a5d0952baa34963a5c3e3b74db0b2d8117b30b2a0348a5ed8d3a97df0dcb1",
+    "Extensions/Chat/Server/PhinixFrameworkChatService.cs": "e6238ca17f9706559533aacdd4e07b9ad9bf68a5adb499780861b9469dd76e7a",
+    "Extensions/Chat/Server/Properties/AssemblyInfo.cs": "8b0f0cf1bb30ca50ccf68715bb763bd3a3be410ff653016df73436912adf0992",
+    "Extensions/Trade/Server/BuiltInTradeServerExtension.cs": "bd82d4d0c530b295508ccca207a82902fa9c3798e78e634734db26b54af1eaed",
+    "Extensions/Trade/Server/PhinixFrameworkTradeServerService.cs": "dab3d38757f6dc584881c7098e498f3577ed5365dee11f067426ee97d899216e",
+    "Extensions/Trade/Server/PhinixFrameworkTradeStore.cs": "0738cb8db9d0ba72dd4180592901b6d0bc7e8a4e119edb2508bb1010f6dd184b",
+    "Extensions/Trade/Server/Properties/AssemblyInfo.cs": "60bc24de44dd32e45d5e6f761aa7f80effe9262ef39ebd0c33018b05e5dbb1b7",
+    "Extensions/Trade/Server/TradeExtension.Server.csproj": "b487ac98a63a142defa42812aa94e6811ac683b945aa18f1b10dedde58a2b479",
+    "Extensions/Trade/Server/TradeServerConfig.cs": "aeeef0b42d5e3961d5c252c5debed21f23b7e66d9b37c8233d0fd036bf8fdfc8",
+    "Server/Authentication.Server/Authentication.Server.csproj": "b8d285fc1ee6e2cc7e51e5abb725dda8c0b6a7b36150a0e12b1cc4c171559967",
+    "Server/Authentication/ServerAuthenticator.cs": "b9927cbb1ae00e21934c8bb53ad65b225f607762565187c4b413c38337199692",
+    "Server/Authentication/Session.cs": "18c470d493f6c37a2c58c89574ad055a362f5024bf7219fe69029a97ff003269",
+    "Server/Command.cs": "311ac503043f206b1dc4cc5b16207cc7597bd254c674aa1838f6c4ecdc9f420d",
+    "Server/CommandInterpreter.cs": "2eef65ccdc18bca7b80d6f594dce91aaab4ef221e0ca1f025289452f969c5a27",
+    "Server/Commands/ExitCommand.cs": "ae202dd8db7b88e354ac3df64f2d8f1fcc478b47439d1fd7dec2cc28ccde2656",
+    "Server/Commands/HelpCommand.cs": "b89c604288f0575aa9cbcbb783a97dabc424993eb5101feb2f464c4d2223e5ab",
+    "Server/Commands/LogCommand.cs": "0f9a7829f9b28054377d28836893b0d0feef1d1fd928994a113335bc259da4db",
+    "Server/Commands/VersionCommand.cs": "705bdf1edbf8290e3a7115fa3419206dc0e3bb644e1330038e2b51bd683d7c8d",
+    "Server/Config.cs": "b637f39b1a7d0f5a123027dad273f1620f243066f837f9f5f29355afee765aa5",
+    "Server/ConfigItemDeserialisationException.cs": "91ab970e0ad8e94fcbc5332d8a2201e6cd6a05a9e64e361de10f003e7f6bb38c",
+    "Server/Connections.Server/AssemblyInfo.cs": "69c7b90cef17b538721098b09b266b9c801fe675a50ee79c10d5de90fa94a4aa",
+    "Server/Connections.Server/Connections.Server.csproj": "85d6680402a584f2008132a5369a5c72be5fb36f40ac92291a48cbb602bfd610",
+    "Server/Connections.Server/NetServer.cs": "f6ab68c9032162cf394de7629be6d7b0fb73c255c586f122259db333a258290f",
+    "Server/ConsoleHighlighting.cs": "f2706c2a0f640b484d5da4ec857f89654e771a7f7dc2f6049aea5af4e2749be2",
+    "Server/Framework/FrameworkServerPacketDispatcher.cs": "a4a00832bda5f6050c47b6fbac8239f0d15f6d2f736c62f039bf8d80bf4396c2",
+    "Server/Framework/ILegacyTradeRuntime.cs": "590cc9dc9336c61c1668344c651f772a39a6d54d6b5b6e37e638f54a05ce95ee",
+    "Server/Framework/LegacyServerTradeRuntimeAdapter.cs": "ca038509050a2a24376a057113e6e68e58db7adebe64d6fe196f08737507a6a5",
+    "Server/Framework/PhinixFrameworkServer.cs": "efd0ac1440e2c26721661030cd218fbe8bb22a46aabfc61f8e528513ff133986",
+    "Server/HelpEntry.cs": "bee445a85af48cd571de12400e5645b643e93d6671d88b5e960865ae721e1b5f",
+    "Server/Logger.cs": "af3baba6219d30267bd540dd6aabf8002cb54b10db0037e413236b9afdcb85fe",
+    "Server/Properties/AssemblyInfo.cs": "84773ee2111db1ea555f0d3c86fcb54608f89a4a0de980b1f5c2155fa861192e",
+    "Server/Server.cs": "df7af58142bf7a185a4248afd0e9cfe4d58942d5f50d3364ab026456601874cd",
+    "Server/Server.csproj": "d12abf468b6ccba7a7a9bd2a39c631d15940a79528366365f757d168e9dba1fe",
+    "Server/ServerRuntime/ServerPipelineRunner.cs": "2480e7b39d065c8a35fd4536e3a81245548ddef3c627b5cc77ad0a706062ab78",
+    "Server/ServerRuntime/ServerRuntime.csproj": "3147174721298e493929804a11272675a2cbf9e2cd0efcb51dea1df934cdb03e",
+    "Server/UserManagement.Server/UserManagement.Server.csproj": "b628f93f159e9245040137296604047ed20adda02fc351609c619664aea18fa6",
+    "Server/UserManagement/ServerUserManager.cs": "c1dfc674069d3bb0665d38667e10653edb18808919b11ba9148a0cf5722d5250"
+  },
+  "artifacts": {
+    "Authentication.Server.dll": "a667662bb4a9c7230c9b0bff77a1f15f1c45ee4b0eeb727682b8bee2bcf674cb",
+    "Authentication.Server.pdb": "ca302b4bde74d603684f87ce2bc64f48f26b064d48c0e295c6a001505572fd4f",
+    "Authentication.dll": "30c8f9f6d402d4db193215a4e15f5cea63d153f666701a5a21184e142430b50f",
+    "Authentication.pdb": "9df7b0c40bb07adb31361d03f8718ebc46956ab53638be0cce5f579ca1bc601e",
+    "Connections.Server.dll": "2b68553d7f8721852f23c70e953b8e1cfd02f90d6ab23ebdee88346f8e0d72e9",
+    "Connections.Server.pdb": "8c2a4499872ef8103d12f7f634d0427e0117b826bcbb693de09ee534f10fb4f4",
+    "Connections.dll": "f611bd26c0761ad93c6804ff390806cd2d38c27ea1c053646f26775b46c3514a",
+    "Connections.pdb": "2ca4a678f9d5bba159a603677e6d5c9661a3c432d0edac86b8c518969b9e1c84",
+    "Extensions/ChatExtension.Server.dll": "c1d9c4420e3c0fbdd1268336eb9f8e4ddb1b3fa22480075d33256248636cef59",
+    "Extensions/ChatExtension.dll": "9ebe133de2b0c7d355a26abc789c2b35da4925d093defa33a7cd7dbbaba2467a",
+    "Extensions/TradeExtension.Server.dll": "7c6b05dd2c6f0811395565515dc5802aedfcce21ca5af202aa59d611d5fcdaa2",
+    "Extensions/TradeExtension.dll": "6182fc3732ea539750744eea01b3a223710b30a3bea588722ad148035a169422",
+    "Google.Protobuf.dll": "56070c217d151229e18ec9f1bd69d76a4984e2e7f3706e31c2a248c74558a018",
+    "Google.Protobuf.pdb": "97f57fdb0c9842de9798935f06b91cad8ead05c8e06005c739e2f6037684fd75",
+    "Google.Protobuf.xml": "ab5278e4132097f7680cf73e9a33a1b794c264508e9668b914b01d7fde79a678",
+    "LiteNetLib.dll": "320526331c04be0218341e68412b51df5752aa5381842c7c9d26e414c217eca0",
+    "PhinixServer": "31cc4468013b79204031b4731aa6dfef6a79e134ca77ec4105560ecbb855e017",
+    "PhinixServer.deps.json": "0fea9ebf45e219ee83b235e714121b5bf228d9446ee29e1dfeb88b01ec2f64ac",
+    "PhinixServer.dll": "6d8613c63eec6ba437c8f54b23ef88858a563c37b19f86aaa725842921936128",
+    "PhinixServer.pdb": "3a4ca0c6652ff15085fb93dfcff8ce0a17d2238b708790c7e332c89a249e4751",
+    "PhinixServer.runtimeconfig.json": "9950d4583cfc9a106857c0d5b8a75b53e8774852b57b80bc3823a74d44a4d87f",
+    "ServerRuntime.dll": "1c1a8a7a68b270575ce0d99229ed94df9b3a8092cdcc2d6c1f5ece647631b3e5",
+    "ServerRuntime.pdb": "c3506a30cef4c5f8142c4641998a3a436d0f7672ce77802cf61993c84e16f2a4",
+    "UserManagement.Server.dll": "f47b5e05c0e9457cecfb136053be74f796aeeb859dc3a4daefbcab2988bddf7c",
+    "UserManagement.Server.pdb": "9460883efa2a92565931a4372a1dbe0d56aa7e70abcd2d756fb7ab3775dfaa9f",
+    "UserManagement.dll": "52f363733563921130aeeca5189534f20475bca40c76a077e0b6f23a56509a14",
+    "UserManagement.pdb": "42f75e4524aeceb4888c9315fad15e1e037c9a85522a093c936e82e760601f65",
+    "Utils.dll": "35a426e5b70ab698bee9ac00bc9780d5d903ed7feb6a53307accf90c2c284428",
+    "Utils.pdb": "881c243c5d62aa23a29b1121c65359a0681d54ec9bf281875af1071f2eddc409"
+  },
+  "checks": [
+    {
+      "command": [
+        "/usr/bin/python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tools/quality",
+        "-p",
+        "test_*.py",
+        "-v"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 1.115,
+      "passed": true,
+      "name": "supervisor-test"
+    },
+    {
+      "command": [
+        "/usr/bin/python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "Tests/LegacyGoldenTests",
+        "-v"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 0.032,
+      "passed": true,
+      "name": "golden-test"
+    },
+    {
+      "command": [
+        "dotnet",
+        "restore",
+        "Server/Server.csproj",
+        "--disable-parallel",
+        "-m:1",
+        "-p:BuildInParallel=false",
+        "-p:NuGetAudit=false"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 0.965,
+      "passed": true,
+      "name": "server-restore"
+    },
+    {
+      "command": [
+        "dotnet",
+        "build",
+        "Server/Server.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "-m:1",
+        "-p:BuildInParallel=false"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 19.841,
+      "passed": true,
+      "name": "server-build"
+    },
+    {
+      "command": [
+        "dotnet",
+        "restore",
+        "Tests/Phase35ServerRuntimeTests/Phase35ServerRuntimeTests.csproj",
+        "--disable-parallel",
+        "-m:1",
+        "-p:BuildInParallel=false",
+        "-p:NuGetAudit=false"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 0.664,
+      "passed": true,
+      "name": "pipeline-restore"
+    },
+    {
+      "command": [
+        "dotnet",
+        "build",
+        "Tests/Phase35ServerRuntimeTests/Phase35ServerRuntimeTests.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "-m:1",
+        "-p:BuildInParallel=false"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 2.066,
+      "passed": true,
+      "name": "pipeline-build"
+    },
+    {
+      "command": [
+        "dotnet",
+        "Tests/Phase35ServerRuntimeTests/bin/Release/net10.0/Phase35ServerRuntimeTests.dll"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 0.032,
+      "passed": true,
+      "name": "pipeline-test"
+    },
+    {
+      "command": [
+        "dotnet",
+        "restore",
+        "Dependencies/Phinix.Common/Tests/Phase35CoreRuntimeTests/Phase35CoreRuntimeTests.csproj",
+        "--disable-parallel",
+        "-m:1",
+        "-p:BuildInParallel=false",
+        "-p:NuGetAudit=false"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 0.614,
+      "passed": true,
+      "name": "shared-restore"
+    },
+    {
+      "command": [
+        "dotnet",
+        "build",
+        "Dependencies/Phinix.Common/Tests/Phase35CoreRuntimeTests/Phase35CoreRuntimeTests.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "-m:1",
+        "-p:BuildInParallel=false"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 1.919,
+      "passed": true,
+      "name": "shared-build"
+    },
+    {
+      "command": [
+        "dotnet",
+        "Dependencies/Phinix.Common/Tests/Phase35CoreRuntimeTests/bin/Release/net10.0/Phase35CoreRuntimeTests.dll"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 0.032,
+      "passed": true,
+      "name": "shared-test"
+    },
+    {
+      "command": [
+        "dotnet",
+        "restore",
+        "Tests/ServerSafetyRegressionTests/ServerSafetyRegressionTests.csproj",
+        "--disable-parallel",
+        "-m:1",
+        "-p:BuildInParallel=false",
+        "-p:NuGetAudit=false"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 0.815,
+      "passed": true,
+      "name": "safety-restore"
+    },
+    {
+      "command": [
+        "dotnet",
+        "build",
+        "Tests/ServerSafetyRegressionTests/ServerSafetyRegressionTests.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "-m:1",
+        "-p:BuildInParallel=false"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 2.467,
+      "passed": true,
+      "name": "safety-build"
+    },
+    {
+      "command": [
+        "dotnet",
+        "Tests/ServerSafetyRegressionTests/bin/Release/net10.0/ServerSafetyRegressionTests.dll"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 0.164,
+      "passed": true,
+      "name": "safety-test"
+    },
+    {
+      "command": [
+        "dotnet",
+        "restore",
+        "Tests/ServerModelTests/ServerModelTests.csproj",
+        "--disable-parallel",
+        "-m:1",
+        "-p:BuildInParallel=false",
+        "-p:NuGetAudit=false"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 0.815,
+      "passed": true,
+      "name": "model-restore"
+    },
+    {
+      "command": [
+        "dotnet",
+        "build",
+        "Tests/ServerModelTests/ServerModelTests.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "-m:1",
+        "-p:BuildInParallel=false"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 3.718,
+      "passed": true,
+      "name": "model-build"
+    },
+    {
+      "command": [
+        "dotnet",
+        "Tests/ServerModelTests/bin/Release/net10.0/ServerModelTests.dll",
+        "--framework-negative-control"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 0.164,
+      "passed": true,
+      "name": "framework-negative-control"
+    },
+    {
+      "command": [
+        "dotnet",
+        "Tests/ServerModelTests/bin/Release/net10.0/ServerModelTests.dll",
+        "--property",
+        "all"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 2.016,
+      "passed": true,
+      "name": "model-test"
+    },
+    {
+      "command": [
+        "dotnet",
+        "restore",
+        "Tests/ServerArchitectureTests/ServerArchitectureTests.csproj",
+        "--disable-parallel",
+        "-m:1",
+        "-p:BuildInParallel=false",
+        "-p:NuGetAudit=false"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 0.414,
+      "passed": true,
+      "name": "architecture-restore"
+    },
+    {
+      "command": [
+        "dotnet",
+        "build",
+        "Tests/ServerArchitectureTests/ServerArchitectureTests.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "-m:1",
+        "-p:BuildInParallel=false"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 1.866,
+      "passed": true,
+      "name": "architecture-build"
+    },
+    {
+      "command": [
+        "dotnet",
+        "Tests/ServerArchitectureTests/bin/Release/net10.0/ServerArchitectureTests.dll"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 0.114,
+      "passed": true,
+      "name": "architecture-test"
+    },
+    {
+      "command": [
+        "dotnet",
+        "publish",
+        "Server/Server.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--no-self-contained",
+        "-m:1",
+        "-p:BuildInParallel=false",
+        "-o",
+        "/tmp/phinix-quality-50odjhnd/publish"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 1.016,
+      "passed": true,
+      "name": "publish"
+    }
+  ],
+  "modelResults": [
+    {
+      "id": "TQ01-batch",
+      "layer": "L1-model/L2-component",
+      "passed": true,
+      "framework": "FsCheck, Version=3.4.0.0, Culture=neutral, PublicKeyToken=44dc6321e9b07168",
+      "maxCases": 256,
+      "executedCases": 256,
+      "seed": [
+        20261015,
+        20261017
+      ],
+      "error": null,
+      "minimalInput": null,
+      "minimalFailure": null,
+      "replayVerified": null
+    },
+    {
+      "id": "TQ01-scope",
+      "layer": "L1-model/L2-component",
+      "passed": true,
+      "framework": "FsCheck, Version=3.4.0.0, Culture=neutral, PublicKeyToken=44dc6321e9b07168",
+      "maxCases": 256,
+      "executedCases": 256,
+      "seed": [
+        20261015,
+        20261017
+      ],
+      "error": null,
+      "minimalInput": null,
+      "minimalFailure": null,
+      "replayVerified": null
+    },
+    {
+      "id": "TQ01-sequence",
+      "layer": "L1-model/L2-component",
+      "passed": true,
+      "framework": "FsCheck, Version=3.4.0.0, Culture=neutral, PublicKeyToken=44dc6321e9b07168",
+      "maxCases": 256,
+      "executedCases": 256,
+      "seed": [
+        20261015,
+        20261017
+      ],
+      "error": null,
+      "minimalInput": null,
+      "minimalFailure": null,
+      "replayVerified": null
+    }
+  ],
+  "frameworkNegativeControl": [
+    {
+      "id": "TQ00-FsCheck-negative-control",
+      "passed": true,
+      "seed": [
+        20261015,
+        20261017
+      ],
+      "first": "Falsifiable, after 3 tests (2 shrinks) (20261015,20261017). \nLast step was invoked with size of 2 and seed of (5051164293274694265,2718906752603075165).\nReplay directly at failing step with (5051164293274694265,2718906752603075165,2).\nOriginal:\n[|-1; 0|]\nShrunk:\n[|0; 0|]\nwith exception:\nSystem.Exception: Expected true, got false.\n"
+    }
+  ],
+  "architectureResults": [
+    {
+      "id": "TQ01-syntax-baseline",
+      "passed": true,
+      "remainingDebt": 8,
+      "findings": [
+        {
+          "Path": "Server/ServerRuntime/ServerPipelineRunner.cs",
+          "Method": "ProcessIncomingMessage",
+          "Identifier": "LegacyFallback"
+        },
+        {
+          "Path": "Server/ServerRuntime/ServerPipelineRunner.cs",
+          "Method": "ProcessIncomingMessage",
+          "Identifier": "LegacyFallback"
+        },
+        {
+          "Path": "Server/ServerRuntime/ServerPipelineRunner.cs",
+          "Method": "ProcessIncomingCommand",
+          "Identifier": "LegacyFallback"
+        },
+        {
+          "Path": "Server/ServerRuntime/ServerPipelineRunner.cs",
+          "Method": "ProcessIncomingCommand",
+          "Identifier": "LegacyFallback"
+        },
+        {
+          "Path": "Server/ServerRuntime/ServerPipelineRunner.cs",
+          "Method": "ProcessIncomingItem",
+          "Identifier": "LegacyFallback"
+        },
+        {
+          "Path": "Server/ServerRuntime/ServerPipelineRunner.cs",
+          "Method": "ProcessIncomingItem",
+          "Identifier": "LegacyFallback"
+        },
+        {
+          "Path": "Server/ServerRuntime/ServerPipelineRunner.cs",
+          "Method": "shouldContinue",
+          "Identifier": "LegacyFallback"
+        },
+        {
+          "Path": "Server/ServerRuntime/ServerPipelineRunner.cs",
+          "Method": "shouldContinueItem",
+          "Identifier": "LegacyFallback"
+        }
+      ]
+    },
+    {
+      "id": "TQ01-assembly-rule",
+      "assembly": "Server/bin/Release/net10.0/PhinixServer.dll",
+      "passed": true,
+      "references": [
+        "System.Runtime",
+        "System.Runtime.InteropServices",
+        "System.Collections",
+        "Utils",
+        "System.Runtime.Serialization.Primitives",
+        "System.Net.Primitives",
+        "Authentication",
+        "System.Xml.ReaderWriter",
+        "System.Runtime.Serialization.Xml",
+        "Connections.Server",
+        "Authentication.Server",
+        "UserManagement.Server",
+        "System.ComponentModel.TypeConverter",
+        "System.Console",
+        "ServerRuntime",
+        "Connections",
+        "System.Linq",
+        "System.Threading",
+        "UserManagement",
+        "System.ComponentModel.Primitives"
+      ]
+    },
+    {
+      "id": "TQ01-assembly-rule",
+      "assembly": "Server/ServerRuntime/bin/Release/net10.0/ServerRuntime.dll",
+      "passed": true,
+      "references": [
+        "System.Runtime",
+        "Utils",
+        "System.Linq"
+      ]
+    },
+    {
+      "id": "TQ01-assembly-rule",
+      "assembly": "Tests/ServerReferenceModel/bin/Release/net10.0/ServerReferenceModel.dll",
+      "passed": true,
+      "references": [
+        "System.Runtime",
+        "System.Collections",
+        "System.Linq"
+      ]
+    }
+  ],
+  "mutationNegativeControls": [
+    {
+      "property": "batch",
+      "mutation": {
+        "id": "partial-batch",
+        "path": "Extensions/Trade/Server/PhinixFrameworkTradeServerService.cs",
+        "originalSha256": "dab3d38757f6dc584881c7098e498f3577ed5365dee11f067426ee97d899216e",
+        "mutatedSha256": "3977b2844560280dc6cd5599185a3b90dabdc0d8fa91c23f6822db0978c04578"
+      },
+      "runnerSha256": "708d227c2fcbade11fa7464a0131cbe7059eb19e6403eee7114b1d08af5cac0a",
+      "modelSourceSha256": "0615b656407ac2a596531337af601e099234a8245aad660fded0dcbe364d1f42",
+      "checks": [
+        {
+          "command": [
+            "dotnet",
+            "restore",
+            "Server/Server.csproj",
+            "--disable-parallel",
+            "-m:1",
+            "-p:BuildInParallel=false",
+            "-p:NuGetAudit=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 1.065,
+          "passed": true,
+          "name": "server-restore"
+        },
+        {
+          "command": [
+            "dotnet",
+            "build",
+            "Server/Server.csproj",
+            "-c",
+            "Release",
+            "--no-restore",
+            "-m:1",
+            "-p:BuildInParallel=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 21.307,
+          "passed": true,
+          "name": "server-build"
+        },
+        {
+          "command": [
+            "dotnet",
+            "restore",
+            "Tests/Phase35ServerRuntimeTests/Phase35ServerRuntimeTests.csproj",
+            "--disable-parallel",
+            "-m:1",
+            "-p:BuildInParallel=false",
+            "-p:NuGetAudit=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.665,
+          "passed": true,
+          "name": "pipeline-restore"
+        },
+        {
+          "command": [
+            "dotnet",
+            "build",
+            "Tests/Phase35ServerRuntimeTests/Phase35ServerRuntimeTests.csproj",
+            "-c",
+            "Release",
+            "--no-restore",
+            "-m:1",
+            "-p:BuildInParallel=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 2.166,
+          "passed": true,
+          "name": "pipeline-build"
+        },
+        {
+          "command": [
+            "dotnet",
+            "Tests/Phase35ServerRuntimeTests/bin/Release/net10.0/Phase35ServerRuntimeTests.dll"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.032,
+          "passed": true,
+          "name": "pipeline-test"
+        },
+        {
+          "command": [
+            "dotnet",
+            "restore",
+            "Dependencies/Phinix.Common/Tests/Phase35CoreRuntimeTests/Phase35CoreRuntimeTests.csproj",
+            "--disable-parallel",
+            "-m:1",
+            "-p:BuildInParallel=false",
+            "-p:NuGetAudit=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.614,
+          "passed": true,
+          "name": "shared-restore"
+        },
+        {
+          "command": [
+            "dotnet",
+            "build",
+            "Dependencies/Phinix.Common/Tests/Phase35CoreRuntimeTests/Phase35CoreRuntimeTests.csproj",
+            "-c",
+            "Release",
+            "--no-restore",
+            "-m:1",
+            "-p:BuildInParallel=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 1.968,
+          "passed": true,
+          "name": "shared-build"
+        },
+        {
+          "command": [
+            "dotnet",
+            "Dependencies/Phinix.Common/Tests/Phase35CoreRuntimeTests/bin/Release/net10.0/Phase35CoreRuntimeTests.dll"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.032,
+          "passed": true,
+          "name": "shared-test"
+        },
+        {
+          "command": [
+            "dotnet",
+            "restore",
+            "Tests/ServerSafetyRegressionTests/ServerSafetyRegressionTests.csproj",
+            "--disable-parallel",
+            "-m:1",
+            "-p:BuildInParallel=false",
+            "-p:NuGetAudit=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.915,
+          "passed": true,
+          "name": "safety-restore"
+        },
+        {
+          "command": [
+            "dotnet",
+            "build",
+            "Tests/ServerSafetyRegressionTests/ServerSafetyRegressionTests.csproj",
+            "-c",
+            "Release",
+            "--no-restore",
+            "-m:1",
+            "-p:BuildInParallel=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 2.617,
+          "passed": true,
+          "name": "safety-build"
+        },
+        {
+          "command": [
+            "dotnet",
+            "Tests/ServerSafetyRegressionTests/bin/Release/net10.0/ServerSafetyRegressionTests.dll"
+          ],
+          "exitCode": 1,
+          "timedOut": false,
+          "seconds": 0.164,
+          "passed": false,
+          "name": "safety-test",
+          "reason": "Missing expected test completion marker"
+        },
+        {
+          "command": [
+            "dotnet",
+            "restore",
+            "Tests/ServerModelTests/ServerModelTests.csproj",
+            "--disable-parallel",
+            "-m:1",
+            "-p:BuildInParallel=false",
+            "-p:NuGetAudit=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.865,
+          "passed": true,
+          "name": "model-restore"
+        },
+        {
+          "command": [
+            "dotnet",
+            "build",
+            "Tests/ServerModelTests/ServerModelTests.csproj",
+            "-c",
+            "Release",
+            "--no-restore",
+            "-m:1",
+            "-p:BuildInParallel=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 3.819,
+          "passed": true,
+          "name": "model-build"
+        },
+        {
+          "command": [
+            "dotnet",
+            "Tests/ServerModelTests/bin/Release/net10.0/ServerModelTests.dll",
+            "--framework-negative-control"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.164,
+          "passed": true,
+          "name": "framework-negative-control"
+        },
+        {
+          "command": [
+            "dotnet",
+            "Tests/ServerModelTests/bin/Release/net10.0/ServerModelTests.dll",
+            "--property",
+            "batch"
+          ],
+          "exitCode": 1,
+          "timedOut": false,
+          "seconds": 0.214,
+          "passed": false,
+          "name": "model-test",
+          "reason": "Missing expected test completion marker"
+        },
+        {
+          "command": [
+            "dotnet",
+            "restore",
+            "Tests/ServerArchitectureTests/ServerArchitectureTests.csproj",
+            "--disable-parallel",
+            "-m:1",
+            "-p:BuildInParallel=false",
+            "-p:NuGetAudit=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.464,
+          "passed": true,
+          "name": "architecture-restore"
+        },
+        {
+          "command": [
+            "dotnet",
+            "build",
+            "Tests/ServerArchitectureTests/ServerArchitectureTests.csproj",
+            "-c",
+            "Release",
+            "--no-restore",
+            "-m:1",
+            "-p:BuildInParallel=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 1.866,
+          "passed": true,
+          "name": "architecture-build"
+        },
+        {
+          "command": [
+            "dotnet",
+            "Tests/ServerArchitectureTests/bin/Release/net10.0/ServerArchitectureTests.dll"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.114,
+          "passed": true,
+          "name": "architecture-test"
+        }
+      ],
+      "model": {
+        "id": "TQ01-batch",
+        "layer": "L1-model/L2-component",
+        "passed": false,
+        "framework": "FsCheck, Version=3.4.0.0, Culture=neutral, PublicKeyToken=44dc6321e9b07168",
+        "maxCases": 256,
+        "executedCases": 3,
+        "seed": [
+          20261015,
+          20261017
+        ],
+        "error": "Falsifiable, after 3 tests (1 shrink) (20261015,20261017). \nLast step was invoked with size of 2 and seed of (5051164293274694265,2718906752603075165).\nReplay directly at failing step with (5051164293274694265,2718906752603075165,2).\nOriginal:\n[|-1; 0|]\nShrunk:\n[|0|]\nwith exception:\nSystem.Exception: Expected true, got false.\n",
+        "minimalInput": [
+          0
+        ],
+        "minimalFailure": {
+          "FailingStep": 5,
+          "Reason": "Operation acceptance disagreed with independent model",
+          "Trace": [
+            {
+              "Kind": 0,
+              "Actor": 0,
+              "Reference": 0,
+              "Asset": 10,
+              "References": null,
+              "TargetExists": true
+            },
+            {
+              "Kind": 0,
+              "Actor": 0,
+              "Reference": 1,
+              "Asset": 11,
+              "References": null,
+              "TargetExists": true
+            },
+            {
+              "Kind": 0,
+              "Actor": 0,
+              "Reference": 2,
+              "Asset": 12,
+              "References": null,
+              "TargetExists": true
+            },
+            {
+              "Kind": 0,
+              "Actor": 0,
+              "Reference": 3,
+              "Asset": 13,
+              "References": null,
+              "TargetExists": true
+            },
+            {
+              "Kind": 2,
+              "Actor": 0,
+              "Reference": 0,
+              "Asset": 0,
+              "References": null,
+              "TargetExists": true
+            },
+            {
+              "Kind": 1,
+              "Actor": 0,
+              "Reference": 0,
+              "Asset": 0,
+              "References": [
+                -1
+              ],
+              "TargetExists": true
+            }
+          ]
+        },
+        "replayVerified": true
+      },
+      "actualCasesFromFsCheck": 3,
+      "manifestSha256": "a507716261a1461f072f5ba9c0bfd2bd68b5f2ad6e6c55d0319438f28f619d4e"
+    },
+    {
+      "property": "scope",
+      "mutation": {
+        "id": "unscoped-cache",
+        "path": "Extensions/Trade/Server/PhinixFrameworkTradeServerService.cs",
+        "originalSha256": "dab3d38757f6dc584881c7098e498f3577ed5365dee11f067426ee97d899216e",
+        "mutatedSha256": "38bc56bd140211a23dff6a87583b5551de8311e53c9244ed6478c586cdfa5f8e"
+      },
+      "runnerSha256": "708d227c2fcbade11fa7464a0131cbe7059eb19e6403eee7114b1d08af5cac0a",
+      "modelSourceSha256": "0615b656407ac2a596531337af601e099234a8245aad660fded0dcbe364d1f42",
+      "checks": [
+        {
+          "command": [
+            "dotnet",
+            "restore",
+            "Server/Server.csproj",
+            "--disable-parallel",
+            "-m:1",
+            "-p:BuildInParallel=false",
+            "-p:NuGetAudit=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 1.065,
+          "passed": true,
+          "name": "server-restore"
+        },
+        {
+          "command": [
+            "dotnet",
+            "build",
+            "Server/Server.csproj",
+            "-c",
+            "Release",
+            "--no-restore",
+            "-m:1",
+            "-p:BuildInParallel=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 21.307,
+          "passed": true,
+          "name": "server-build"
+        },
+        {
+          "command": [
+            "dotnet",
+            "restore",
+            "Tests/Phase35ServerRuntimeTests/Phase35ServerRuntimeTests.csproj",
+            "--disable-parallel",
+            "-m:1",
+            "-p:BuildInParallel=false",
+            "-p:NuGetAudit=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.665,
+          "passed": true,
+          "name": "pipeline-restore"
+        },
+        {
+          "command": [
+            "dotnet",
+            "build",
+            "Tests/Phase35ServerRuntimeTests/Phase35ServerRuntimeTests.csproj",
+            "-c",
+            "Release",
+            "--no-restore",
+            "-m:1",
+            "-p:BuildInParallel=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 2.166,
+          "passed": true,
+          "name": "pipeline-build"
+        },
+        {
+          "command": [
+            "dotnet",
+            "Tests/Phase35ServerRuntimeTests/bin/Release/net10.0/Phase35ServerRuntimeTests.dll"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.032,
+          "passed": true,
+          "name": "pipeline-test"
+        },
+        {
+          "command": [
+            "dotnet",
+            "restore",
+            "Dependencies/Phinix.Common/Tests/Phase35CoreRuntimeTests/Phase35CoreRuntimeTests.csproj",
+            "--disable-parallel",
+            "-m:1",
+            "-p:BuildInParallel=false",
+            "-p:NuGetAudit=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.614,
+          "passed": true,
+          "name": "shared-restore"
+        },
+        {
+          "command": [
+            "dotnet",
+            "build",
+            "Dependencies/Phinix.Common/Tests/Phase35CoreRuntimeTests/Phase35CoreRuntimeTests.csproj",
+            "-c",
+            "Release",
+            "--no-restore",
+            "-m:1",
+            "-p:BuildInParallel=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 1.966,
+          "passed": true,
+          "name": "shared-build"
+        },
+        {
+          "command": [
+            "dotnet",
+            "Dependencies/Phinix.Common/Tests/Phase35CoreRuntimeTests/bin/Release/net10.0/Phase35CoreRuntimeTests.dll"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.032,
+          "passed": true,
+          "name": "shared-test"
+        },
+        {
+          "command": [
+            "dotnet",
+            "restore",
+            "Tests/ServerSafetyRegressionTests/ServerSafetyRegressionTests.csproj",
+            "--disable-parallel",
+            "-m:1",
+            "-p:BuildInParallel=false",
+            "-p:NuGetAudit=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.915,
+          "passed": true,
+          "name": "safety-restore"
+        },
+        {
+          "command": [
+            "dotnet",
+            "build",
+            "Tests/ServerSafetyRegressionTests/ServerSafetyRegressionTests.csproj",
+            "-c",
+            "Release",
+            "--no-restore",
+            "-m:1",
+            "-p:BuildInParallel=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 2.567,
+          "passed": true,
+          "name": "safety-build"
+        },
+        {
+          "command": [
+            "dotnet",
+            "Tests/ServerSafetyRegressionTests/bin/Release/net10.0/ServerSafetyRegressionTests.dll"
+          ],
+          "exitCode": 1,
+          "timedOut": false,
+          "seconds": 0.164,
+          "passed": false,
+          "name": "safety-test",
+          "reason": "Missing expected test completion marker"
+        },
+        {
+          "command": [
+            "dotnet",
+            "restore",
+            "Tests/ServerModelTests/ServerModelTests.csproj",
+            "--disable-parallel",
+            "-m:1",
+            "-p:BuildInParallel=false",
+            "-p:NuGetAudit=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.865,
+          "passed": true,
+          "name": "model-restore"
+        },
+        {
+          "command": [
+            "dotnet",
+            "build",
+            "Tests/ServerModelTests/ServerModelTests.csproj",
+            "-c",
+            "Release",
+            "--no-restore",
+            "-m:1",
+            "-p:BuildInParallel=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 3.819,
+          "passed": true,
+          "name": "model-build"
+        },
+        {
+          "command": [
+            "dotnet",
+            "Tests/ServerModelTests/bin/Release/net10.0/ServerModelTests.dll",
+            "--framework-negative-control"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.164,
+          "passed": true,
+          "name": "framework-negative-control"
+        },
+        {
+          "command": [
+            "dotnet",
+            "Tests/ServerModelTests/bin/Release/net10.0/ServerModelTests.dll",
+            "--property",
+            "scope"
+          ],
+          "exitCode": 1,
+          "timedOut": false,
+          "seconds": 0.214,
+          "passed": false,
+          "name": "model-test",
+          "reason": "Missing expected test completion marker"
+        },
+        {
+          "command": [
+            "dotnet",
+            "restore",
+            "Tests/ServerArchitectureTests/ServerArchitectureTests.csproj",
+            "--disable-parallel",
+            "-m:1",
+            "-p:BuildInParallel=false",
+            "-p:NuGetAudit=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.464,
+          "passed": true,
+          "name": "architecture-restore"
+        },
+        {
+          "command": [
+            "dotnet",
+            "build",
+            "Tests/ServerArchitectureTests/ServerArchitectureTests.csproj",
+            "-c",
+            "Release",
+            "--no-restore",
+            "-m:1",
+            "-p:BuildInParallel=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 1.866,
+          "passed": true,
+          "name": "architecture-build"
+        },
+        {
+          "command": [
+            "dotnet",
+            "Tests/ServerArchitectureTests/bin/Release/net10.0/ServerArchitectureTests.dll"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.114,
+          "passed": true,
+          "name": "architecture-test"
+        }
+      ],
+      "model": {
+        "id": "TQ01-scope",
+        "layer": "L1-model/L2-component",
+        "passed": false,
+        "framework": "FsCheck, Version=3.4.0.0, Culture=neutral, PublicKeyToken=44dc6321e9b07168",
+        "maxCases": 256,
+        "executedCases": null,
+        "seed": [
+          20261015,
+          20261017
+        ],
+        "error": "Falsifiable, after 1 test (0 shrinks) (20261015,20261017). \nLast step was invoked with size of 1 and seed of (16604704362276383668,6926954753148851757):\nOriginal:\n[||]\nwith exception:\nSystem.Exception: Expected true, got false.\n",
+        "minimalInput": [],
+        "minimalFailure": {
+          "FailingStep": 1,
+          "Reason": "Operation acceptance disagreed with independent model",
+          "Trace": [
+            {
+              "Kind": 0,
+              "Actor": 0,
+              "Reference": 0,
+              "Asset": 0,
+              "References": null,
+              "TargetExists": true
+            },
+            {
+              "Kind": 0,
+              "Actor": 1,
+              "Reference": 0,
+              "Asset": 100,
+              "References": null,
+              "TargetExists": true
+            }
+          ]
+        },
+        "replayVerified": true
+      },
+      "actualCasesFromFsCheck": 1,
+      "manifestSha256": "76caf05ae0f09a34d02c11010f33a57f068805d2471ae1e792d71505c45182bd"
+    },
+    {
+      "property": "sequence",
+      "mutation": {
+        "id": "early-consume",
+        "path": "Extensions/Trade/Server/PhinixFrameworkTradeServerService.cs",
+        "originalSha256": "dab3d38757f6dc584881c7098e498f3577ed5365dee11f067426ee97d899216e",
+        "mutatedSha256": "09067c97bfb5b9964ca262a68aed2b567df79c2604c51a286bebb49fb86d211a"
+      },
+      "runnerSha256": "708d227c2fcbade11fa7464a0131cbe7059eb19e6403eee7114b1d08af5cac0a",
+      "modelSourceSha256": "0615b656407ac2a596531337af601e099234a8245aad660fded0dcbe364d1f42",
+      "checks": [
+        {
+          "command": [
+            "dotnet",
+            "restore",
+            "Server/Server.csproj",
+            "--disable-parallel",
+            "-m:1",
+            "-p:BuildInParallel=false",
+            "-p:NuGetAudit=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 1.015,
+          "passed": true,
+          "name": "server-restore"
+        },
+        {
+          "command": [
+            "dotnet",
+            "build",
+            "Server/Server.csproj",
+            "-c",
+            "Release",
+            "--no-restore",
+            "-m:1",
+            "-p:BuildInParallel=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 21.357,
+          "passed": true,
+          "name": "server-build"
+        },
+        {
+          "command": [
+            "dotnet",
+            "restore",
+            "Tests/Phase35ServerRuntimeTests/Phase35ServerRuntimeTests.csproj",
+            "--disable-parallel",
+            "-m:1",
+            "-p:BuildInParallel=false",
+            "-p:NuGetAudit=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.665,
+          "passed": true,
+          "name": "pipeline-restore"
+        },
+        {
+          "command": [
+            "dotnet",
+            "build",
+            "Tests/Phase35ServerRuntimeTests/Phase35ServerRuntimeTests.csproj",
+            "-c",
+            "Release",
+            "--no-restore",
+            "-m:1",
+            "-p:BuildInParallel=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 2.166,
+          "passed": true,
+          "name": "pipeline-build"
+        },
+        {
+          "command": [
+            "dotnet",
+            "Tests/Phase35ServerRuntimeTests/bin/Release/net10.0/Phase35ServerRuntimeTests.dll"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.032,
+          "passed": true,
+          "name": "pipeline-test"
+        },
+        {
+          "command": [
+            "dotnet",
+            "restore",
+            "Dependencies/Phinix.Common/Tests/Phase35CoreRuntimeTests/Phase35CoreRuntimeTests.csproj",
+            "--disable-parallel",
+            "-m:1",
+            "-p:BuildInParallel=false",
+            "-p:NuGetAudit=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.614,
+          "passed": true,
+          "name": "shared-restore"
+        },
+        {
+          "command": [
+            "dotnet",
+            "build",
+            "Dependencies/Phinix.Common/Tests/Phase35CoreRuntimeTests/Phase35CoreRuntimeTests.csproj",
+            "-c",
+            "Release",
+            "--no-restore",
+            "-m:1",
+            "-p:BuildInParallel=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 1.966,
+          "passed": true,
+          "name": "shared-build"
+        },
+        {
+          "command": [
+            "dotnet",
+            "Dependencies/Phinix.Common/Tests/Phase35CoreRuntimeTests/bin/Release/net10.0/Phase35CoreRuntimeTests.dll"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.032,
+          "passed": true,
+          "name": "shared-test"
+        },
+        {
+          "command": [
+            "dotnet",
+            "restore",
+            "Tests/ServerSafetyRegressionTests/ServerSafetyRegressionTests.csproj",
+            "--disable-parallel",
+            "-m:1",
+            "-p:BuildInParallel=false",
+            "-p:NuGetAudit=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.915,
+          "passed": true,
+          "name": "safety-restore"
+        },
+        {
+          "command": [
+            "dotnet",
+            "build",
+            "Tests/ServerSafetyRegressionTests/ServerSafetyRegressionTests.csproj",
+            "-c",
+            "Release",
+            "--no-restore",
+            "-m:1",
+            "-p:BuildInParallel=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 2.617,
+          "passed": true,
+          "name": "safety-build"
+        },
+        {
+          "command": [
+            "dotnet",
+            "Tests/ServerSafetyRegressionTests/bin/Release/net10.0/ServerSafetyRegressionTests.dll"
+          ],
+          "exitCode": 1,
+          "timedOut": false,
+          "seconds": 0.164,
+          "passed": false,
+          "name": "safety-test",
+          "reason": "Missing expected test completion marker"
+        },
+        {
+          "command": [
+            "dotnet",
+            "restore",
+            "Tests/ServerModelTests/ServerModelTests.csproj",
+            "--disable-parallel",
+            "-m:1",
+            "-p:BuildInParallel=false",
+            "-p:NuGetAudit=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.815,
+          "passed": true,
+          "name": "model-restore"
+        },
+        {
+          "command": [
+            "dotnet",
+            "build",
+            "Tests/ServerModelTests/ServerModelTests.csproj",
+            "-c",
+            "Release",
+            "--no-restore",
+            "-m:1",
+            "-p:BuildInParallel=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 3.819,
+          "passed": true,
+          "name": "model-build"
+        },
+        {
+          "command": [
+            "dotnet",
+            "Tests/ServerModelTests/bin/Release/net10.0/ServerModelTests.dll",
+            "--framework-negative-control"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.164,
+          "passed": true,
+          "name": "framework-negative-control"
+        },
+        {
+          "command": [
+            "dotnet",
+            "Tests/ServerModelTests/bin/Release/net10.0/ServerModelTests.dll",
+            "--property",
+            "sequence"
+          ],
+          "exitCode": 1,
+          "timedOut": false,
+          "seconds": 0.214,
+          "passed": false,
+          "name": "model-test",
+          "reason": "Missing expected test completion marker"
+        },
+        {
+          "command": [
+            "dotnet",
+            "restore",
+            "Tests/ServerArchitectureTests/ServerArchitectureTests.csproj",
+            "--disable-parallel",
+            "-m:1",
+            "-p:BuildInParallel=false",
+            "-p:NuGetAudit=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.464,
+          "passed": true,
+          "name": "architecture-restore"
+        },
+        {
+          "command": [
+            "dotnet",
+            "build",
+            "Tests/ServerArchitectureTests/ServerArchitectureTests.csproj",
+            "-c",
+            "Release",
+            "--no-restore",
+            "-m:1",
+            "-p:BuildInParallel=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 1.866,
+          "passed": true,
+          "name": "architecture-build"
+        },
+        {
+          "command": [
+            "dotnet",
+            "Tests/ServerArchitectureTests/bin/Release/net10.0/ServerArchitectureTests.dll"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.114,
+          "passed": true,
+          "name": "architecture-test"
+        }
+      ],
+      "model": {
+        "id": "TQ01-sequence",
+        "layer": "L1-model/L2-component",
+        "passed": false,
+        "framework": "FsCheck, Version=3.4.0.0, Culture=neutral, PublicKeyToken=44dc6321e9b07168",
+        "maxCases": 256,
+        "executedCases": null,
+        "seed": [
+          20261015,
+          20261017
+        ],
+        "error": "Falsifiable, after 1 test (0 shrinks) (20261015,20261017). \nLast step was invoked with size of 1 and seed of (16604704362276383668,6926954753148851757):\nOriginal:\n[||]\nwith exception:\nSystem.Exception: Expected true, got false.\n",
+        "minimalInput": [],
+        "minimalFailure": {
+          "FailingStep": 3,
+          "Reason": "Operation acceptance disagreed with independent model",
+          "Trace": [
+            {
+              "Kind": 0,
+              "Actor": 0,
+              "Reference": 0,
+              "Asset": 7,
+              "References": null,
+              "TargetExists": true
+            },
+            {
+              "Kind": 2,
+              "Actor": 0,
+              "Reference": 0,
+              "Asset": 0,
+              "References": null,
+              "TargetExists": true
+            },
+            {
+              "Kind": 1,
+              "Actor": 0,
+              "Reference": 0,
+              "Asset": 0,
+              "References": [
+                0,
+                -1
+              ],
+              "TargetExists": true
+            },
+            {
+              "Kind": 1,
+              "Actor": 0,
+              "Reference": 0,
+              "Asset": 0,
+              "References": [
+                0
+              ],
+              "TargetExists": true
+            }
+          ]
+        },
+        "replayVerified": true
+      },
+      "actualCasesFromFsCheck": 1,
+      "manifestSha256": "31fba2c897f666f3ebe43f794309a2139b003829a496026c9209ce024018eda5"
+    }
+  ],
+  "originalModule": {
+    "passed": true,
+    "sourceSha": "ce82b8f2cd57718f05de86458eebd3320f35c4d8",
+    "protobufSha": "dd06cc6c8f906b760ef224a085f45e7694dc426a",
+    "mono": "Mono JIT compiler version 6.12.0 (makepkg/0cbf0e290c3 Tue Jun 11 13:06:07 CEST 2024)\nCopyright (C) 2002-2014 Novell, Inc, Xamarin Inc and Contributors. www.mono-project.com\n\tTLS:           \n\tSIGSEGV:       altstack\n\tNotifications: epoll\n\tArchitecture:  amd64\n\tDisabled:      none\n\tMisc:          softdebug \n\tInterpreter:   yes\n\tLLVM:          supported, not enabled.\n\tSuspend:       hybrid\n\tGC:            sgen (concurrent by default)\n",
+    "checks": [
+      {
+        "command": [
+          "dotnet",
+          "restore",
+          "/tmp/phinix-original-z_qnpnxl/original/Dependencies/protobuf/csharp/src/Google.Protobuf/Google.Protobuf.csproj",
+          "--disable-parallel",
+          "-m:1",
+          "-p:NuGetAudit=false",
+          "-p:TargetFrameworks=net472",
+          "-p:TargetFramework=net472"
+        ],
+        "exitCode": 0,
+        "timedOut": false,
+        "seconds": 0.464,
+        "passed": true,
+        "name": "protobuf-restore"
+      },
+      {
+        "command": [
+          "dotnet",
+          "msbuild",
+          "/tmp/phinix-original-z_qnpnxl/original/Common/Chat/Chat.csproj",
+          "-t:Build",
+          "-p:Configuration=Release",
+          "-m:1",
+          "-p:BuildInParallel=false",
+          "-p:TargetFramework=net472",
+          "-p:TargetFrameworkRootPath=/home/hunyuan2333/.nuget/packages/microsoft.netframework.referenceassemblies.net472/1.0.3/build/",
+          "-p:EnableSourceControlManagerQueries=false",
+          "-p:EnableSourceLink=false"
+        ],
+        "exitCode": 0,
+        "timedOut": false,
+        "seconds": 1.366,
+        "passed": true,
+        "name": "chat-build"
+      },
+      {
+        "command": [
+          "dotnet",
+          "msbuild",
+          "/tmp/phinix-original-z_qnpnxl/original/Common/Trading/Trading.csproj",
+          "-t:Build",
+          "-p:Configuration=Release",
+          "-m:1",
+          "-p:BuildInParallel=false",
+          "-p:TargetFramework=net472",
+          "-p:TargetFrameworkRootPath=/home/hunyuan2333/.nuget/packages/microsoft.netframework.referenceassemblies.net472/1.0.3/build/",
+          "-p:EnableSourceControlManagerQueries=false",
+          "-p:EnableSourceLink=false"
+        ],
+        "exitCode": 0,
+        "timedOut": false,
+        "seconds": 0.467,
+        "passed": true,
+        "name": "trading-build"
+      },
+      {
+        "command": [
+          "dotnet",
+          "build",
+          "/tmp/phinix-original-z_qnpnxl/producer/LegacyModuleProbe.csproj",
+          "-c",
+          "Release",
+          "-m:1",
+          "-p:BuildInParallel=false",
+          "-p:NuGetAudit=false",
+          "-p:LegacyOriginalRoot=/tmp/phinix-original-z_qnpnxl/original"
+        ],
+        "exitCode": 0,
+        "timedOut": false,
+        "seconds": 0.614,
+        "passed": true,
+        "name": "producer-build"
+      },
+      {
+        "command": [
+          "mono",
+          "/tmp/phinix-original-z_qnpnxl/producer/bin/Release/net472/LegacyModuleProbe.exe",
+          "/tmp/phinix-p0-original-acceptance/capture.json"
+        ],
+        "exitCode": 0,
+        "timedOut": false,
+        "seconds": 0.364,
+        "passed": true,
+        "name": "original-udp-smoke"
+      }
+    ],
+    "runnerSha256": "9e4468ba17d3c857f112773a0f2998202266979a713a05639da6100fae40bf1c",
+    "producerInputs": {
+      "Program.cs": "a2d75a032488eb00b91dce2deb61538daae4a4cefc0a1bd87ce365e1f2d24370",
+      "LegacyModuleProbe.csproj": "40330fc3997053f035ab1ccd40089ca80c40768a2308e026746d9118c2f38ecc"
+    },
+    "fixtures": [
+      {
+        "direction": "client-to-original-server",
+        "module": "UserManagement",
+        "typeUrl": "Phinix/UserManagement.LoginPacket",
+        "classification": "redacted-derived-from-original-module-loopback-capture",
+        "rawSha256": "6a8c2203417b82eea7fc75a8a6c497678bebc6977958e20619f222300d15c206",
+        "derivedSha256": "7063ad5f6eaab9845450050799772e5d1f7c7701260126c04ba79bbc83fb9524",
+        "derivedAnyBase64": "CiFQaGluaXgvVXNlck1hbmFnZW1lbnQuTG9naW5QYWNrZXQSGBoUc3ludGhldGljLXByb2JlLXVzZXIgAQ==",
+        "transformation": "Remove SessionId; preserve all other synthetic login fields"
+      },
+      {
+        "direction": "client-to-original-server",
+        "module": "Chat",
+        "typeUrl": "Phinix/Chat.ChatMessagePacket",
+        "classification": "redacted-derived-from-original-module-loopback-capture",
+        "rawSha256": "a08882a9b49a73e57cf629d492a9b4400724ccbec57428762c562ec18f88a2d6",
+        "derivedSha256": "5cbe47aae04200d9de125124c261624306fa03a4c86f5c2199d7727c8460af27",
+        "derivedAnyBase64": "Ch1QaGluaXgvQ2hhdC5DaGF0TWVzc2FnZVBhY2tldBIqEgZTRU5ERVIaF3N5bnRoZXRpYy1wcm9iZS1tZXNzYWdlKgdNRVNTQUdF",
+        "transformation": "Remove SessionId/Timestamp; normalize synthetic Uuid and MessageId"
+      },
+      {
+        "direction": "original-server-to-client",
+        "module": "Chat",
+        "typeUrl": "Phinix/Chat.ChatMessageResponsePacket",
+        "classification": "redacted-derived-from-original-module-loopback-capture",
+        "rawSha256": "c21ee6edb106b41b3a59b0354a18288db10f0645a2c73ceed3602c6cb170f07c",
+        "derivedSha256": "ef03a215abf01bcfe4ad03ca0bb1b3f8f97f84ca18e762180c33d24377d48c63",
+        "derivedAnyBase64": "CiVQaGluaXgvQ2hhdC5DaGF0TWVzc2FnZVJlc3BvbnNlUGFja2V0EjcIARIHTUVTU0FHRRoRQ09ORklSTUVEX01FU1NBR0UiF3N5bnRoZXRpYy1wcm9iZS1tZXNzYWdl",
+        "transformation": "Normalize original/new synthetic message IDs; preserve actual Success and Message"
+      }
+    ],
+    "provenanceSha256": "1013512edb0e0755af75bb5df336e77bcb4d8d4c67d83a7bfe6ee00ccd82f6cb"
+  },
+  "unverified": [
+    "coverage",
+    "complete empty-cache restore graph",
+    "remote CI/Docker",
+    "SV-05 runtime performance budgets",
+    "Original Trade wire scenario",
+    "ExistingRework capture",
+    "published upgraded Server harness",
+    "SQLite/COMMIT/outbox/ACK recovery",
+    "real RimWorld delivery and workshop identity migration"
+  ]
+}

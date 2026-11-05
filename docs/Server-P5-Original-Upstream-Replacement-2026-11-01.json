@@ -1,0 +1,14 @@
+{
+  "replacedAt": "2026-11-01T22:59:53.254346+08:00",
+  "scope": "old Phinix reference clone only; Rework repositories unchanged by replacement",
+  "source": "https://github.com/thomotron/Phinix.git",
+  "path": "/home/hunyuan2333/Phinix/Phinix",
+  "head": "ce82b8f2cd57718f05de86458eebd3320f35c4d8",
+  "tree": "88955eb1e3fab5f0f6facdf13d7339e8045de2a8",
+  "backup": "/home/hunyuan2333/Phinix/local-compatibility-analysis/reference-backups/Phinix-before-upstream-refresh-20261101-225953",
+  "submodule": "dd06cc6c8f906b760ef224a085f45e7694dc426a Dependencies/protobuf (dd06cc6)",
+  "clean": true,
+  "remoteRefreshChangedTrackedSource": false,
+  "submoduleUpdateRemoteUsed": false,
+  "productBuildOrGameAcceptance": false
+}

@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net472</TargetFramework><LangVersion>latest</LangVersion></PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Connections.Client"><HintPath>$(HistoricalClientRoot)/Client/Common/Connections.Client/bin/Release/net472/Connections.Client.dll</HintPath></Reference>
+    <Reference Include="Authentication.Client"><HintPath>$(HistoricalClientRoot)/Client/Common/Authentication.Client/bin/Release/net472/Authentication.Client.dll</HintPath></Reference>
+    <Reference Include="UserManagement.Client"><HintPath>$(HistoricalClientRoot)/Client/Common/UserManagement.Client/bin/Release/net472/UserManagement.Client.dll</HintPath></Reference>
+    <Reference Include="Connections"><HintPath>$(HistoricalClientRoot)/Dependencies/Phinix.Common/Common/Connections/bin/Release/net472/Connections.dll</HintPath></Reference>
+    <Reference Include="Authentication"><HintPath>$(HistoricalClientRoot)/Dependencies/Phinix.Common/Common/Authentication/bin/Release/net472/Authentication.dll</HintPath></Reference>
+    <Reference Include="UserManagement"><HintPath>$(HistoricalClientRoot)/Dependencies/Phinix.Common/Common/UserManagement/bin/Release/net472/UserManagement.dll</HintPath></Reference>
+    <Reference Include="Utils"><HintPath>$(HistoricalClientRoot)/Dependencies/Phinix.Common/Common/Utils/bin/Release/net472/Utils.dll</HintPath></Reference>
+    <Reference Include="Google.Protobuf"><HintPath>$(HistoricalClientRoot)/Dependencies/Phinix.Common/Dependencies/protobuf/csharp/src/Google.Protobuf/bin/Release/net45/Google.Protobuf.dll</HintPath></Reference>
+    <Reference Include="LiteNetLib"><HintPath>$(HistoricalClientRoot)/Dependencies/Phinix.Common/libs/net35/LiteNetLib.dll</HintPath></Reference>
+    <Reference Include="System.Memory"><HintPath>$(HistoricalClientRoot)/Client/Common/UserManagement.Client/bin/Release/net472/System.Memory.dll</HintPath></Reference>
+    <Reference Include="System.Web.Extensions" />
+  </ItemGroup>
+  <Target Name="RequireHistoricalClient" BeforeTargets="ResolveReferences"><Error Condition="'$(HistoricalClientRoot)' == ''" Text="HistoricalClientRoot must point to the isolated fixed historical source build." /></Target>
+</Project>

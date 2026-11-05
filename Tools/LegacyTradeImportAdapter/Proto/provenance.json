@@ -1,0 +1,31 @@
+{
+  "repository": "HunYuan2333/Phinix",
+  "revision": "ce82b8f2cd57718f05de86458eebd3320f35c4d8",
+  "files": [
+    {
+      "path": "Common/Trading/Stores/compiled/ActiveTradesStore.cs",
+      "sha256": "cf722ed673d7ed54aa9dbda80d3fe4e1aefac47e8f45eba7f74b7129f7bf3e14"
+    },
+    {
+      "path": "Common/Trading/Stores/compiled/TradeStore.cs",
+      "sha256": "86fad2055b681a0064619e6550eca18710afb766611c2a9e48ba48e102c07dba"
+    },
+    {
+      "path": "Common/Trading/Stores/compiled/CompletedTradeStore.cs",
+      "sha256": "f5bd85700c4f02d97e3a9744e090bdc1f4f90ef0e7c35a290cc0a630bce3c17c"
+    },
+    {
+      "path": "Common/Trading/Stores/compiled/ProtoThings.cs",
+      "sha256": "3324d26dffb60016a4b46550b7d270fe6f2290a1fab2262edc1fe832d94c6e46"
+    },
+    {
+      "path": "Common/Trading/Packets/compiled/Thing.cs",
+      "sha256": "f7391d248f393a643815cdd5b16054fe5b00b845f32b4de631927723ee4cdd63"
+    },
+    {
+      "path": "Common/Trading/Packets/compiled/Quality.cs",
+      "sha256": "6952c1143625d43bb9bea69dbc9c4c710c81b01f47caa69db818c109046ac4a0"
+    }
+  ],
+  "note": "Original generated wire/store DTOs, unchanged; only the offline Legacy adapter compiles them. Google.Protobuf source and SDK pins are untouched."
+}

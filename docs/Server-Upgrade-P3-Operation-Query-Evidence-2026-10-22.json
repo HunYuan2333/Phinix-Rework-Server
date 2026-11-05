@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "date": "2026-10-22",
+  "tasks": [
+    "SV-31/32 subset",
+    "TQ-30/31 subset"
+  ],
+  "serverHead": "5a0508acb703319e60dd5600e3e0facd0397b294",
+  "sourceState": "dirty; exact file hashes below, not a new committed SHA",
+  "sourceSha256": {
+    "Extensions/Trade/Server/FrameworkTradeOperationQuery.cs": "df01ebc2804cad85eb3c971276674e8fad115a39055645d5a30fcaf95608aae9",
+    "Extensions/Trade/Server/PhinixFrameworkTradePersistence.cs": "c71ced3086f4135247db127aebfb6e9bb5daa814d1979e9c9332fcc1820e0875",
+    "Extensions/Trade/Server/PhinixFrameworkTradeServerService.cs": "c9afe8b38ed96d5c9d44eff8f5302e235b6df860d1f41de6ec470e74c2c1cd07",
+    "Extensions/Trade/Server/BuiltInTradeServerExtension.cs": "119af0eacec276eb243197ca658744e333f802987962b617d0c92b0215e70832",
+    "Server/ServerStorage/SqliteOperationJournal.cs": "58346919b2f6a450dc2255e2a3a619e51f14ea04adaf5669043090f009170bec",
+    "Tests/ServerTradePersistenceTests/Program.cs": "e04c372b10ef46cf10831a433ea42d2ae6ea5f746a326632e54f39f8ec04d9af",
+    "Tests/ServerArchitectureTests/architecture-scope.json": "ec1976c4128973d1e8c61c175ee3458203243bad091951703272b2f6ee9da137"
+  },
+  "stagePassed": true,
+  "stageChecks": 33,
+  "negativeControlDetected": true,
+  "layer": "L1/L2 plus existing process-kill recovery; new query not UDP-tested",
+  "profile": "existing-rework-component + operation-query capabilities",
+  "seed": [
+    20261015,
+    20261017
+  ],
+  "faultIds": [
+    "test.query.fingerprint-check-disabled"
+  ],
+  "clientChanged": false,
+  "commonOrGitlinkChanged": false,
+  "deployed": false,
+  "realGameValidated": false,
+  "evidencePath": "/home/hunyuan2333/Phinix/Deliverables/Phinix-Rework-Server-Operation-Query-2026-10-22"
+}

@@ -1,0 +1,970 @@
+{
+  "date": "2026-10-15",
+  "scope": "P0 first slice; not phase exit, not release or real game acceptance",
+  "manifestSha256": "554f643ce63c19f61571059dfef0675478dac835b8a60e03b4874b028f219b56",
+  "baseRepositories": [
+    {
+      "path": ".",
+      "sha": "5a0508acb703319e60dd5600e3e0facd0397b294",
+      "branch": "dev",
+      "status": " M .gitignore\n M Extensions/Trade/Server/BuiltInTradeServerExtension.cs\n M Extensions/Trade/Server/PhinixFrameworkTradeServerService.cs\n M Extensions/Trade/Server/PhinixFrameworkTradeStore.cs\n M README.md\n M Server/Authentication/ServerAuthenticator.cs\n M Server/UserManagement.Server/UserManagement.Server.csproj\n M Server/UserManagement/ServerUserManager.cs\n M docs/Compatibility-Boundaries.md\n M docs/Design-Philosophy.md\n M \"docs/\\350\\256\\276\\350\\256\\241\\345\\223\\262\\345\\255\\246.md\"\n?? .github/workflows/server-quality.yml\n?? Tests/ServerSafetyRegressionTests/\n?? docs/Server-Assessment-2026-10-14.md\n?? docs/Server-Fault-Tolerance-and-Recoverability-2026-10-14.md\n?? docs/Server-Protocol-and-Passwordless-Identity.md\n?? docs/Server-Static-Performance-Audit-2026-10-14.md\n?? docs/Server-Test-and-Quality-Assurance-Plan.md\n?? docs/Server-Upgrade-P0-Contracts.md\n?? docs/Server-Upgrade-Roadmap.md\n?? tools/",
+      "gitlinks": "160000 67f243d9edced77dc3fe669f8a435b1f14b59199 0\tDependencies/Phinix.Common"
+    },
+    {
+      "path": "Dependencies/Phinix.Common",
+      "sha": "67f243d9edced77dc3fe669f8a435b1f14b59199",
+      "branch": "",
+      "status": "",
+      "gitlinks": "160000 4b0c3aacf0657fbf38253b38918d3358dd4319ec 0\tDependencies/protobuf"
+    },
+    {
+      "path": "Dependencies/Phinix.Common/Dependencies/protobuf",
+      "sha": "4b0c3aacf0657fbf38253b38918d3358dd4319ec",
+      "branch": "",
+      "status": "",
+      "gitlinks": ""
+    }
+  ],
+  "environment": {
+    "platform": "Linux-7.2.9-2-cachyos-x86_64-with-glibc2.44",
+    "cpuCount": 16,
+    "python": "3.14.8",
+    "diskFreeBytes": 10654568448
+  },
+  "sdk": ".NET SDK:\n Version:           10.0.112\n Commit:            95017c711e\n Workload version:  10.0.100-manifests.63b36e85\n MSBuild version:   18.0.11\n\nRuntime Environment:\n OS Name:     cachyos\n OS Version:  \n OS Platform: Linux\n RID:         arch-x64\n Base Path:   /usr/share/dotnet/sdk/10.0.112/\n\n.NET workloads installed:\nThere are no installed workloads to display.\nConfigured to use workload sets when installing new manifests.\nNo workload sets are installed. Run \"dotnet workload restore\" to install a workload set.\n\nHost:\n  Version:      10.0.12\n  Architecture: x64\n  Commit:       95017c711e\n\n.NET SDKs installed:\n  10.0.112 [/usr/share/dotnet/sdk]\n\n.NET runtimes installed:\n  Microsoft.NETCore.App 10.0.12 [/usr/share/dotnet/shared/Microsoft.NETCore.App]\n\nOther architectures found:\n  None\n\nEnvironment variables:\n  Not set\n\nglobal.json file:\n  Not found\n\nLearn more:\n  https://aka.ms/dotnet/info\n\nDownload .NET:\n  https://aka.ms/dotnet/download\n",
+  "runnerSha256": "1342010547b2cd039bb478d52eda652bdc88670c56a6c60b637fd69662172808",
+  "arguments": [
+    "--suite",
+    "stage",
+    "--isolated",
+    "--output",
+    "/tmp/phinix-p0-reviewed"
+  ],
+  "coverage": {
+    "collected": false,
+    "reason": "No collector selected; no coverage percentage claimed"
+  },
+  "profile": "existing-rework-component",
+  "seed": null,
+  "faultIds": [],
+  "nugetAudit": "Disabled for build reproducibility; this run is not a package vulnerability audit",
+  "checks": [
+    {
+      "command": [
+        "dotnet",
+        "restore",
+        "Server/Server.csproj",
+        "--disable-parallel",
+        "-m:1",
+        "-p:BuildInParallel=false",
+        "-p:NuGetAudit=false"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 0.965,
+      "passed": true,
+      "name": "server-restore"
+    },
+    {
+      "command": [
+        "dotnet",
+        "build",
+        "Server/Server.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "-m:1",
+        "-p:BuildInParallel=false"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 19.94,
+      "passed": true,
+      "name": "server-build"
+    },
+    {
+      "command": [
+        "dotnet",
+        "restore",
+        "Tests/Phase35ServerRuntimeTests/Phase35ServerRuntimeTests.csproj",
+        "--disable-parallel",
+        "-m:1",
+        "-p:BuildInParallel=false",
+        "-p:NuGetAudit=false"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 0.665,
+      "passed": true,
+      "name": "pipeline-restore"
+    },
+    {
+      "command": [
+        "dotnet",
+        "build",
+        "Tests/Phase35ServerRuntimeTests/Phase35ServerRuntimeTests.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "-m:1",
+        "-p:BuildInParallel=false"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 2.116,
+      "passed": true,
+      "name": "pipeline-build"
+    },
+    {
+      "command": [
+        "dotnet",
+        "Tests/Phase35ServerRuntimeTests/bin/Release/net10.0/Phase35ServerRuntimeTests.dll"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 0.032,
+      "passed": true,
+      "name": "pipeline-test"
+    },
+    {
+      "command": [
+        "dotnet",
+        "restore",
+        "Dependencies/Phinix.Common/Tests/Phase35CoreRuntimeTests/Phase35CoreRuntimeTests.csproj",
+        "--disable-parallel",
+        "-m:1",
+        "-p:BuildInParallel=false",
+        "-p:NuGetAudit=false"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 0.614,
+      "passed": true,
+      "name": "shared-restore"
+    },
+    {
+      "command": [
+        "dotnet",
+        "build",
+        "Dependencies/Phinix.Common/Tests/Phase35CoreRuntimeTests/Phase35CoreRuntimeTests.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "-m:1",
+        "-p:BuildInParallel=false"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 1.966,
+      "passed": true,
+      "name": "shared-build"
+    },
+    {
+      "command": [
+        "dotnet",
+        "Dependencies/Phinix.Common/Tests/Phase35CoreRuntimeTests/bin/Release/net10.0/Phase35CoreRuntimeTests.dll"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 0.032,
+      "passed": true,
+      "name": "shared-test"
+    },
+    {
+      "command": [
+        "dotnet",
+        "restore",
+        "Tests/ServerSafetyRegressionTests/ServerSafetyRegressionTests.csproj",
+        "--disable-parallel",
+        "-m:1",
+        "-p:BuildInParallel=false",
+        "-p:NuGetAudit=false"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 0.865,
+      "passed": true,
+      "name": "safety-restore"
+    },
+    {
+      "command": [
+        "dotnet",
+        "build",
+        "Tests/ServerSafetyRegressionTests/ServerSafetyRegressionTests.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "-m:1",
+        "-p:BuildInParallel=false"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 2.467,
+      "passed": true,
+      "name": "safety-build"
+    },
+    {
+      "command": [
+        "dotnet",
+        "Tests/ServerSafetyRegressionTests/bin/Release/net10.0/ServerSafetyRegressionTests.dll"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 0.164,
+      "passed": true,
+      "name": "safety-test"
+    },
+    {
+      "command": [
+        "dotnet",
+        "publish",
+        "Server/Server.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "--no-self-contained",
+        "-m:1",
+        "-p:BuildInParallel=false",
+        "-o",
+        "/tmp/phinix-quality-e68vdh_8/publish"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 1.065,
+      "passed": true,
+      "name": "publish"
+    }
+  ],
+  "passed": true,
+  "artifacts": {
+    "Authentication.Server.dll": "6feb0113d43d936b2f7f3ec679906abfe4c8155fb01e415c005f2a359ee667b6",
+    "Authentication.Server.pdb": "b02df29ca9d46794a7d7605592a84d8e89519573a89ee5ab1a6c9b2f63766848",
+    "Authentication.dll": "5d29cfcd0215b2a5f9b6a7c962012ccb5736e6569ee6770901b17d9309fda690",
+    "Authentication.pdb": "fb2d4251a8a8969ab28b7cb0dd505eaa743ba87ab4a769435481cb05fcf9d144",
+    "Connections.Server.dll": "104bc1504dffcd4607ba8437d5eccae79839dbfce75c0469e6f9716f6c99b044",
+    "Connections.Server.pdb": "130ab9026342d70d90d47ae8868f0a2d76e7bc4e1c8b19912167222060560ed0",
+    "Connections.dll": "132a9ff9ca8520938befd68f9540e8bb680b0e3de8f1ad808c5f9d23329d8582",
+    "Connections.pdb": "4336277a89bbefe67ca7a95971ad488e933725ee8d696698b9a550d7e540ca74",
+    "Extensions/ChatExtension.Server.dll": "51a51e8cc1a647023c71bc78465d6c7ceadac83dea899b68ebcdc9e9d95776c7",
+    "Extensions/ChatExtension.dll": "af76e74795e728919eac5060958e0fb3c944841650caff928f915372e6a7a9e7",
+    "Extensions/TradeExtension.Server.dll": "d96c00877686b31286272cb11f58deec398cd90e93ec1af412166df6604b4ae2",
+    "Extensions/TradeExtension.dll": "132b88aee06b00cf32826ed00dd81ebbdf1f5e54fccad22125b5525c1879e82c",
+    "Google.Protobuf.dll": "f6b354904bf43514fb1e2403c1e51cc4e78cac6e828e01625a6ca29caf1ec2e5",
+    "Google.Protobuf.pdb": "fbb69d347d5f1a9860e2a62dbbfdcb4075de9de021f5d2068e9e70f51d2c1688",
+    "Google.Protobuf.xml": "ab5278e4132097f7680cf73e9a33a1b794c264508e9668b914b01d7fde79a678",
+    "LiteNetLib.dll": "320526331c04be0218341e68412b51df5752aa5381842c7c9d26e414c217eca0",
+    "PhinixServer": "31cc4468013b79204031b4731aa6dfef6a79e134ca77ec4105560ecbb855e017",
+    "PhinixServer.deps.json": "0fea9ebf45e219ee83b235e714121b5bf228d9446ee29e1dfeb88b01ec2f64ac",
+    "PhinixServer.dll": "50578a97ddff21ddd7c1fbdecbc65da82ac4a0a5743fba1745c6698b0e8bdb66",
+    "PhinixServer.pdb": "8cf246c3220c086524d97c233a893477901bdd3ae0fab63ff6907b9e1f730f87",
+    "PhinixServer.runtimeconfig.json": "9950d4583cfc9a106857c0d5b8a75b53e8774852b57b80bc3823a74d44a4d87f",
+    "ServerRuntime.dll": "84fcf09376875c66a16f0c494d4e2a7124298c4e4314affa6318493622b7a99c",
+    "ServerRuntime.pdb": "51795c7c17529b3234757b2776a8d3075ad3864aff545206beed8614cb5da145",
+    "UserManagement.Server.dll": "dcd8cbe9a95636065b0a66c61813c1d6574ef6135294907255ce0a36ace1398b",
+    "UserManagement.Server.pdb": "dcac9934f41ac2872471016e939ec9858d191f2dafd7ce62a3716812ab4931aa",
+    "UserManagement.dll": "82402735531f181e3f8349ca100e62e14d83b61f940be5394b2c80b9cda6dfc7",
+    "UserManagement.pdb": "4006ff79754f1b45d7d0072311bfad315db937c07600ee46f864303e39a5a87f",
+    "Utils.dll": "88e980b4e24688ccab6baf37d3910b7c941f0b7d78d958568ca819fab3d776af",
+    "Utils.pdb": "ef2352c3db3e352d5d99f8b1f08ae9419224b7a115824a328eb21f5274d5d1d8"
+  },
+  "sourceInputs": {
+    "Tests/ServerSafetyRegressionTests/Program.cs": "ecff58fecfbbc10452b53bac7005f5769910105f89521ac5bd5428668584e011",
+    "Tests/ServerSafetyRegressionTests/ServerSafetyRegressionTests.csproj": "87aaef328f6922cb459e74ccd2b5ab01e2f8e9cf8e723ef82bb7dd0c1c4a98c2",
+    "Extensions/Chat/Server/BuiltInChatServerExtension.cs": "c8001d6eac36fc3ddd611aef7e38ae346bac06500e1fff47a19776699ec593a0",
+    "Extensions/Chat/Server/ChatExtension.Server.csproj": "909c4c49d965efcedb36b0710b9d98e615b825cb9de9510cf9c01e58007593c1",
+    "Extensions/Chat/Server/ChatServerConfig.cs": "4cf8b814ba3e156787711cac1f108490f807c815948a740c6c6e72c433ca3e75",
+    "Extensions/Chat/Server/NoticeConsoleCommand.cs": "528f69537541950b26e9bfbc977995cb14e6ab6721b778f100aa2021c73c1eda",
+    "Extensions/Chat/Server/PhinixFrameworkChatBroadcast.cs": "bb9a5d0952baa34963a5c3e3b74db0b2d8117b30b2a0348a5ed8d3a97df0dcb1",
+    "Extensions/Chat/Server/PhinixFrameworkChatService.cs": "e6238ca17f9706559533aacdd4e07b9ad9bf68a5adb499780861b9469dd76e7a",
+    "Extensions/Chat/Server/Properties/AssemblyInfo.cs": "8b0f0cf1bb30ca50ccf68715bb763bd3a3be410ff653016df73436912adf0992",
+    "Extensions/Trade/Server/BuiltInTradeServerExtension.cs": "bd82d4d0c530b295508ccca207a82902fa9c3798e78e634734db26b54af1eaed",
+    "Extensions/Trade/Server/PhinixFrameworkTradeServerService.cs": "dab3d38757f6dc584881c7098e498f3577ed5365dee11f067426ee97d899216e",
+    "Extensions/Trade/Server/PhinixFrameworkTradeStore.cs": "0738cb8db9d0ba72dd4180592901b6d0bc7e8a4e119edb2508bb1010f6dd184b",
+    "Extensions/Trade/Server/Properties/AssemblyInfo.cs": "60bc24de44dd32e45d5e6f761aa7f80effe9262ef39ebd0c33018b05e5dbb1b7",
+    "Extensions/Trade/Server/TradeExtension.Server.csproj": "b487ac98a63a142defa42812aa94e6811ac683b945aa18f1b10dedde58a2b479",
+    "Extensions/Trade/Server/TradeServerConfig.cs": "aeeef0b42d5e3961d5c252c5debed21f23b7e66d9b37c8233d0fd036bf8fdfc8",
+    "Server/Authentication.Server/Authentication.Server.csproj": "b8d285fc1ee6e2cc7e51e5abb725dda8c0b6a7b36150a0e12b1cc4c171559967",
+    "Server/Authentication/ServerAuthenticator.cs": "b9927cbb1ae00e21934c8bb53ad65b225f607762565187c4b413c38337199692",
+    "Server/Authentication/Session.cs": "18c470d493f6c37a2c58c89574ad055a362f5024bf7219fe69029a97ff003269",
+    "Server/Command.cs": "311ac503043f206b1dc4cc5b16207cc7597bd254c674aa1838f6c4ecdc9f420d",
+    "Server/CommandInterpreter.cs": "2eef65ccdc18bca7b80d6f594dce91aaab4ef221e0ca1f025289452f969c5a27",
+    "Server/Commands/ExitCommand.cs": "ae202dd8db7b88e354ac3df64f2d8f1fcc478b47439d1fd7dec2cc28ccde2656",
+    "Server/Commands/HelpCommand.cs": "b89c604288f0575aa9cbcbb783a97dabc424993eb5101feb2f464c4d2223e5ab",
+    "Server/Commands/LogCommand.cs": "0f9a7829f9b28054377d28836893b0d0feef1d1fd928994a113335bc259da4db",
+    "Server/Commands/VersionCommand.cs": "705bdf1edbf8290e3a7115fa3419206dc0e3bb644e1330038e2b51bd683d7c8d",
+    "Server/Config.cs": "b637f39b1a7d0f5a123027dad273f1620f243066f837f9f5f29355afee765aa5",
+    "Server/ConfigItemDeserialisationException.cs": "91ab970e0ad8e94fcbc5332d8a2201e6cd6a05a9e64e361de10f003e7f6bb38c",
+    "Server/Connections.Server/AssemblyInfo.cs": "69c7b90cef17b538721098b09b266b9c801fe675a50ee79c10d5de90fa94a4aa",
+    "Server/Connections.Server/Connections.Server.csproj": "85d6680402a584f2008132a5369a5c72be5fb36f40ac92291a48cbb602bfd610",
+    "Server/Connections.Server/NetServer.cs": "f6ab68c9032162cf394de7629be6d7b0fb73c255c586f122259db333a258290f",
+    "Server/ConsoleHighlighting.cs": "f2706c2a0f640b484d5da4ec857f89654e771a7f7dc2f6049aea5af4e2749be2",
+    "Server/Framework/FrameworkServerPacketDispatcher.cs": "a4a00832bda5f6050c47b6fbac8239f0d15f6d2f736c62f039bf8d80bf4396c2",
+    "Server/Framework/ILegacyTradeRuntime.cs": "590cc9dc9336c61c1668344c651f772a39a6d54d6b5b6e37e638f54a05ce95ee",
+    "Server/Framework/LegacyServerTradeRuntimeAdapter.cs": "ca038509050a2a24376a057113e6e68e58db7adebe64d6fe196f08737507a6a5",
+    "Server/Framework/PhinixFrameworkServer.cs": "efd0ac1440e2c26721661030cd218fbe8bb22a46aabfc61f8e528513ff133986",
+    "Server/HelpEntry.cs": "bee445a85af48cd571de12400e5645b643e93d6671d88b5e960865ae721e1b5f",
+    "Server/Logger.cs": "af3baba6219d30267bd540dd6aabf8002cb54b10db0037e413236b9afdcb85fe",
+    "Server/Properties/AssemblyInfo.cs": "84773ee2111db1ea555f0d3c86fcb54608f89a4a0de980b1f5c2155fa861192e",
+    "Server/Server.cs": "df7af58142bf7a185a4248afd0e9cfe4d58942d5f50d3364ab026456601874cd",
+    "Server/Server.csproj": "d12abf468b6ccba7a7a9bd2a39c631d15940a79528366365f757d168e9dba1fe",
+    "Server/ServerRuntime/ServerPipelineRunner.cs": "2480e7b39d065c8a35fd4536e3a81245548ddef3c627b5cc77ad0a706062ab78",
+    "Server/ServerRuntime/ServerRuntime.csproj": "3147174721298e493929804a11272675a2cbf9e2cd0efcb51dea1df934cdb03e",
+    "Server/UserManagement.Server/UserManagement.Server.csproj": "b628f93f159e9245040137296604047ed20adda02fc351609c619664aea18fa6",
+    "Server/UserManagement/ServerUserManager.cs": "c1dfc674069d3bb0665d38667e10653edb18808919b11ba9148a0cf5722d5250"
+  },
+  "scenarios": [
+    {
+      "id": "AS01-missing-ref",
+      "layer": "L2",
+      "passed": true
+    },
+    {
+      "id": "AS01-all-missing",
+      "layer": "L2",
+      "passed": true
+    },
+    {
+      "id": "AS01-duplicate-ref",
+      "layer": "L2",
+      "passed": true
+    },
+    {
+      "id": "AS01-blank-ref",
+      "layer": "L2",
+      "passed": true
+    },
+    {
+      "id": "AS01-invalid-trade-preserves-ref",
+      "layer": "L2",
+      "passed": true
+    },
+    {
+      "id": "AS01-nonparticipant-preserves-ref",
+      "layer": "L2",
+      "passed": true
+    },
+    {
+      "id": "AS01-valid-complete-payload",
+      "layer": "L2",
+      "passed": true
+    },
+    {
+      "id": "AS01-empty-offer",
+      "layer": "L2",
+      "passed": true
+    },
+    {
+      "id": "AS01-scoped-ref",
+      "layer": "L2",
+      "passed": true
+    },
+    {
+      "id": "AS01-cache-conflict",
+      "layer": "L2",
+      "passed": true
+    },
+    {
+      "id": "AS01-cache-capacity-preserves-ref",
+      "layer": "L2",
+      "passed": true
+    },
+    {
+      "id": "AS01-session-isolation",
+      "layer": "L2",
+      "passed": true
+    },
+    {
+      "id": "AS01-invalid-inline",
+      "layer": "L2",
+      "passed": true
+    },
+    {
+      "id": "AS01-plugin-scoped-item",
+      "layer": "L2",
+      "passed": true
+    },
+    {
+      "id": "FR14-user-delta-secret",
+      "layer": "L2",
+      "passed": true
+    },
+    {
+      "id": "FR14-user-sync-secret",
+      "layer": "L2",
+      "passed": true
+    },
+    {
+      "id": "FR14-auth-log-secret",
+      "layer": "L2",
+      "passed": true
+    }
+  ],
+  "assemblies": [
+    {
+      "assembly": "TradeExtension.Server, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null",
+      "references": [
+        "System.Runtime, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "System.Runtime.InteropServices, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "Utils, Version=0.9.7.0, Culture=neutral, PublicKeyToken=null",
+        "UserManagement, Version=0.9.7.0, Culture=neutral, PublicKeyToken=null",
+        "System.Collections, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "TradeExtension, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null",
+        "System.Xml.ReaderWriter, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "System.Runtime.Serialization.Primitives, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "System.Threading, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "System.Linq, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "System.Memory, Version=10.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51",
+        "System.Runtime.Serialization.Xml, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a"
+      ]
+    },
+    {
+      "assembly": "TradeExtension, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null",
+      "references": [
+        "System.Runtime, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "System.Runtime.InteropServices, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "UserManagement, Version=0.9.7.0, Culture=neutral, PublicKeyToken=null",
+        "Utils, Version=0.9.7.0, Culture=neutral, PublicKeyToken=null",
+        "Google.Protobuf, Version=3.34.1.0, Culture=neutral, PublicKeyToken=a7d26565bac4d604",
+        "System.Runtime.Serialization.Primitives, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "System.Collections, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "System.Linq, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a"
+      ]
+    },
+    {
+      "assembly": "UserManagement.Server, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null",
+      "references": [
+        "System.Runtime, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "UserManagement, Version=0.9.7.0, Culture=neutral, PublicKeyToken=null",
+        "Utils, Version=0.9.7.0, Culture=neutral, PublicKeyToken=null",
+        "Connections.Server, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null",
+        "Authentication.Server, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null",
+        "System.Collections, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "Connections, Version=0.9.7.0, Culture=neutral, PublicKeyToken=null",
+        "Google.Protobuf, Version=3.34.1.0, Culture=neutral, PublicKeyToken=a7d26565bac4d604",
+        "System.Threading, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "System.Linq, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "ServerRuntime, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+      ]
+    },
+    {
+      "assembly": "Authentication.Server, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null",
+      "references": [
+        "System.Runtime, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "Authentication, Version=0.9.7.0, Culture=neutral, PublicKeyToken=null",
+        "Utils, Version=0.9.7.0, Culture=neutral, PublicKeyToken=null",
+        "Connections.Server, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null",
+        "System.Collections, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "System.ComponentModel.TypeConverter, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "Google.Protobuf, Version=3.34.1.0, Culture=neutral, PublicKeyToken=a7d26565bac4d604",
+        "Connections, Version=0.9.7.0, Culture=neutral, PublicKeyToken=null",
+        "System.Threading, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "System.ComponentModel.Primitives, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "System.Linq, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "ServerRuntime, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+      ]
+    },
+    {
+      "assembly": "Utils, Version=0.9.7.0, Culture=neutral, PublicKeyToken=null",
+      "references": [
+        "System.Runtime, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "System.Runtime.InteropServices, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "Google.Protobuf, Version=3.34.1.0, Culture=neutral, PublicKeyToken=a7d26565bac4d604",
+        "System.Collections, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "System.Text.RegularExpressions, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "System.Linq, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "System.Runtime.Serialization.Primitives, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "System.Runtime.Serialization.Json, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "System.Xml.XDocument, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "System.Security.Cryptography, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "System.Runtime.Serialization.Xml, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "System.Xml.ReaderWriter, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "System.Text.Encoding.Extensions, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "System.Threading, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "System.Memory, Version=10.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51"
+      ]
+    },
+    {
+      "assembly": "Connections.Server, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null",
+      "references": [
+        "System.Runtime, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "System.Runtime.InteropServices, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "Connections, Version=0.9.7.0, Culture=neutral, PublicKeyToken=null",
+        "Utils, Version=0.9.7.0, Culture=neutral, PublicKeyToken=null",
+        "System.Net.Primitives, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "LiteNetLib, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null",
+        "System.Collections, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "System.Threading.Thread, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+        "System.Threading, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a"
+      ]
+    }
+  ],
+  "negativeControls": [
+    {
+      "run": "phinix-p0-before-serial",
+      "passed": false,
+      "checks": [
+        {
+          "command": [
+            "dotnet",
+            "restore",
+            "Server/Server.csproj",
+            "--disable-parallel",
+            "-m:1",
+            "-p:BuildInParallel=false",
+            "-p:NuGetAudit=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 1.015,
+          "passed": true,
+          "name": "server-restore"
+        },
+        {
+          "command": [
+            "dotnet",
+            "build",
+            "Server/Server.csproj",
+            "-c",
+            "Release",
+            "--no-restore",
+            "-m:1",
+            "-p:BuildInParallel=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 1.115,
+          "passed": true,
+          "name": "server-build"
+        },
+        {
+          "command": [
+            "dotnet",
+            "restore",
+            "Tests/Phase35ServerRuntimeTests/Phase35ServerRuntimeTests.csproj",
+            "--disable-parallel",
+            "-m:1",
+            "-p:BuildInParallel=false",
+            "-p:NuGetAudit=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.664,
+          "passed": true,
+          "name": "pipeline-restore"
+        },
+        {
+          "command": [
+            "dotnet",
+            "build",
+            "Tests/Phase35ServerRuntimeTests/Phase35ServerRuntimeTests.csproj",
+            "-c",
+            "Release",
+            "--no-restore",
+            "-m:1",
+            "-p:BuildInParallel=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.716,
+          "passed": true,
+          "name": "pipeline-build"
+        },
+        {
+          "command": [
+            "dotnet",
+            "Tests/Phase35ServerRuntimeTests/bin/Release/net10.0/Phase35ServerRuntimeTests.dll"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.064,
+          "passed": true,
+          "name": "pipeline-test"
+        },
+        {
+          "command": [
+            "dotnet",
+            "restore",
+            "Tests/ServerSafetyRegressionTests/ServerSafetyRegressionTests.csproj",
+            "--disable-parallel",
+            "-m:1",
+            "-p:BuildInParallel=false",
+            "-p:NuGetAudit=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.714,
+          "passed": true,
+          "name": "safety-restore"
+        },
+        {
+          "command": [
+            "dotnet",
+            "build",
+            "Tests/ServerSafetyRegressionTests/ServerSafetyRegressionTests.csproj",
+            "-c",
+            "Release",
+            "--no-restore",
+            "-m:1",
+            "-p:BuildInParallel=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.815,
+          "passed": true,
+          "name": "safety-build"
+        },
+        {
+          "command": [
+            "dotnet",
+            "Tests/ServerSafetyRegressionTests/bin/Release/net10.0/ServerSafetyRegressionTests.dll"
+          ],
+          "exitCode": 1,
+          "timedOut": false,
+          "seconds": 0.114,
+          "passed": false,
+          "name": "safety-test",
+          "reason": "Missing expected test completion marker"
+        }
+      ],
+      "testOutputSha256": "50712d00ee7677bedd575a14f4ea722ba2b70713969f5190e767abb03d67e29e",
+      "scenarios": [
+        {
+          "id": "AS01-missing-ref",
+          "layer": "L2",
+          "passed": false,
+          "reason": "Invalid reference batch must be rejected"
+        },
+        {
+          "id": "AS01-all-missing",
+          "layer": "L2",
+          "passed": false,
+          "reason": "Invalid reference batch must be rejected"
+        },
+        {
+          "id": "AS01-duplicate-ref",
+          "layer": "L2",
+          "passed": false,
+          "reason": "Invalid reference batch must be rejected"
+        },
+        {
+          "id": "AS01-blank-ref",
+          "layer": "L2",
+          "passed": false,
+          "reason": "Invalid reference batch must be rejected"
+        },
+        {
+          "id": "AS01-invalid-trade-preserves-ref",
+          "layer": "L2",
+          "passed": false,
+          "reason": "Invalid target consumed a legitimate reference"
+        },
+        {
+          "id": "AS01-nonparticipant-preserves-ref",
+          "layer": "L2",
+          "passed": false,
+          "reason": "Invalid target consumed a legitimate reference"
+        },
+        {
+          "id": "AS01-valid-complete-payload",
+          "layer": "L2",
+          "passed": false,
+          "reason": "Consumed reference must not be reusable"
+        },
+        {
+          "id": "AS01-empty-offer",
+          "layer": "L2",
+          "passed": true
+        },
+        {
+          "id": "AS01-scoped-ref",
+          "layer": "L2",
+          "passed": false,
+          "reason": "Cross-owner ID collision replaced owner's payload"
+        }
+      ],
+      "sourceInputs": {
+        "Tests/ServerSafetyRegressionTests/Program.cs": "c8d913d277e1aafd1307a750b67d7aa6afd304bcd511f818badc7ee38961d98a",
+        "Tests/ServerSafetyRegressionTests/ServerSafetyRegressionTests.csproj": "1230c58df203f9e329f347fb2b99a9dff30644cf8d0f3e79ca78c5b14af00d95",
+        "Extensions/Chat/Server/BuiltInChatServerExtension.cs": "c8001d6eac36fc3ddd611aef7e38ae346bac06500e1fff47a19776699ec593a0",
+        "Extensions/Chat/Server/ChatExtension.Server.csproj": "909c4c49d965efcedb36b0710b9d98e615b825cb9de9510cf9c01e58007593c1",
+        "Extensions/Chat/Server/ChatServerConfig.cs": "4cf8b814ba3e156787711cac1f108490f807c815948a740c6c6e72c433ca3e75",
+        "Extensions/Chat/Server/NoticeConsoleCommand.cs": "528f69537541950b26e9bfbc977995cb14e6ab6721b778f100aa2021c73c1eda",
+        "Extensions/Chat/Server/PhinixFrameworkChatBroadcast.cs": "bb9a5d0952baa34963a5c3e3b74db0b2d8117b30b2a0348a5ed8d3a97df0dcb1",
+        "Extensions/Chat/Server/PhinixFrameworkChatService.cs": "e6238ca17f9706559533aacdd4e07b9ad9bf68a5adb499780861b9469dd76e7a",
+        "Extensions/Chat/Server/Properties/AssemblyInfo.cs": "8b0f0cf1bb30ca50ccf68715bb763bd3a3be410ff653016df73436912adf0992",
+        "Extensions/Trade/Server/BuiltInTradeServerExtension.cs": "80d03fea553ffa1c4e623527be29a923277da691c6cb2ca8842c80575e36d2f9",
+        "Extensions/Trade/Server/PhinixFrameworkTradeServerService.cs": "293eecc158c9819272b4c7d0b2bf1903e719aee012e54e076d2b173ea0078243",
+        "Extensions/Trade/Server/PhinixFrameworkTradeStore.cs": "98cea51ac85a2e7aa24fb028c820a6a5039876a3e8477d12844ba3c52b9da415",
+        "Extensions/Trade/Server/Properties/AssemblyInfo.cs": "60bc24de44dd32e45d5e6f761aa7f80effe9262ef39ebd0c33018b05e5dbb1b7",
+        "Extensions/Trade/Server/TradeExtension.Server.csproj": "b487ac98a63a142defa42812aa94e6811ac683b945aa18f1b10dedde58a2b479",
+        "Extensions/Trade/Server/TradeServerConfig.cs": "aeeef0b42d5e3961d5c252c5debed21f23b7e66d9b37c8233d0fd036bf8fdfc8",
+        "Server/Authentication.Server/Authentication.Server.csproj": "b8d285fc1ee6e2cc7e51e5abb725dda8c0b6a7b36150a0e12b1cc4c171559967",
+        "Server/Authentication/ServerAuthenticator.cs": "f382d351468f580ec0ffdf1e1edbed93d8ccfca49ad3e9e968b31d990807698b",
+        "Server/Authentication/Session.cs": "18c470d493f6c37a2c58c89574ad055a362f5024bf7219fe69029a97ff003269",
+        "Server/Command.cs": "311ac503043f206b1dc4cc5b16207cc7597bd254c674aa1838f6c4ecdc9f420d",
+        "Server/CommandInterpreter.cs": "2eef65ccdc18bca7b80d6f594dce91aaab4ef221e0ca1f025289452f969c5a27",
+        "Server/Commands/ExitCommand.cs": "ae202dd8db7b88e354ac3df64f2d8f1fcc478b47439d1fd7dec2cc28ccde2656",
+        "Server/Commands/HelpCommand.cs": "b89c604288f0575aa9cbcbb783a97dabc424993eb5101feb2f464c4d2223e5ab",
+        "Server/Commands/LogCommand.cs": "0f9a7829f9b28054377d28836893b0d0feef1d1fd928994a113335bc259da4db",
+        "Server/Commands/VersionCommand.cs": "705bdf1edbf8290e3a7115fa3419206dc0e3bb644e1330038e2b51bd683d7c8d",
+        "Server/Config.cs": "b637f39b1a7d0f5a123027dad273f1620f243066f837f9f5f29355afee765aa5",
+        "Server/ConfigItemDeserialisationException.cs": "91ab970e0ad8e94fcbc5332d8a2201e6cd6a05a9e64e361de10f003e7f6bb38c",
+        "Server/Connections.Server/AssemblyInfo.cs": "69c7b90cef17b538721098b09b266b9c801fe675a50ee79c10d5de90fa94a4aa",
+        "Server/Connections.Server/Connections.Server.csproj": "85d6680402a584f2008132a5369a5c72be5fb36f40ac92291a48cbb602bfd610",
+        "Server/Connections.Server/NetServer.cs": "f6ab68c9032162cf394de7629be6d7b0fb73c255c586f122259db333a258290f",
+        "Server/ConsoleHighlighting.cs": "f2706c2a0f640b484d5da4ec857f89654e771a7f7dc2f6049aea5af4e2749be2",
+        "Server/Framework/FrameworkServerPacketDispatcher.cs": "a4a00832bda5f6050c47b6fbac8239f0d15f6d2f736c62f039bf8d80bf4396c2",
+        "Server/Framework/ILegacyTradeRuntime.cs": "590cc9dc9336c61c1668344c651f772a39a6d54d6b5b6e37e638f54a05ce95ee",
+        "Server/Framework/LegacyServerTradeRuntimeAdapter.cs": "ca038509050a2a24376a057113e6e68e58db7adebe64d6fe196f08737507a6a5",
+        "Server/Framework/PhinixFrameworkServer.cs": "efd0ac1440e2c26721661030cd218fbe8bb22a46aabfc61f8e528513ff133986",
+        "Server/HelpEntry.cs": "bee445a85af48cd571de12400e5645b643e93d6671d88b5e960865ae721e1b5f",
+        "Server/Logger.cs": "af3baba6219d30267bd540dd6aabf8002cb54b10db0037e413236b9afdcb85fe",
+        "Server/Properties/AssemblyInfo.cs": "84773ee2111db1ea555f0d3c86fcb54608f89a4a0de980b1f5c2155fa861192e",
+        "Server/Server.cs": "df7af58142bf7a185a4248afd0e9cfe4d58942d5f50d3364ab026456601874cd",
+        "Server/Server.csproj": "d12abf468b6ccba7a7a9bd2a39c631d15940a79528366365f757d168e9dba1fe",
+        "Server/ServerRuntime/ServerPipelineRunner.cs": "2480e7b39d065c8a35fd4536e3a81245548ddef3c627b5cc77ad0a706062ab78",
+        "Server/ServerRuntime/ServerRuntime.csproj": "3147174721298e493929804a11272675a2cbf9e2cd0efcb51dea1df934cdb03e",
+        "Server/UserManagement.Server/UserManagement.Server.csproj": "fe8a7d0d3434993b03546eabd73c2311cfe3fde077ac226cf8c3cc83ef872ff6",
+        "Server/UserManagement/ServerUserManager.cs": "a04a8fbaf644b32bbd4a9971804ddaf7832cce5fe1bde0389f872f0fcc3115e2"
+      }
+    },
+    {
+      "run": "phinix-p0-privacy-before",
+      "passed": false,
+      "checks": [
+        {
+          "command": [
+            "dotnet",
+            "restore",
+            "Server/Server.csproj",
+            "--disable-parallel",
+            "-m:1",
+            "-p:BuildInParallel=false",
+            "-p:NuGetAudit=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.865,
+          "passed": true,
+          "name": "server-restore"
+        },
+        {
+          "command": [
+            "dotnet",
+            "build",
+            "Server/Server.csproj",
+            "-c",
+            "Release",
+            "--no-restore",
+            "-m:1",
+            "-p:BuildInParallel=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 5.32,
+          "passed": true,
+          "name": "server-build"
+        },
+        {
+          "command": [
+            "dotnet",
+            "restore",
+            "Tests/Phase35ServerRuntimeTests/Phase35ServerRuntimeTests.csproj",
+            "--disable-parallel",
+            "-m:1",
+            "-p:BuildInParallel=false",
+            "-p:NuGetAudit=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.564,
+          "passed": true,
+          "name": "pipeline-restore"
+        },
+        {
+          "command": [
+            "dotnet",
+            "build",
+            "Tests/Phase35ServerRuntimeTests/Phase35ServerRuntimeTests.csproj",
+            "-c",
+            "Release",
+            "--no-restore",
+            "-m:1",
+            "-p:BuildInParallel=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.664,
+          "passed": true,
+          "name": "pipeline-build"
+        },
+        {
+          "command": [
+            "dotnet",
+            "Tests/Phase35ServerRuntimeTests/bin/Release/net10.0/Phase35ServerRuntimeTests.dll"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.032,
+          "passed": true,
+          "name": "pipeline-test"
+        },
+        {
+          "command": [
+            "dotnet",
+            "restore",
+            "Tests/ServerSafetyRegressionTests/ServerSafetyRegressionTests.csproj",
+            "--disable-parallel",
+            "-m:1",
+            "-p:BuildInParallel=false",
+            "-p:NuGetAudit=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 0.865,
+          "passed": true,
+          "name": "safety-restore"
+        },
+        {
+          "command": [
+            "dotnet",
+            "build",
+            "Tests/ServerSafetyRegressionTests/ServerSafetyRegressionTests.csproj",
+            "-c",
+            "Release",
+            "--no-restore",
+            "-m:1",
+            "-p:BuildInParallel=false"
+          ],
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 2.518,
+          "passed": true,
+          "name": "safety-build"
+        },
+        {
+          "command": [
+            "dotnet",
+            "Tests/ServerSafetyRegressionTests/bin/Release/net10.0/ServerSafetyRegressionTests.dll"
+          ],
+          "exitCode": 1,
+          "timedOut": false,
+          "seconds": 0.164,
+          "passed": false,
+          "name": "safety-test",
+          "reason": "Missing expected test completion marker"
+        }
+      ],
+      "testOutputSha256": "a457e9f5f7377163708381e6ed490f6d5e8247733200c524222059347878c895",
+      "scenarios": [
+        {
+          "id": "AS01-missing-ref",
+          "layer": "L2",
+          "passed": true
+        },
+        {
+          "id": "AS01-all-missing",
+          "layer": "L2",
+          "passed": true
+        },
+        {
+          "id": "AS01-duplicate-ref",
+          "layer": "L2",
+          "passed": true
+        },
+        {
+          "id": "AS01-blank-ref",
+          "layer": "L2",
+          "passed": true
+        },
+        {
+          "id": "AS01-invalid-trade-preserves-ref",
+          "layer": "L2",
+          "passed": true
+        },
+        {
+          "id": "AS01-nonparticipant-preserves-ref",
+          "layer": "L2",
+          "passed": true
+        },
+        {
+          "id": "AS01-valid-complete-payload",
+          "layer": "L2",
+          "passed": true
+        },
+        {
+          "id": "AS01-empty-offer",
+          "layer": "L2",
+          "passed": true
+        },
+        {
+          "id": "AS01-scoped-ref",
+          "layer": "L2",
+          "passed": true
+        },
+        {
+          "id": "FR14-user-delta-secret",
+          "layer": "L2",
+          "passed": false,
+          "reason": "User wire packet leaked synthetic credential"
+        },
+        {
+          "id": "FR14-user-sync-secret",
+          "layer": "L2",
+          "passed": true
+        },
+        {
+          "id": "FR14-auth-log-secret",
+          "layer": "L2",
+          "passed": false,
+          "reason": "Auth logs leaked credential or session secret"
+        }
+      ],
+      "sourceInputs": {
+        "Tests/ServerSafetyRegressionTests/Program.cs": "91063e090efbac369a82df005dc7d17cdaf458457391430c5688f9916e15b6e6",
+        "Tests/ServerSafetyRegressionTests/ServerSafetyRegressionTests.csproj": "87aaef328f6922cb459e74ccd2b5ab01e2f8e9cf8e723ef82bb7dd0c1c4a98c2",
+        "Extensions/Chat/Server/BuiltInChatServerExtension.cs": "c8001d6eac36fc3ddd611aef7e38ae346bac06500e1fff47a19776699ec593a0",
+        "Extensions/Chat/Server/ChatExtension.Server.csproj": "909c4c49d965efcedb36b0710b9d98e615b825cb9de9510cf9c01e58007593c1",
+        "Extensions/Chat/Server/ChatServerConfig.cs": "4cf8b814ba3e156787711cac1f108490f807c815948a740c6c6e72c433ca3e75",
+        "Extensions/Chat/Server/NoticeConsoleCommand.cs": "528f69537541950b26e9bfbc977995cb14e6ab6721b778f100aa2021c73c1eda",
+        "Extensions/Chat/Server/PhinixFrameworkChatBroadcast.cs": "bb9a5d0952baa34963a5c3e3b74db0b2d8117b30b2a0348a5ed8d3a97df0dcb1",
+        "Extensions/Chat/Server/PhinixFrameworkChatService.cs": "e6238ca17f9706559533aacdd4e07b9ad9bf68a5adb499780861b9469dd76e7a",
+        "Extensions/Chat/Server/Properties/AssemblyInfo.cs": "8b0f0cf1bb30ca50ccf68715bb763bd3a3be410ff653016df73436912adf0992",
+        "Extensions/Trade/Server/BuiltInTradeServerExtension.cs": "bd82d4d0c530b295508ccca207a82902fa9c3798e78e634734db26b54af1eaed",
+        "Extensions/Trade/Server/PhinixFrameworkTradeServerService.cs": "00321ce1f642ef590b3b83ce8d882a2ff7f80a8ef796df58e2c047da589cff11",
+        "Extensions/Trade/Server/PhinixFrameworkTradeStore.cs": "0738cb8db9d0ba72dd4180592901b6d0bc7e8a4e119edb2508bb1010f6dd184b",
+        "Extensions/Trade/Server/Properties/AssemblyInfo.cs": "60bc24de44dd32e45d5e6f761aa7f80effe9262ef39ebd0c33018b05e5dbb1b7",
+        "Extensions/Trade/Server/TradeExtension.Server.csproj": "b487ac98a63a142defa42812aa94e6811ac683b945aa18f1b10dedde58a2b479",
+        "Extensions/Trade/Server/TradeServerConfig.cs": "aeeef0b42d5e3961d5c252c5debed21f23b7e66d9b37c8233d0fd036bf8fdfc8",
+        "Server/Authentication.Server/Authentication.Server.csproj": "b8d285fc1ee6e2cc7e51e5abb725dda8c0b6a7b36150a0e12b1cc4c171559967",
+        "Server/Authentication/ServerAuthenticator.cs": "f382d351468f580ec0ffdf1e1edbed93d8ccfca49ad3e9e968b31d990807698b",
+        "Server/Authentication/Session.cs": "18c470d493f6c37a2c58c89574ad055a362f5024bf7219fe69029a97ff003269",
+        "Server/Command.cs": "311ac503043f206b1dc4cc5b16207cc7597bd254c674aa1838f6c4ecdc9f420d",
+        "Server/CommandInterpreter.cs": "2eef65ccdc18bca7b80d6f594dce91aaab4ef221e0ca1f025289452f969c5a27",
+        "Server/Commands/ExitCommand.cs": "ae202dd8db7b88e354ac3df64f2d8f1fcc478b47439d1fd7dec2cc28ccde2656",
+        "Server/Commands/HelpCommand.cs": "b89c604288f0575aa9cbcbb783a97dabc424993eb5101feb2f464c4d2223e5ab",
+        "Server/Commands/LogCommand.cs": "0f9a7829f9b28054377d28836893b0d0feef1d1fd928994a113335bc259da4db",
+        "Server/Commands/VersionCommand.cs": "705bdf1edbf8290e3a7115fa3419206dc0e3bb644e1330038e2b51bd683d7c8d",
+        "Server/Config.cs": "b637f39b1a7d0f5a123027dad273f1620f243066f837f9f5f29355afee765aa5",
+        "Server/ConfigItemDeserialisationException.cs": "91ab970e0ad8e94fcbc5332d8a2201e6cd6a05a9e64e361de10f003e7f6bb38c",
+        "Server/Connections.Server/AssemblyInfo.cs": "69c7b90cef17b538721098b09b266b9c801fe675a50ee79c10d5de90fa94a4aa",
+        "Server/Connections.Server/Connections.Server.csproj": "85d6680402a584f2008132a5369a5c72be5fb36f40ac92291a48cbb602bfd610",
+        "Server/Connections.Server/NetServer.cs": "f6ab68c9032162cf394de7629be6d7b0fb73c255c586f122259db333a258290f",
+        "Server/ConsoleHighlighting.cs": "f2706c2a0f640b484d5da4ec857f89654e771a7f7dc2f6049aea5af4e2749be2",
+        "Server/Framework/FrameworkServerPacketDispatcher.cs": "a4a00832bda5f6050c47b6fbac8239f0d15f6d2f736c62f039bf8d80bf4396c2",
+        "Server/Framework/ILegacyTradeRuntime.cs": "590cc9dc9336c61c1668344c651f772a39a6d54d6b5b6e37e638f54a05ce95ee",
+        "Server/Framework/LegacyServerTradeRuntimeAdapter.cs": "ca038509050a2a24376a057113e6e68e58db7adebe64d6fe196f08737507a6a5",
+        "Server/Framework/PhinixFrameworkServer.cs": "efd0ac1440e2c26721661030cd218fbe8bb22a46aabfc61f8e528513ff133986",
+        "Server/HelpEntry.cs": "bee445a85af48cd571de12400e5645b643e93d6671d88b5e960865ae721e1b5f",
+        "Server/Logger.cs": "af3baba6219d30267bd540dd6aabf8002cb54b10db0037e413236b9afdcb85fe",
+        "Server/Properties/AssemblyInfo.cs": "84773ee2111db1ea555f0d3c86fcb54608f89a4a0de980b1f5c2155fa861192e",
+        "Server/Server.cs": "df7af58142bf7a185a4248afd0e9cfe4d58942d5f50d3364ab026456601874cd",
+        "Server/Server.csproj": "d12abf468b6ccba7a7a9bd2a39c631d15940a79528366365f757d168e9dba1fe",
+        "Server/ServerRuntime/ServerPipelineRunner.cs": "2480e7b39d065c8a35fd4536e3a81245548ddef3c627b5cc77ad0a706062ab78",
+        "Server/ServerRuntime/ServerRuntime.csproj": "3147174721298e493929804a11272675a2cbf9e2cd0efcb51dea1df934cdb03e",
+        "Server/UserManagement.Server/UserManagement.Server.csproj": "b628f93f159e9245040137296604047ed20adda02fc351609c619664aea18fa6",
+        "Server/UserManagement/ServerUserManager.cs": "7183b0d8d21a5d4420b6047eb8e37c703dc678ffb0a9f957d62d5e5decf1d5bd"
+      }
+    }
+  ]
+}

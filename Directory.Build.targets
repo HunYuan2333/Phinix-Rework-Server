@@ -13,4 +13,11 @@
   <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Google.Protobuf' and '$(TargetFramework)' != 'net50'">
     <IsTrimmable>false</IsTrimmable>
   </PropertyGroup>
+
+  <!-- The upstream netstandard1.1 restore pulls vulnerable framework support packages.
+       Override only this server build's legacy target; retain the source/gitlink/SDK pins. -->
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'Google.Protobuf' and '$(TargetFramework)' == 'netstandard1.1'">
+    <PackageReference Include="System.Net.Http" Version="[4.3.4]" PrivateAssets="all" />
+    <PackageReference Include="System.Text.RegularExpressions" Version="[4.3.1]" PrivateAssets="all" />
+  </ItemGroup>
 </Project>

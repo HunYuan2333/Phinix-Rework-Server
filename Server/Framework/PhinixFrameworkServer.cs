@@ -1,6 +1,8 @@
-using System;
+﻿using System;
+using Phinix.ExtensionCompatibility;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 using Authentication;
 using Connections;
 using UserManagement;
@@ -16,36 +18,54 @@ namespace PhinixServer.Framework
 
         public void RaiseLogEntry(LogEventArgs e) => OnLogEntry?.Invoke(this, e);
 
-        private readonly NetServer netServer;
+        private readonly IServerTransport netServer;
         private readonly ServerAuthenticator authenticator;
         private readonly ServerUserManager userManager;
         private readonly ExtensionHostContext extensionHostContext;
+        private ExtensionPersistenceRegistration[] shutdownRegistrations;
+        private bool persistenceLoadFailed;
+        private bool packetHandlerRegistered, connectionClosedSubscribed;
+        private volatile bool outboundReady;
         private readonly DiscoveredPhinixExtensions discoveredExtensions;
         private readonly ServerPipelineRunner pipelineRunner;
         private readonly HashSet<string> serverCapabilities;
-        private readonly Dictionary<string, HashSet<string>> connectionCapabilities = new Dictionary<string, HashSet<string>>();
-        private readonly object connectionCapabilitiesLock = new object();
+        private readonly ServerSessionRegistry sessionRegistry;
 
-        public PhinixFrameworkServer(NetServer netServer, ServerAuthenticator authenticator, ServerUserManager userManager, ExtensionHostContext extensionHostContext = null)
+        public PhinixFrameworkServer(IServerTransport netServer, ServerAuthenticator authenticator, ServerUserManager userManager, ExtensionHostContext extensionHostContext = null)
         {
             this.netServer = netServer;
             this.authenticator = authenticator;
+            authenticator.SessionReplaced += ReplaceSession;
             this.userManager = userManager;
-            this.extensionHostContext = extensionHostContext ?? ExtensionHostContext.Empty;
-            this.discoveredExtensions = PhinixExtensionRegistry.DiscoverExtensions(this.extensionHostContext);
-            PhinixExtensionRegistry.ActivateExtensions(discoveredExtensions, this.extensionHostContext);
-            this.serverCapabilities = new HashSet<string>(PhinixExtensionRegistry.CollectCapabilities(discoveredExtensions), StringComparer.OrdinalIgnoreCase);
-            LoadExtensionState();
-            this.pipelineRunner = buildPipelineRunner();
-
-            netServer.RegisterPacketHandler(FrameworkProtocol.ModuleName, packetHandler);
-            netServer.OnConnectionClosed += (_, args) =>
+            this.extensionHostContext = extensionHostContext ?? new ExtensionHostContext();
+            sessionRegistry = new ServerSessionRegistry(
+                (connection, principal, session) => userManager.IsAuthenticatedPrincipal(connection, session, principal),
+                (message, level) => RaiseLogEntry(new LogEventArgs(message, level)));
+            this.extensionHostContext.AddService<IServerSessionReadiness>(sessionRegistry);
+            // All modules resolve the same neutral port during registration/activation.
+            // The port refuses dispatch until initialization has finished.
+            this.extensionHostContext.AddService<IFrameworkServerBroadcaster>(this);
+            try
             {
-                lock (connectionCapabilitiesLock)
-                {
-                    connectionCapabilities.Remove(args.ConnectionId);
-                }
-            };
+                this.discoveredExtensions = PhinixExtensionRegistry.DiscoverExtensions(this.extensionHostContext);
+                PhinixExtensionRegistry.ActivateExtensions(discoveredExtensions, this.extensionHostContext);
+                this.serverCapabilities = new HashSet<string>(PhinixExtensionRegistry.CollectCapabilities(discoveredExtensions), StringComparer.OrdinalIgnoreCase);
+                LoadExtensionState();
+                this.pipelineRunner = buildPipelineRunner();
+                netServer.RegisterPacketHandler(FrameworkProtocol.ModuleName, packetHandler);
+                packetHandlerRegistered = true;
+                netServer.OnConnectionClosed += ConnectionClosed;
+                connectionClosedSubscribed = true;
+            }
+            catch
+            {
+                // Constructor failures have no owner to perform normal shutdown. Never save failed loads.
+                DetachTransport();
+                PhinixExtensionRegistry.ShutdownExtensions(discoveredExtensions, this.extensionHostContext);
+                throw;
+            }
+
+            outboundReady = true;
 
             RaiseLogEntry(new LogEventArgs($"Discovered {discoveredExtensions.Extensions.Count} framework extension(s) and {serverCapabilities.Count} capability/capabilities."));
             if (discoveredExtensions.Modules.Count > 0)
@@ -66,6 +86,8 @@ namespace PhinixServer.Framework
 
         public void LoadExtensionState()
         {
+            // A partial reload must never be followed by a periodic/final overwrite.
+            persistenceLoadFailed = true;
             foreach (ExtensionPersistenceRegistration registration in extensionHostContext.Persistents)
             {
                 IExtensionLogger logger = extensionHostContext.GetExtensionLogger(registration.ExtensionId);
@@ -74,22 +96,28 @@ namespace PhinixServer.Framework
                     string path = extensionHostContext.GetStoragePath(registration.ExtensionId, registration.LogicalName);
                     if (string.IsNullOrEmpty(path))
                     {
-                        logger.Log($"Skipped loading persistent state '{registration.LogicalName}' because no storage path was available.", LogLevel.WARNING);
-                        continue;
+                        throw new IOException("Persistent state has no storage path.");
                     }
 
                     registration.Persistent.Load(path);
                 }
                 catch (Exception exception)
                 {
-                    logger.Log($"Failed to load persistent state '{registration.LogicalName}'.", LogLevel.ERROR, exception);
+                    // Parser messages/inner exceptions can contain private stored payloads.
+                    logger.Log($"Failed to load persistent state '{registration.LogicalName}' ({exception.GetType().Name}).", LogLevel.ERROR);
+                    throw new IOException("Extension persistent state could not be loaded.");
                 }
             }
+            persistenceLoadFailed = false;
         }
 
-        public void SaveExtensionState()
+        public void SaveExtensionState() => TrySaveExtensionState();
+
+        public bool TrySaveExtensionState()
         {
-            foreach (ExtensionPersistenceRegistration registration in extensionHostContext.Persistents)
+            if (persistenceLoadFailed) return false;
+            bool saved = true;
+            foreach (ExtensionPersistenceRegistration registration in shutdownRegistrations ?? extensionHostContext.Persistents.ToArray())
             {
                 IExtensionLogger logger = extensionHostContext.GetExtensionLogger(registration.ExtensionId);
                 try
@@ -97,6 +125,7 @@ namespace PhinixServer.Framework
                     string path = extensionHostContext.GetStoragePath(registration.ExtensionId, registration.LogicalName);
                     if (string.IsNullOrEmpty(path))
                     {
+                        saved = false;
                         logger.Log($"Skipped saving persistent state '{registration.LogicalName}' because no storage path was available.", LogLevel.WARNING);
                         continue;
                     }
@@ -105,13 +134,29 @@ namespace PhinixServer.Framework
                 }
                 catch (Exception exception)
                 {
+                    saved = false;
                     logger.Log($"Failed to save persistent state '{registration.LogicalName}'.", LogLevel.ERROR, exception);
                 }
             }
+            return saved;
+        }
+
+        private void ConnectionClosed(object sender, ConnectionEventArgs args) => sessionRegistry.Remove(args.ConnectionId);
+
+        private void DetachTransport()
+        {
+            outboundReady = false;
+            authenticator.SessionReplaced -= ReplaceSession;
+            if (connectionClosedSubscribed) { netServer.OnConnectionClosed -= ConnectionClosed; connectionClosedSubscribed = false; }
+            // A failed registration never owns the pre-existing module handler.
+            if (packetHandlerRegistered) { netServer.UnregisterPacketHandler(FrameworkProtocol.ModuleName); packetHandlerRegistered = false; }
         }
 
         public void ShutdownExtensions()
         {
+            DetachTransport();
+            // Registry cleanup unregisters persistents; preserve generic owners for the final post-stop save.
+            shutdownRegistrations ??= extensionHostContext.Persistents.ToArray();
             PhinixExtensionRegistry.ShutdownExtensions(discoveredExtensions, extensionHostContext);
         }
 
@@ -141,6 +186,8 @@ namespace PhinixServer.Framework
             dispatchOutboundBroadcast(sourceExtensionId, packet, excludedConnectionIds);
         }
 
+        private void ReplaceSession(string connection, string oldSession, string newSession)
+        { if (!sessionRegistry.ReplaceSession(connection, oldSession, newSession)) netServer.DisconnectPeer(connection); }
         private void packetHandler(string module, string connectionId, byte[] data)
         {
             FrameworkPacket packet;
@@ -150,7 +197,14 @@ namespace PhinixServer.Framework
             }
             catch (Exception exception)
             {
-                RaiseLogEntry(new LogEventArgs($"Failed to deserialize framework packet from {connectionId.Highlight(HighlightType.ConnectionID)}: {exception.Message}", LogLevel.WARNING));
+                RaiseLogEntry(new LogEventArgs("Failed to deserialize framework packet: " + exception.GetType().Name, LogLevel.WARNING));
+                return;
+            }
+
+            if (packet == null || packet.Version != FrameworkProtocol.Version)
+            {
+                if (packet != null) rejectAdmission(connectionId, packet, "unsupported_version", packet.Kind == FrameworkProtocol.KindHello ? "Negotiation" : "Admission");
+                RaiseLogEntry(new LogEventArgs("Rejected unsupported framework packet version.", LogLevel.WARNING));
                 return;
             }
 
@@ -181,23 +235,54 @@ namespace PhinixServer.Framework
                     handleItem(connectionId, packet);
                     break;
                 default:
-                    RaiseLogEntry(new LogEventArgs($"Received unsupported framework packet kind '{packet.Kind}'", LogLevel.DEBUG));
+                    rejectAdmission(connectionId, packet, "unsupported_kind", "Admission");
+                    RaiseLogEntry(new LogEventArgs("Received unsupported framework packet kind.", LogLevel.DEBUG));
                     break;
             }
+        }
+
+        private void rejectAdmission(string connectionId, FrameworkPacket request, string code, string stage)
+        {
+            // Only reply within an authenticated connection/session. Never echo a bearer from
+            // another session, arbitrary payload, or pretend to resolve a previous operation.
+            if (!authenticator.IsAuthenticated(connectionId, request.SessionId) ||
+                string.IsNullOrEmpty(request.MessageId) || request.MessageId.Length > 128) return;
+            string correlation = request.GetCorrelationId();
+            if (string.IsNullOrEmpty(correlation) || correlation.Length > 128) return;
+            var response = new FrameworkPacket
+            {
+                Kind = FrameworkAdmissionRejection.PacketKind,
+                MessageType = FrameworkAdmissionRejection.PacketType,
+                SenderUuid = FrameworkProtocol.SystemSenderUuid,
+                SessionId = request.SessionId,
+                PayloadJson = FrameworkSerialization.SerializePayload(new FrameworkAdmissionRejection
+                {
+                    Code = code, RequestMessageId = request.MessageId, CorrelationId = correlation, Stage = stage
+                })
+            };
+            response.SetCorrelationId(correlation);
+            // Neutral control plane bypasses business capability filters, never authentication.
+            sendPacketWithOutcome(connectionId, response);
         }
 
         private void handleHello(string connectionId, FrameworkPacket packet)
         {
             if (!authenticator.IsAuthenticated(connectionId, packet.SessionId) || !userManager.IsLoggedIn(connectionId, packet.SenderUuid))
             {
-                RaiseLogEntry(new LogEventArgs($"Rejected framework hello from unauthenticated connection {connectionId.Highlight(HighlightType.ConnectionID)}", LogLevel.WARNING));
+                rejectAdmission(connectionId, packet, "not_authenticated", "Negotiation");
+                RaiseLogEntry(new LogEventArgs("Rejected framework hello without a matching identity.", LogLevel.WARNING));
                 return;
             }
 
-            FrameworkCapabilitiesPayload payload = FrameworkSerialization.DeserializePayload<FrameworkCapabilitiesPayload>(packet.PayloadJson);
-            lock (connectionCapabilitiesLock)
+            FrameworkCapabilitiesPayload payload;
+            try { payload = FrameworkSerialization.DeserializePayload<FrameworkCapabilitiesPayload>(packet.PayloadJson); }
+            catch { rejectAdmission(connectionId, packet, "invalid_hello", "Negotiation"); return; }
+            if (payload == null || !sessionRegistry.TryBind(connectionId, packet.SenderUuid, packet.SessionId, packet.Version,
+                payload.Capabilities, serverCapabilities, out var bound, out var failure))
             {
-                connectionCapabilities[connectionId] = new HashSet<string>(payload.Capabilities ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+                rejectAdmission(connectionId, packet, "hello_conflict", "Negotiation");
+                RaiseLogEntry(new LogEventArgs("Rejected invalid or conflicting framework hello.", LogLevel.WARNING));
+                return;
             }
 
             FrameworkPacket response = new FrameworkPacket
@@ -207,24 +292,28 @@ namespace PhinixServer.Framework
                 SessionId = packet.SessionId,
                 PayloadJson = FrameworkSerialization.SerializePayload(new FrameworkCapabilitiesPayload
                 {
-                    Capabilities = serverCapabilities.OrderBy(capability => capability).ToList()
+                    Capabilities = bound.Capabilities.ToList()
                 })
             };
 
+            response.SetCorrelationId(packet.GetCorrelationId());
             RaiseLogEntry(new LogEventArgs($"Framework hello accepted from {connectionId.Highlight(HighlightType.ConnectionID)}. Responding with {serverCapabilities.Count} capability/capabilities."));
-            sendPacketDirect(connectionId, response);
+            if (sendPacketWithOutcome(connectionId, response) == TransportSendOutcome.Submitted)
+                sessionRegistry.MarkReady(bound);
         }
 
         private void handleMessage(string connectionId, FrameworkPacket message)
         {
-            if (!authenticator.IsAuthenticated(connectionId, message.SessionId) || !userManager.IsLoggedIn(connectionId, message.SenderUuid))
+            if (!sessionRegistry.MatchesReady(connectionId, message.SenderUuid, message.SessionId))
             {
+                rejectAdmission(connectionId, message, "not_ready", "Admission");
                 RaiseLogEntry(new LogEventArgs($"Rejected framework message '{message.MessageType}' from unauthenticated connection {connectionId.Highlight(HighlightType.ConnectionID)}", LogLevel.WARNING));
                 return;
             }
 
             if (!connectionHasCapability(connectionId, message.MessageType))
             {
+                rejectAdmission(connectionId, message, "unsupported_capability", "Admission");
                 RaiseLogEntry(new LogEventArgs($"Rejected framework message '{message.MessageType}' from connection {connectionId.Highlight(HighlightType.ConnectionID)} because the capability was not negotiated.", LogLevel.WARNING));
                 return;
             }
@@ -240,17 +329,18 @@ namespace PhinixServer.Framework
             // 管线消息路由细节 → DEBUG（设计哲学 §3.8），避免每条命令刷服务端日志
             RaiseLogEntry(new LogEventArgs($"Received framework command '{command.MessageType}' flow={command.Flow} kind={command.Kind} from {connectionId}", LogLevel.DEBUG));
 
-            if (!authenticator.IsAuthenticated(connectionId, command.SessionId) || !userManager.IsLoggedIn(connectionId, command.SenderUuid))
+            if (!sessionRegistry.MatchesReady(connectionId, command.SenderUuid, command.SessionId))
             {
+                rejectAdmission(connectionId, command, "not_ready", "Admission");
                 RaiseLogEntry(new LogEventArgs(
-                    $"Rejected framework command '{command.MessageType}' from unauthenticated connection {connectionId.Highlight(HighlightType.ConnectionID)} " +
-                    $"(session='{command.SessionId ?? "<null>"}', sender='{command.SenderUuid ?? "<null>"}')",
+                    "Rejected framework command without a matching Ready session.",
                     LogLevel.WARNING));
                 return;
             }
 
             if (!connectionHasCapability(connectionId, command.MessageType))
             {
+                rejectAdmission(connectionId, command, "unsupported_capability", "Admission");
                 RaiseLogEntry(new LogEventArgs($"Rejected framework command '{command.MessageType}' from connection {connectionId.Highlight(HighlightType.ConnectionID)} because the capability was not negotiated.", LogLevel.WARNING));
                 return;
             }
@@ -261,7 +351,7 @@ namespace PhinixServer.Framework
             }
             else
             {
-                RaiseLogEntry(new LogEventArgs($"Framework command '{command.MessageType}' processed successfully.", LogLevel.DEBUG));
+                RaiseLogEntry(new LogEventArgs($"Framework command '{command.MessageType}' consumed by the pipeline.", LogLevel.DEBUG));
             }
         }
 
@@ -270,17 +360,18 @@ namespace PhinixServer.Framework
             // 管线消息路由细节 → DEBUG（设计哲学 §3.8）
             RaiseLogEntry(new LogEventArgs($"Received framework item '{item.MessageType}' flow={item.Flow} kind={item.Kind} from {connectionId}", LogLevel.DEBUG));
 
-            if (!authenticator.IsAuthenticated(connectionId, item.SessionId) || !userManager.IsLoggedIn(connectionId, item.SenderUuid))
+            if (!sessionRegistry.MatchesReady(connectionId, item.SenderUuid, item.SessionId))
             {
+                rejectAdmission(connectionId, item, "not_ready", "Admission");
                 RaiseLogEntry(new LogEventArgs(
-                    $"Rejected framework item '{item.MessageType}' from unauthenticated connection {connectionId.Highlight(HighlightType.ConnectionID)} " +
-                    $"(session='{item.SessionId ?? "<null>"}', sender='{item.SenderUuid ?? "<null>"}')",
+                    "Rejected framework item without a matching Ready session.",
                     LogLevel.WARNING));
                 return;
             }
 
             if (!connectionHasCapability(connectionId, item.MessageType))
             {
+                rejectAdmission(connectionId, item, "unsupported_capability", "Admission");
                 RaiseLogEntry(new LogEventArgs($"Rejected framework item '{item.MessageType}' from connection {connectionId.Highlight(HighlightType.ConnectionID)} because the capability was not negotiated.", LogLevel.WARNING));
                 return;
             }
@@ -291,40 +382,18 @@ namespace PhinixServer.Framework
             }
             else
             {
-                RaiseLogEntry(new LogEventArgs($"Framework item '{item.MessageType}' processed successfully.", LogLevel.DEBUG));
+                RaiseLogEntry(new LogEventArgs($"Framework item '{item.MessageType}' consumed by the pipeline.", LogLevel.DEBUG));
             }
         }
 
-        private bool isConnectionFrameworkCapable(string connectionId)
-        {
-            lock (connectionCapabilitiesLock)
-            {
-                return connectionCapabilities.ContainsKey(connectionId);
-            }
-        }
+        private bool isConnectionFrameworkCapable(string connectionId) => sessionRegistry.TryGetReady(connectionId, out _);
 
-        private string[] getRemoteCapabilities(string connectionId)
-        {
-            lock (connectionCapabilitiesLock)
-            {
-                if (!connectionCapabilities.TryGetValue(connectionId, out HashSet<string> capabilities))
-                {
-                    return Array.Empty<string>();
-                }
+        private string[] getRemoteCapabilities(string connectionId) =>
+            sessionRegistry.TryGetReady(connectionId, out var session) ? session.Capabilities.ToArray() : Array.Empty<string>();
 
-                return capabilities.OrderBy(capability => capability).ToArray();
-            }
-        }
-
-        private bool connectionHasCapability(string connectionId, string capability)
-        {
-            if (string.IsNullOrEmpty(capability)) return isConnectionFrameworkCapable(connectionId);
-
-            lock (connectionCapabilitiesLock)
-            {
-                return connectionCapabilities.TryGetValue(connectionId, out HashSet<string> capabilities) && capabilities.Contains(capability);
-            }
-        }
+        private bool connectionHasCapability(string connectionId, string capability) =>
+            sessionRegistry.TryGetReady(connectionId, out var session) &&
+            (string.IsNullOrEmpty(capability) || session.Capabilities.Contains(capability, StringComparer.OrdinalIgnoreCase));
 
         private ServerPipelineRunner buildPipelineRunner()
         {
@@ -419,14 +488,16 @@ namespace PhinixServer.Framework
             return (component as IPhinixExtension)?.ExtensionId;
         }
 
-        private void dispatchOutboundToConnection(string sourceExtensionId, string connectionId, FrameworkPacket packet)
+        private void dispatchOutboundToConnection(string sourceExtensionId, string connectionId, FrameworkPacket packet) =>
+            DispatchExtensionPacketWithResult(sourceExtensionId, connectionId, packet);
+
+        public PacketDispatchResult DispatchExtensionPacketWithResult(string sourceExtensionId, string connectionId, FrameworkPacket packet)
         {
             if (string.IsNullOrEmpty(connectionId) || packet == null)
-            {
-                return;
-            }
+                return PacketDispatchResult.Single(connectionId, TransportSendOutcome.NotSent);
 
-            pipelineRunner.DispatchOutbound(
+            if (!outboundReady) throw new InvalidOperationException("Framework outbound dispatch is unavailable during initialization or after shutdown.");
+            return pipelineRunner.DispatchOutboundWithResult(
                 packet,
                 new ServerOutboundPacketContext
                 {
@@ -436,7 +507,7 @@ namespace PhinixServer.Framework
                     IsConnectionFrameworkCapable = isConnectionFrameworkCapable,
                     ConnectionHasCapability = connectionHasCapability,
                     Log = (logMessage, level) => RaiseLogEntry(new LogEventArgs(logMessage, level))
-                });
+                }, sendPacketWithOutcome);
         }
 
         private void dispatchOutboundBroadcast(string sourceExtensionId, FrameworkPacket packet, string[] excludedConnectionIds)
@@ -446,13 +517,14 @@ namespace PhinixServer.Framework
                 return;
             }
 
+            if (!outboundReady) throw new InvalidOperationException("Framework outbound dispatch is unavailable during initialization or after shutdown.");
             string[] connectionIds = userManager.GetConnections();
             if (excludedConnectionIds != null)
             {
                 connectionIds = connectionIds.Except(excludedConnectionIds).ToArray();
             }
 
-            pipelineRunner.DispatchOutbound(
+            pipelineRunner.DispatchOutboundWithResult(
                 packet,
                 new ServerOutboundPacketContext
                 {
@@ -462,10 +534,12 @@ namespace PhinixServer.Framework
                     IsConnectionFrameworkCapable = isConnectionFrameworkCapable,
                     ConnectionHasCapability = connectionHasCapability,
                     Log = (logMessage, level) => RaiseLogEntry(new LogEventArgs(logMessage, level))
-                });
+                }, sendPacketWithOutcome);
         }
 
-        private void sendPacketDirect(string connectionId, FrameworkPacket packet)
+        private void sendPacketDirect(string connectionId, FrameworkPacket packet) => sendPacketWithOutcome(connectionId, packet);
+
+        private TransportSendOutcome sendPacketWithOutcome(string connectionId, FrameworkPacket packet)
         {
             if (packet.Flow == global::Phinix.Framework.FrameworkFlow.Message || packet.Kind == FrameworkProtocol.KindMessage)
             {
@@ -483,10 +557,30 @@ namespace PhinixServer.Framework
                 if (string.IsNullOrEmpty(packet.Kind)) packet.Kind = FrameworkProtocol.KindItem;
             }
 
-            if (!netServer.TrySend(connectionId, FrameworkProtocol.ModuleName, FrameworkSerialization.SerializePacket(packet)))
+            byte[] serialized;
+            try
             {
-                RaiseLogEntry(new LogEventArgs($"Failed to send framework packet '{packet.Kind}/{packet.MessageType}' to connection {connectionId.Highlight(HighlightType.ConnectionID)}", LogLevel.ERROR));
+                // Envelopes are per-recipient. Never publish the sender's session to another peer.
+                if (sessionRegistry.TryGetReady(connectionId, out var target))
+                {
+                    var outbound = FrameworkSerialization.DeserializePacket(FrameworkSerialization.SerializePacket(packet));
+                    outbound.SessionId = target.SessionId;
+                    serialized = FrameworkSerialization.SerializePacket(outbound);
+                }
+                else
+                {
+                    if ((packet.Kind != FrameworkProtocol.KindCapabilities && packet.Kind != FrameworkAdmissionRejection.PacketKind) ||
+                        !authenticator.IsAuthenticated(connectionId, packet.SessionId)) return TransportSendOutcome.NotSent;
+                    serialized = FrameworkSerialization.SerializePacket(packet);
+                }
             }
+            catch { return TransportSendOutcome.NotSent; }
+            TransportSendOutcome outcome = netServer.TrySendWithOutcome(connectionId, FrameworkProtocol.ModuleName, serialized);
+            if (outcome != TransportSendOutcome.Submitted)
+            {
+                try { RaiseLogEntry(new LogEventArgs($"Framework transport outcome={outcome} for packet '{packet.Kind}/{packet.MessageType}' to connection {connectionId.Highlight(HighlightType.ConnectionID)}", LogLevel.ERROR)); } catch { }
+            }
+            return outcome;
         }
 
         private sealed class BoundServerInboundMessageInterceptor : IServerInboundMessageInterceptor
@@ -507,7 +601,7 @@ namespace PhinixServer.Framework
             public ServerIncomingMessageResult InterceptIncomingMessage(FrameworkPacket message, ServerFrameworkContext context)
             {
                 context.SourceExtensionId = extensionId;
-                return inner.InterceptIncomingMessage(message, context);
+                return PluginResultAdapter.Normalize(inner.InterceptIncomingMessage(message, context), context);
             }
         }
 
@@ -529,7 +623,7 @@ namespace PhinixServer.Framework
             public ServerIncomingMessageResult HandleIncomingMessage(FrameworkPacket message, ServerFrameworkContext context)
             {
                 context.SourceExtensionId = extensionId;
-                return inner.HandleIncomingMessage(message, context);
+                return PluginResultAdapter.Normalize(inner.HandleIncomingMessage(message, context), context);
             }
         }
 
@@ -551,7 +645,7 @@ namespace PhinixServer.Framework
             public ServerIncomingCommandResult InterceptIncomingCommand(FrameworkPacket command, ServerFrameworkContext context)
             {
                 context.SourceExtensionId = extensionId;
-                return inner.InterceptIncomingCommand(command, context);
+                return PluginResultAdapter.Normalize(inner.InterceptIncomingCommand(command, context), context);
             }
         }
 
@@ -573,7 +667,7 @@ namespace PhinixServer.Framework
             public ServerIncomingCommandResult HandleIncomingCommand(FrameworkPacket command, ServerFrameworkContext context)
             {
                 context.SourceExtensionId = extensionId;
-                return inner.HandleIncomingCommand(command, context);
+                return PluginResultAdapter.Normalize(inner.HandleIncomingCommand(command, context), context);
             }
         }
 
@@ -639,7 +733,7 @@ namespace PhinixServer.Framework
             public ServerIncomingItemResult InterceptIncomingItem(FrameworkPacket itemPacket, ServerFrameworkContext context)
             {
                 context.SourceExtensionId = extensionId;
-                return inner.InterceptIncomingItem(itemPacket, context);
+                return PluginResultAdapter.Normalize(inner.InterceptIncomingItem(itemPacket, context), context);
             }
         }
 
@@ -661,7 +755,7 @@ namespace PhinixServer.Framework
             public ServerIncomingItemResult HandleIncomingItem(FrameworkPacket itemPacket, ServerFrameworkContext context, IReadOnlyList<IItemCodec> codecs)
             {
                 context.SourceExtensionId = extensionId;
-                return inner.HandleIncomingItem(itemPacket, context, codecs);
+                return PluginResultAdapter.Normalize(inner.HandleIncomingItem(itemPacket, context, codecs), context);
             }
         }
 

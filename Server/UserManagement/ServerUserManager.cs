@@ -15,7 +15,7 @@ namespace UserManagement
     /// Server-side variant of <see cref="UserManager"/>.
     /// Used to store details of each user and oversees user login.
     /// </summary>
-    public class ServerUserManager : UserManager, IServerUserManager
+    public class ServerUserManager : UserManager, IServerUserManager, ServerRuntime.IServerPrincipalAuthorization, ServerRuntime.IServerAuthenticatedSessionLookup
     {
         /// <inheritdoc />
         public override event EventHandler<LogEventArgs> OnLogEntry;
@@ -30,12 +30,22 @@ namespace UserManagement
         /// <summary>
         /// <see cref="NetServer"/> to send packets and bind events to.
         /// </summary>
-        private NetServer netServer;
+        private IServerTransport netServer;
+        private string persistencePath;
+        private readonly Func<string, string, byte[], bool> sendPacket;
 
         /// <summary>
         /// <see cref="ServerAuthenticator"/> to check session validity with.
         /// </summary>
         private ServerAuthenticator authenticator;
+        private LegacyIdentityMappingAdapter identityAdapter;
+        private string ResolvePrincipal(string connection, string session, string displayName, bool create)
+        {
+            if (authenticator.UsesModernIdentity)
+                return authenticator.TryGetModernPrincipal(connection, session, out var principal) ? principal : null;
+            return identityAdapter.ResolveSession(connection, session, displayName, create);
+        }
+        public LegacyIdentityMappingAdapter IdentityAdapter => identityAdapter;
 
         /// <summary>
         /// Collection of connected UUIDs organised by connection ID.
@@ -70,10 +80,19 @@ namespace UserManagement
         /// <param name="netServer"><see cref="NetServer"/> instance to bind packet handlers to</param>
         /// <param name="authenticator"><see cref="ServerAuthenticator"/> to check session validity with</param>
         /// <param name="maxDisplayNameLength">Maximum number of non-format characters users may have in their display name</param>
-        public ServerUserManager(NetServer netServer, ServerAuthenticator authenticator, int maxDisplayNameLength = 100)
+        public ServerUserManager(IServerTransport netServer, ServerAuthenticator authenticator, int maxDisplayNameLength = 100)
+            : this(netServer, authenticator, maxDisplayNameLength, netServer.TrySend)
         {
+        }
+
+        // External transport seam only: business and protobuf serialization remain real.
+        internal ServerUserManager(IServerTransport netServer, ServerAuthenticator authenticator, int maxDisplayNameLength,
+            Func<string, string, byte[], bool> sendPacket)
+        {
+            this.sendPacket = sendPacket ?? throw new ArgumentNullException(nameof(sendPacket));
             this.netServer = netServer;
             this.authenticator = authenticator;
+            identityAdapter = new LegacyIdentityMappingAdapter(authenticator, this);
             this.maxDisplayNameLength = maxDisplayNameLength;
 
             this.connectedUsers = new Dictionary<string, string>();
@@ -90,10 +109,12 @@ namespace UserManagement
         /// <param name="authenticator"><see cref="ServerAuthenticator"/> to check session validity with</param>
         /// <param name="userStorePath">Path to user store</param>
         /// <param name="maxDisplayNameLength">Maximum number of non-format characters users may have in their display name</param>
-        public ServerUserManager(NetServer netServer, ServerAuthenticator authenticator, string userStorePath, int maxDisplayNameLength = 100)
+        public ServerUserManager(IServerTransport netServer, ServerAuthenticator authenticator, string userStorePath, int maxDisplayNameLength = 100)
         {
+            this.sendPacket = netServer.TrySend;
             this.netServer = netServer;
             this.authenticator = authenticator;
+            identityAdapter = new LegacyIdentityMappingAdapter(authenticator, this);
             this.maxDisplayNameLength = maxDisplayNameLength;
 
             this.connectedUsers = new Dictionary<string, string>();
@@ -151,16 +172,14 @@ namespace UserManagement
         public override bool TryLogIn(string uuid)
         {
             if (string.IsNullOrEmpty(uuid)) throw new ArgumentException("UUID cannot be null or empty.", nameof(uuid));
-
+            User publicUser;
             lock (userStoreLock)
             {
-                if (!userStore.Users.ContainsKey(uuid)) return false;
-
-                userStore.Users[uuid].LoggedIn = true;
-
-                broadcastUserUpdate(userStore.Users[uuid]);
+                if (!userStore.Users.TryGetValue(uuid, out User user)) return false;
+                user.LoggedIn = true;
+                publicUser = ToPublicUser(user);
             }
-
+            broadcastUserUpdate(publicUser);
             return true;
         }
 
@@ -174,16 +193,14 @@ namespace UserManagement
         public override bool TryLogOut(string uuid)
         {
             if (string.IsNullOrEmpty(uuid)) throw new ArgumentException("UUID cannot be null or empty.", nameof(uuid));
-
+            User publicUser;
             lock (userStoreLock)
             {
-                if (!userStore.Users.ContainsKey(uuid)) return false;
-
-                userStore.Users[uuid].LoggedIn = false;
-
-                broadcastUserUpdate(userStore.Users[uuid]);
+                if (!userStore.Users.TryGetValue(uuid, out User user)) return false;
+                user.LoggedIn = false;
+                publicUser = ToPublicUser(user);
             }
-
+            broadcastUserUpdate(publicUser);
             return true;
         }
 
@@ -205,7 +222,7 @@ namespace UserManagement
             {
                 if (!userStore.Users.ContainsKey(uuid)) return false;
 
-                user = userStore.Users[uuid];
+                user = ToPublicUser(userStore.Users[uuid]);
             }
 
             broadcastUserUpdate(user);
@@ -225,17 +242,11 @@ namespace UserManagement
 
             lock (userStoreLock)
             {
-                // Write the user store
-                FileStream fs = File.Exists(filePath)
-                    ? File.Open(filePath, FileMode.Truncate, FileAccess.Write)
-                    : File.Create(filePath);
-                using (fs)
+                ServerStorage.AtomicFileSnapshot.Write(filePath, stream =>
                 {
-                    using (CodedOutputStream cos = new CodedOutputStream(fs))
-                    {
-                        userStore.WriteTo(cos);
-                    }
-                }
+                    using var writer = new CodedOutputStream(stream, leaveOpen: true);
+                    userStore.WriteTo(writer);
+                });
 
                 RaiseLogEntry(new LogEventArgs(string.Format("Saved {0} user{1}", userStore.Users.Count, userStore.Users.Count != 1 ? "s" : "")));
             }
@@ -274,6 +285,7 @@ namespace UserManagement
                     }
                 }
 
+                persistencePath = System.IO.Path.GetFullPath(filePath);
                 RaiseLogEntry(new LogEventArgs(string.Format("Loaded {0} user{1}", userStore.Users.Count, userStore.Users.Count != 1 ? "s" : "")));
             }
         }
@@ -284,6 +296,23 @@ namespace UserManagement
         /// <param name="connectionId">User's connection ID</param>
         /// <param name="uuid">User's UUID</param>
         /// <returns>User with the given UUID is logged in from the given connection ID</returns>
+        // Attest the stable principal without exposing the credential mapping to session/core APIs.
+        // IsLoggedIn alone can lag an authentication identity switch on the same connection.
+        public bool TryGetAuthenticatedSession(string connectionId, string principalId, out string sessionId)
+        {
+            sessionId = null;
+            if (!authenticator.TryGetAuthenticatedSessionId(connectionId, out var candidate) || !IsAuthenticatedPrincipal(connectionId, candidate, principalId)) return false;
+            sessionId = candidate;
+            return true;
+        }
+
+        public bool IsAuthenticatedPrincipal(string connectionId, string sessionId, string principalId)
+        {
+            return authenticator.IsAuthenticated(connectionId, sessionId) &&
+                ResolvePrincipal(connectionId, sessionId, null, false) == principalId &&
+                IsLoggedIn(connectionId, principalId);
+        }
+
         public bool IsLoggedIn(string connectionId, string uuid)
         {
             if (string.IsNullOrEmpty(connectionId)) throw new ArgumentException("Connection ID cannot be null or empty", nameof(connectionId));
@@ -346,14 +375,9 @@ namespace UserManagement
         /// </summary>
         public void LogOutAll()
         {
-            lock (userStoreLock)
-            {
-                // Try to log out each user in the user store, regardless of login state
-                foreach (string uuid in userStore.Users.Keys)
-                {
-                    TryLogOut(uuid);
-                }
-            }
+            string[] uuids;
+            lock (userStoreLock) uuids = userStore.Users.Keys.ToArray();
+            foreach (string uuid in uuids) TryLogOut(uuid);
         }
 
         /// <summary>
@@ -395,7 +419,7 @@ namespace UserManagement
             // Make sure the client is authenticated
             if (!authenticator.IsAuthenticated(connectionId, packet.SessionId))
             {
-                RaiseLogEntry(new LogEventArgs(string.Format("Failed login attempt for session {0}: Invalid session", packet.SessionId.Highlight(HighlightType.SessionID))));
+                RaiseLogEntry(new LogEventArgs("Failed login: invalid session for connection " + connectionId.Highlight(HighlightType.ConnectionID)));
 
                 // Fail the login attempt due to an invalid session
                 sendFailedLoginResponsePacket(connectionId, LoginFailureReason.SessionId, "Session is not valid, it may have expired. Try reconnecting.");
@@ -404,54 +428,22 @@ namespace UserManagement
                 return;
             }
 
-            // Try get the username from their session
-            if (!authenticator.TryGetUsername(connectionId, packet.SessionId, out string username))
+            string safeDisplayName = TextHelper.SanitiseRichText(packet.DisplayName ?? "");
+            if (!packet.UseServerDisplayName && (string.IsNullOrWhiteSpace(packet.DisplayName) || TextHelper.StripRichText(packet.DisplayName).Length > maxDisplayNameLength))
+            { sendFailedLoginResponsePacket(connectionId, LoginFailureReason.DisplayName, "Display name is empty or too long."); return; }
+            string uuid;
+            try { uuid = ResolvePrincipal(connectionId, packet.SessionId, safeDisplayName, true); }
+            catch (ArgumentException) { sendFailedLoginResponsePacket(connectionId, LoginFailureReason.DisplayName, "Display name is invalid."); return; }
+            if (uuid == null) { sendFailedLoginResponsePacket(connectionId, LoginFailureReason.SessionId, "Authenticated identity is unavailable."); return; }
+            lock (userStoreLock)
             {
-                RaiseLogEntry(new LogEventArgs(string.Format("Failed login attempt for session {0}: Couldn't get username", packet.SessionId.Highlight(HighlightType.SessionID))));
-
-                // Fail the login attempt due to an invalid session/username
-                sendFailedLoginResponsePacket(connectionId, LoginFailureReason.InternalServerError, "Server failed to get the username associated with the session. Try reconnecting.");
-
-                // Stop here
-                return;
-            }
-
-            // Passed authentication checks, time to accept the login attempt
-
-            // Try to get the user by their username
-            if (TryGetUserUuid(username, out string uuid))
-            {
-                // Try to log them in
-                if (!TryLogIn(uuid))
+                if (!userStore.Users.ContainsKey(uuid))
                 {
-                    // This shouldn't happen because we just got their UUID but ok.
-                    RaiseLogEntry(new LogEventArgs(string.Format("Failed to log in user {0} after getting their UUID. This shouldn't happen.", uuid.Highlight(HighlightType.UUID)), LogLevel.ERROR));
-
-                    // Fail the login attempt due to a weird error
-                    sendFailedLoginResponsePacket(connectionId, LoginFailureReason.InternalServerError, "Failed to log in after retrieving UUID. This should not happen, please report it to the developer.");
-
-                    // Stop here
-                    return;
+                    if (string.IsNullOrWhiteSpace(packet.DisplayName)) { sendFailedLoginResponsePacket(connectionId, LoginFailureReason.DisplayName, "Display name is required."); return; }
+                    userStore.Users.Add(uuid, new User { Uuid = uuid, DisplayName = safeDisplayName, LoggedIn = false });
                 }
             }
-            else
-            {
-                try
-                {
-                    // Otherwise create a new user
-                    uuid = CreateUser(username, packet.DisplayName, true);
-                }
-                catch (ArgumentException)
-                {
-                    RaiseLogEntry(new LogEventArgs(string.Format("Failed login attempt for session {0}: Display name is null or empty", packet.SessionId.Highlight(HighlightType.SessionID))));
-
-                    // Fail the login attempt due to an empty display name
-                    sendFailedLoginResponsePacket(connectionId, LoginFailureReason.DisplayName, "Display name is empty. Change it in the mod options and try reconnecting.");
-
-                    // Stop here
-                    return;
-                }
-            }
+            if (!TryLogIn(uuid)) { sendFailedLoginResponsePacket(connectionId, LoginFailureReason.InternalServerError, "Player record unavailable."); return; }
 
             // Check if they want to use the display name stored on the server
             string displayName = packet.DisplayName;
@@ -483,7 +475,24 @@ namespace UserManagement
                 }
 
                 // Update the user's display name on the server with the one they've provided
-                UpdateUser(uuid, TextHelper.SanitiseRichText(packet.DisplayName));
+
+            }
+
+            // Login preferences are current authenticated user intent, for every protocol.
+            UpdateUser(uuid, TextHelper.SanitiseRichText(displayName), packet.AcceptingTrades);
+
+            // Publish a login only after its credential and stable UUID mapping are persisted.
+            // Unhosted component callers without Load retain their existing in-memory contract.
+            if (persistencePath != null)
+            {
+                try { authenticator.FlushLoadedCredentials(); Save(persistencePath); }
+                catch (Exception error) when (error is IOException || error is UnauthorizedAccessException)
+                {
+                    lock (connectedUsersLock) connectedUsers.Remove(connectionId);
+                    RaiseLogEntry(new LogEventArgs("Login refused: identity snapshot could not be committed.", LogLevel.ERROR));
+                    sendFailedLoginResponsePacket(connectionId, LoginFailureReason.InternalServerError, "Identity persistence unavailable. Reconnect after server recovery.");
+                    return;
+                }
             }
 
             // Add their UUID/Session ID pair to connectedUsers
@@ -497,7 +506,7 @@ namespace UserManagement
             }
 
             // Log the event
-            RaiseLogEntry(new LogEventArgs(string.Format("User {0} successfully logged in as \"{1}\" (SessionID: {2}, UUID: {3})", username.Highlight(HighlightType.Username), displayName, packet.SessionId.Highlight(HighlightType.SessionID), uuid.Highlight(HighlightType.UUID))));
+            RaiseLogEntry(new LogEventArgs("User logged in (Connection: " + connectionId.Highlight(HighlightType.ConnectionID) + ", UUID: " + uuid.Highlight(HighlightType.UUID) + ")"));
 
             // Send a successful login response
             sendSuccessfulLoginResponsePacket(connectionId, uuid, displayName);
@@ -529,7 +538,7 @@ namespace UserManagement
             Any packedResponse = ProtobufPacketHelper.Pack(response);
 
             // Send it on its way
-            if (!netServer.TrySend(connectionId, MODULE_NAME, packedResponse.ToByteArray()))
+            if (!sendPacket(connectionId, MODULE_NAME, packedResponse.ToByteArray()))
             {
                 RaiseLogEntry(new LogEventArgs("Failed to send LoginResponsePacket to connection " + connectionId.Highlight(HighlightType.ConnectionID) + ", disconnecting", LogLevel.ERROR));
                 netServer.DisconnectPeer(connectionId);
@@ -556,7 +565,7 @@ namespace UserManagement
             Any packedResponse = ProtobufPacketHelper.Pack(response);
 
             // Send it on its way
-            if (!netServer.TrySend(connectionId, MODULE_NAME, packedResponse.ToByteArray()))
+            if (!sendPacket(connectionId, MODULE_NAME, packedResponse.ToByteArray()))
             {
                 RaiseLogEntry(new LogEventArgs("Failed to send LoginResponsePacket to connection " + connectionId.Highlight(HighlightType.ConnectionID) + ", disconnecting", LogLevel.ERROR));
                 netServer.DisconnectPeer(connectionId);
@@ -568,25 +577,25 @@ namespace UserManagement
         /// Used when a user's state changes.
         /// </summary>
         /// <param name="user">User to broadcast</param>
-        private void broadcastUserUpdate(User user)
+        // Explicit allowlist drops credentials AND protobuf unknown fields. The returned
+        // object is a detached wire snapshot, never a reference into the identity store.
+        private static User ToPublicUser(User user) => new User
         {
-            // Create and pack the user update packet
-            UserUpdatePacket packet = new UserUpdatePacket
-            {
-                User = user
-            };
-            Any packedPacket = ProtobufPacketHelper.Pack(packet);
+            Uuid = user.Uuid,
+            DisplayName = user.DisplayName,
+            LoggedIn = user.LoggedIn,
+            AcceptingTrades = user.AcceptingTrades
+        };
 
-            lock (connectedUsersLock)
+        private void broadcastUserUpdate(User publicUser)
+        {
+            UserUpdatePacket packet = new UserUpdatePacket { User = ToPublicUser(publicUser) };
+            byte[] bytes = ProtobufPacketHelper.Pack(packet).ToByteArray();
+            string[] recipients = GetConnections();
+            foreach (string connectionId in recipients)
             {
-                // Send the update to each connection ID
-                foreach (string connectionId in connectedUsers.Keys)
-                {
-                    if (!netServer.TrySend(connectionId, MODULE_NAME, packedPacket.ToByteArray()))
-                    {
-                        RaiseLogEntry(new LogEventArgs("Failed to send UserUpdatePacket to connection " + connectionId.Highlight(HighlightType.ConnectionID), LogLevel.ERROR));
-                    }
-                }
+                if (!sendPacket(connectionId, MODULE_NAME, bytes))
+                    RaiseLogEntry(new LogEventArgs("Failed to send UserUpdatePacket to connection " + connectionId.Highlight(HighlightType.ConnectionID), LogLevel.ERROR));
             }
         }
 
@@ -605,11 +614,7 @@ namespace UserManagement
                 // Add users to the sync packet
                 foreach (User userRef in userStore.Users.Values)
                 {
-                    // Get a non-reference copy of the user so we can blank out the username without affecting the original
-                    User user = userRef.Clone();
-
-                    user.Username = "";
-                    packet.Users.Add(user);
+                    packet.Users.Add(ToPublicUser(userRef));
                 }
             }
 
@@ -617,7 +622,7 @@ namespace UserManagement
             Any packedPacket = ProtobufPacketHelper.Pack(packet);
 
             // Send it on its way
-            if (!netServer.TrySend(connectionId, MODULE_NAME, packedPacket.ToByteArray()))
+            if (!sendPacket(connectionId, MODULE_NAME, packedPacket.ToByteArray()))
             {
                 RaiseLogEntry(new LogEventArgs("Failed to send UserSyncPacket to connection " + connectionId.Highlight(HighlightType.ConnectionID), LogLevel.ERROR));
             }

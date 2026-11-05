@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "profile": "Framework V2 optional admission control",
+  "classification": "synthetic normative server encoding; not legacy capture or player traffic",
+  "producer": "Tests/ServerLifecycleTests/AdmissionControlTests.cs --write-control-fixture",
+  "producerSha256": "093920151a1374fcc84b5d7f483caee3c61ed4b4b4f1c969eb5fc5a8aedd3a7f",
+  "fixtureSha256": "05d02d44bc932295f5fcacdac55968d381fadaf3b40385f433bedaa032c7b364",
+  "session": "synthetic fixture-session, not an authentication credential",
+  "expectation": "admission rejection correlated to fixture-hello; operation Unknown; no retry/ACK/refund"
+}

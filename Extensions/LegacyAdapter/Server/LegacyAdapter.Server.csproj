@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>LegacyAdapter.Server</AssemblyName>
+    <RootNamespace>Phinix.LegacyAdapter.Server</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../Chat/Server/ChatExtension.Server.csproj" />
+    <ProjectReference Include="../../Trade/Server/TradeExtension.Server.csproj" />
+    <ProjectReference Include="../../../Server/Connections.Server/Connections.Server.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-22",
+  "baseSha": "5a0508acb703319e60dd5600e3e0facd0397b294",
+  "dirty": true,
+  "tasks": [
+    "SV-33",
+    "SV-36",
+    "SV-37",
+    "SV-38",
+    "TQ-30",
+    "TQ-31",
+    "PF-07",
+    "FR-12"
+  ],
+  "stagePassed": true,
+  "stageChecks": 34,
+  "sourceSha256": {
+    "Server/ServerStorage/SqliteOperationJournal.cs": "2923a2609288a718c9686405ce9e736092418ed10745665c1717cfe8eebfbbda",
+    "Extensions/Trade/Server/PhinixFrameworkTradeStore.cs": "9849a6c91510421de2311ce97b042499917c874c369de48573dafc3192733a6c",
+    "Extensions/Trade/Server/PhinixFrameworkTradePersistence.cs": "2080597739cf79c1fae15bebd9542994f628b83e85cefbcdd27300b4ebed680c",
+    "Tests/ServerJournalTests/Program.cs": "f2ad29e53340d08d06128b4566ff9c49dcb0c072d1eefb177ea9229980e8905c",
+    "Tests/ServerTradePersistenceTests/Program.cs": "a599aa21bed9e5691751274c2460885fae623fa7d1c782027404c7321de2ab82"
+  },
+  "clientBaseline": "/home/hunyuan2333/Phinix/Deliverables/Phinix-Rework-Client-Baseline-2026-10-22",
+  "fullP3Complete": false,
+  "deployed": false,
+  "realGameValidated": false
+}

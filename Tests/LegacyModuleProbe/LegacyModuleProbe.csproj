@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net472</TargetFramework>
+    <LangVersion>latest</LangVersion><EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="TradeProbe.cs" />
+    <Reference Include="Chat"><HintPath>$(LegacyOriginalRoot)/Common/Chat/bin/Release/Chat.dll</HintPath></Reference>
+    <Reference Include="Trading"><HintPath>$(LegacyOriginalRoot)/Common/Trading/bin/Release/Trading.dll</HintPath></Reference>
+    <Reference Include="Authentication"><HintPath>$(LegacyOriginalRoot)/Common/Authentication/bin/Release/Authentication.dll</HintPath></Reference>
+    <Reference Include="UserManagement"><HintPath>$(LegacyOriginalRoot)/Common/UserManagement/bin/Release/UserManagement.dll</HintPath></Reference>
+    <Reference Include="Connections"><HintPath>$(LegacyOriginalRoot)/Common/Connections/bin/Release/Connections.dll</HintPath></Reference>
+    <Reference Include="Utils"><HintPath>$(LegacyOriginalRoot)/Common/Utils/bin/Release/Utils.dll</HintPath></Reference>
+    <Reference Include="Google.Protobuf"><HintPath>$(LegacyOriginalRoot)/Dependencies/protobuf/csharp/src/Google.Protobuf/bin/Release/net472/Google.Protobuf.dll</HintPath></Reference>
+    <Reference Include="LiteNetLib"><HintPath>$(LegacyOriginalRoot)/.nuget/LiteNetLib.0.7.7.3/lib/net35/LiteNetLib.dll</HintPath></Reference>
+    <Reference Include="Pastel"><HintPath>$(LegacyOriginalRoot)/.nuget/Pastel.1.3.1/lib/netstandard2.0/Pastel.dll</HintPath></Reference>
+    <Reference Include="System.Web.Extensions" />
+  </ItemGroup>
+  <Target Name="RequireOriginalModules" BeforeTargets="ResolveReferences">
+    <Error Condition="'$(LegacyOriginalRoot)' == ''" Text="Set LegacyOriginalRoot to an isolated, verified build of the original fixed source; never use modern Server assemblies." />
+  </Target>
+</Project>

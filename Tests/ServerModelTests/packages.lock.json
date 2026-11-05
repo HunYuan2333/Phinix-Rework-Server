@@ -1,0 +1,150 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net10.0": {
+      "FsCheck": {
+        "type": "Direct",
+        "requested": "[3.4.0, 3.4.0]",
+        "resolved": "3.4.0",
+        "contentHash": "wkWR1DORrKd46W6MEhmS4muo/0kgrtUV/AGW1ohMWemy7WukcRH8T3JjkDpn/daOHk0yVqf0CBvScU17Ab//PA==",
+        "dependencies": {
+          "FSharp.Core": "5.0.2"
+        }
+      },
+      "FSharp.Core": {
+        "type": "Transitive",
+        "resolved": "5.0.2",
+        "contentHash": "DpcajqENgb3VXaHw1FKfVS+TWwEzck1PCajqLwBAVrtd1lfxd7T8JISVZBdV1mX9+2g48+tIgpNaVJWObdMrBw=="
+      },
+      "Microsoft.Data.Sqlite": {
+        "type": "Transitive",
+        "resolved": "10.0.13",
+        "contentHash": "w37nz3WFmDtRfXxWEwIXX2OgqDRiwhD1JGbFwfpFCF8GkCrV/yO6Y2JF5058J2RGoI2sCcdn02wrk0yEcekWcw==",
+        "dependencies": {
+          "Microsoft.Data.Sqlite.Core": "10.0.13",
+          "SQLitePCLRaw.bundle_e_sqlite3": "2.1.13",
+          "SQLitePCLRaw.core": "2.1.13"
+        }
+      },
+      "Microsoft.Data.Sqlite.Core": {
+        "type": "Transitive",
+        "resolved": "10.0.13",
+        "contentHash": "Gge8XsSCOwcbkbdmt2UDAe6kIv9Q0vA6yb3wsTStjjexaMFLTWfc/1gH4kbhJ+zWiXRTRA4lG2sOQNVfir204w==",
+        "dependencies": {
+          "SQLitePCLRaw.core": "2.1.13"
+        }
+      },
+      "SQLitePCLRaw.bundle_e_sqlite3": {
+        "type": "Transitive",
+        "resolved": "2.1.13",
+        "contentHash": "NlDixlC7uHmo+ojXRgkNvN0tQtVGpLDZ3x2OpgNj+G07VHh5cXSszFDrAiC4BpUiPwkcaeuQkMV9WQ123xVtmQ==",
+        "dependencies": {
+          "SQLitePCLRaw.lib.e_sqlite3": "2.1.13",
+          "SQLitePCLRaw.provider.e_sqlite3": "2.1.13"
+        }
+      },
+      "SQLitePCLRaw.core": {
+        "type": "Transitive",
+        "resolved": "2.1.13",
+        "contentHash": "2joofoinuHBFs0nMX3nKuXgxpXryRkCOdM2Ua6HBqQLLy6IW+5f28ZI+HAvMyF8vG7XfNz/lwfBfE6V4juru8Q=="
+      },
+      "SQLitePCLRaw.lib.e_sqlite3": {
+        "type": "Transitive",
+        "resolved": "2.1.13",
+        "contentHash": "D2UAuiGxFYBqeRXjjjGgvJ5UQifzn6wefmSqeKU7XcNGKLbJRP6X7kcPZ6opOBJGdCIlgbSxTvDpBbLvsN594A=="
+      },
+      "SQLitePCLRaw.provider.e_sqlite3": {
+        "type": "Transitive",
+        "resolved": "2.1.13",
+        "contentHash": "ZU60dSqoSNRe49KcQDUmOVgdRtjITOssVXFtiISs+zJXDI4D2Sndwpn2NOtzDQNPu0ZAvpoLPQ+GLKv6iEZn8Q==",
+        "dependencies": {
+          "SQLitePCLRaw.core": "2.1.13"
+        }
+      },
+      "Stateless": {
+        "type": "Transitive",
+        "resolved": "5.20.1",
+        "contentHash": "jQeuXgIeXEjFAImajavoxvJNcevO+zyK+9ICGzy0LRe/e1tP4vJUnO4Yrg6rP601wYRnulQs59mQH73TbIZzNg=="
+      },
+      "authentication": {
+        "type": "Project",
+        "dependencies": {
+          "Connections": "[1.0.0, )",
+          "Google.Protobuf": "[3.34.1, )",
+          "Utils": "[1.0.0, )"
+        }
+      },
+      "connections": {
+        "type": "Project",
+        "dependencies": {
+          "Utils": "[1.0.0, )"
+        }
+      },
+      "connections.server": {
+        "type": "Project",
+        "dependencies": {
+          "Connections": "[1.0.0, )",
+          "ServerTransport": "[1.0.0, )",
+          "Utils": "[1.0.0, )"
+        }
+      },
+      "google.protobuf": {
+        "type": "Project"
+      },
+      "serverreferencemodel": {
+        "type": "Project"
+      },
+      "serverruntime": {
+        "type": "Project",
+        "dependencies": {
+          "Connections": "[1.0.0, )",
+          "Connections.Server": "[1.0.0, )",
+          "Stateless": "[5.20.1, 5.20.1]",
+          "Utils": "[1.0.0, )"
+        }
+      },
+      "serverstorage": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.Data.Sqlite": "[10.0.13, 10.0.13]"
+        }
+      },
+      "servertransport": {
+        "type": "Project"
+      },
+      "tradeextension": {
+        "type": "Project",
+        "dependencies": {
+          "Google.Protobuf": "[3.34.1, )",
+          "UserManagement": "[1.0.0, )",
+          "Utils": "[1.0.0, )"
+        }
+      },
+      "tradeextension.server": {
+        "type": "Project",
+        "dependencies": {
+          "ServerRuntime": "[1.0.0, )",
+          "ServerStorage": "[1.0.0, )",
+          "TradeExtension": "[1.0.0, )",
+          "UserManagement": "[1.0.0, )",
+          "Utils": "[1.0.0, )"
+        }
+      },
+      "usermanagement": {
+        "type": "Project",
+        "dependencies": {
+          "Authentication": "[1.0.0, )",
+          "Connections": "[1.0.0, )",
+          "Google.Protobuf": "[3.34.1, )",
+          "Utils": "[1.0.0, )"
+        }
+      },
+      "utils": {
+        "type": "Project",
+        "dependencies": {
+          "Google.Protobuf": "[3.34.1, )"
+        }
+      }
+    }
+  }
+}

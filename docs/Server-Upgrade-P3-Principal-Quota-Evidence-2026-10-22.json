@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "date": "2026-10-22",
+  "tasks": [
+    "SV-36 subset",
+    "SV-31/32 subset",
+    "TQ-30/31 subset",
+    "PF-07",
+    "FR-12 subset"
+  ],
+  "serverHead": "5a0508acb703319e60dd5600e3e0facd0397b294",
+  "commonGitlink": "67f243d9edced77dc3fe669f8a435b1f14b59199",
+  "sourceState": "dirty; exact hashes, not a new committed revision",
+  "sourceSha256": {
+    "Extensions/Trade/Server/PhinixFrameworkTradePersistence.cs": "35ba86e6db4021360e80919bb95716a7303be51c592395f5ada318d2b03d5f80",
+    "Extensions/Trade/Server/PhinixFrameworkTradeServerService.cs": "484b949fa0d5c23e3de2dc529f8c01deb47247129c3f6fd7ce8c3dc5f78caae2",
+    "Tests/ServerTradePersistenceTests/Program.cs": "771fd966077258dfe884c80396f4ff428763bde19c6adb72a675e123146c94cf"
+  },
+  "stagePassed": true,
+  "stageChecks": 33,
+  "limits": {
+    "retainedTradesPerPrincipal": 32,
+    "sourcePayloadBytes": 1048576,
+    "sourceAuxiliaryUtf8Bytes": 65536
+  },
+  "profile": "existing-rework-component",
+  "modelSeeds": [
+    20261015,
+    20261017
+  ],
+  "quotaSequence": "deterministic literals and exact byte boundaries",
+  "baselineFailure": "Per-principal payload quota was not enforced across trades",
+  "layer": "L1/L2 + existing process-kill recovery and same-process UDP worker integration",
+  "newProductionFaultInjection": false,
+  "clientCommonVendorPackageOrSchemaChanged": false,
+  "deployed": false,
+  "realGameValidated": false,
+  "remaining": [
+    "row-based SQL paging",
+    "safe archive/cold storage",
+    "result-table disk budget",
+    "full recipient physical byte quota",
+    "production latency/heap budgets",
+    "new independent-process quota trace"
+  ],
+  "evidencePath": "/home/hunyuan2333/Phinix/Deliverables/Phinix-Rework-Server-Principal-Quota-2026-10-22"
+}

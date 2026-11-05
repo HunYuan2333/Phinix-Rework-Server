@@ -1,4 +1,6 @@
-using System;
+// EXPERIMENTAL: TCP/TLS and modern identity are not recommended for deployment.
+// Production identity migration is deferred (TODO); UDP/ClientKey remains the default.
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -107,6 +109,12 @@ namespace PhinixServer
         [DataMember(Name = "ExtensionConfigs", Order = 13)]
         public Dictionary<string, string> ExtensionConfigs = new Dictionary<string, string>();
 
+        // Absent means historical UDP. A present but invalid TLS configuration never falls back.
+        [DataMember(Name = "Tls", Order = 17, EmitDefaultValue = false)]
+        public TlsServerSettings Tls;
+        [DataMember(Name = "ModernIdentity", Order = 18, EmitDefaultValue = false)]
+        public ModernIdentitySettings ModernIdentity;
+
         // Legacy fields — only present to catch old XML elements during deserialization.
         // Moved to ExtensionConfigs in OnDeserialized, then cleared so they never re-appear on Save.
 
@@ -165,10 +173,11 @@ namespace PhinixServer
         public void Save(string filePath)
         {
             XmlWriterSettings settings = new XmlWriterSettings { Indent = true };
-            using (XmlWriter writer = XmlWriter.Create(filePath, settings))
+            ServerStorage.AtomicFileSnapshot.Write(filePath, stream =>
             {
+                using var writer = XmlWriter.Create(stream, settings);
                 new DataContractSerializer(typeof(Config)).WriteObject(writer, this);
-            }
+            });
         }
 
         /// <summary>
@@ -205,9 +214,21 @@ namespace PhinixServer
         /// Used to convert easy-to-edit types back into their complex counterparts.
         /// </summary>
         /// <param name="context"></param>
+        public void ValidateCore()
+        {
+            Tls?.Validate(MaxConnections);
+            if (ModernIdentity != null && (Tls == null || string.IsNullOrWhiteSpace(ModernIdentity.DatabaseFile) || ModernIdentity.RegistrationPerMinute < 1 || ModernIdentity.RegistrationPerMinute > 1000))
+                throw new SerializationException("Modern identity requires TLS and an identity database path.");
+            // OnDeserializing sets defaults only. Loaded members must be checked afterwards.
+            // Port zero explicitly requests an ephemeral port for isolated hosts/tests.
+            if (Port < 0 || Port > 65535 || MaxConnections < 1 || SaveInterval < 1 || MaxDisplayNameLength < 1)
+                throw new SerializationException("Invalid core server configuration range.");
+        }
+
         [OnDeserialized]
         private void OnDeserialised(StreamingContext context)
         {
+            ValidateCore();
             if (!IPAddress.TryParse(addressString, out Address))
             {
                 throw new ConfigItemDeserialisationException(typeof(string), typeof(IPAddress), nameof(addressString));
@@ -252,8 +273,9 @@ namespace PhinixServer
                 }
                 catch (Exception ex)
                 {
-                    // If deserialization fails, use defaults — but log the failure
-                    Server.Logger?.Log(Verbosity.WARN, $"Config deserialization failed for section '{section.SectionName}': {ex.Message}");
+                    // Corrupt persisted plugin configuration must not silently reset limits
+                    // or expose arbitrary configuration values in a log message.
+                    throw new SerializationException("Invalid persisted extension configuration: " + section.SectionName, ex);
                 }
             }
 
@@ -320,4 +342,29 @@ namespace PhinixServer
             legacyChatHistoryLength = 0;
         }
     }
+    [DataContract]
+    public sealed class ModernIdentitySettings
+    {
+        [DataMember(Order = 0)] public string DatabaseFile = "identities.sqlite3";
+        [DataMember(Order = 1)] public bool InitializeNew;
+        [DataMember(Order = 2)] public int RegistrationPerMinute = 10;
+        [OnDeserializing] private void Defaults(StreamingContext _) { RegistrationPerMinute = 10; }
+    }
+    [DataContract]
+    public sealed class TlsServerSettings
+    {
+        [DataMember(Order = 0)] public string CertificateFile;
+        [DataMember(Order = 1)] public string PrivateKeyFile;
+        [DataMember(Order = 2)] public int MaximumHandshakes = 8;
+        [DataMember(Order = 3)] public int MaximumPacketBytes = 1024 * 1024;
+        [DataMember(Order = 4)] public int ConnectionLimit = 32;
+        [OnDeserializing] private void Defaults(StreamingContext _) { MaximumHandshakes = 8; MaximumPacketBytes = 1024 * 1024; ConnectionLimit = 32; }
+        public void Validate(int maximumConnections)
+        {
+            if (string.IsNullOrWhiteSpace(CertificateFile) || string.IsNullOrWhiteSpace(PrivateKeyFile) ||
+                ConnectionLimit < 1 || ConnectionLimit > 128 || MaximumHandshakes < 1 || MaximumHandshakes > Math.Min(maximumConnections, ConnectionLimit) || MaximumPacketBytes < 3 || MaximumPacketBytes > 4 * 1024 * 1024)
+                throw new SerializationException("Invalid TLS transport configuration.");
+        }
+    }
+
 }

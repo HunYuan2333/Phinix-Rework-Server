@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "date": "2026-10-22",
+  "tasks": [
+    "SV-33/36 subset",
+    "TQ-30/31 subset",
+    "PF-07",
+    "FR-09/11/12 subset"
+  ],
+  "serverHead": "5a0508acb703319e60dd5600e3e0facd0397b294",
+  "sourceState": "dirty; exact affected source hashes, not a new committed revision",
+  "sourceSha256": {
+    "Server/ServerRuntime/ServerWorkQueue.cs": "105cf80c297bd368c20c31e418cf5acc913f7353d5ddd16d9527e4fbbe6f68e0",
+    "Server/ServerComposition.cs": "b3e373aadc673672a76d0f5d63d6710d9e9245363941d00c30c07f24647eb670",
+    "Server/Server.cs": "084d6bcf07f48299492206b48ab38305706e522cb3dcd7c7f659abd93cdb82ce",
+    "Server/Connections.Server/NetServer.cs": "ac985f4a49006543b759d938f32a5570deacde0124435d85c5b665cd1e002a80",
+    "Extensions/Trade/Server/PhinixFrameworkTradeServerService.cs": "1c3c26af39077fc46137ee15ae3d0007593205b5235f6b2e6e58498fae73be12",
+    "Extensions/Trade/Server/BuiltInTradeServerExtension.cs": "566d7edf9679c69460f941a17750780ca4525d039c340193a87c9d56135a330e",
+    "Extensions/Trade/Server/PhinixFrameworkTradeStore.cs": "8bd72fed847efa7b3191d56127d8fb7f7d2577cc248b0503e2acf3e7c3c1cb39",
+    "Extensions/Trade/Server/PhinixFrameworkTradePersistence.cs": "cffcf0e76147a071b0f995aa2010dcca3b1c73a23abd49b7cb355a2713b8f3d4",
+    "Tests/ServerTradePersistenceTests/Program.cs": "59f897fea8394b728a9363f1078b50217cb2ac7cc11a34c3778cc08185ffaaf7",
+    "Tests/ServerLifecycleTests/Program.cs": "aed583d061b68577c25a38718f8e080f08e9500f521b977672fcb0d12520b5a1",
+    "Tests/ServerLifecycleTests/WorkQueueTests.cs": "dfc80e7ca58d44f1a63c2f7b122a5b4bca04a3a138b23ff42365df7fe318a423",
+    "Tests/ServerLifecycleTests/ReadyNetworkTests.cs": "9eba11d5232fc60ed63760fcdd2d20756334eb72ea68378c6544d2c85174cbb6",
+    "Tests/ServerArchitectureTests/architecture-scope.json": "95e6c7421da7f13123a298869a0c510f3fa13905fcfe24b708e5e38fdfd2e0ba",
+    "tools/quality/check.py": "513152905351a3e2b2904bf9cb6ae85c8d35148f32a06de83b09c3e4580f49bb"
+  },
+  "stagePassed": true,
+  "stageChecks": 33,
+  "readyNetworkPassed": true,
+  "layers": "L1/L2 + same-process real UDP integration + existing process-kill recovery; no new independent-process paging harness",
+  "profile": "existing-rework component / ready network",
+  "seed": [
+    20261015,
+    20261017
+  ],
+  "pageSize": 8,
+  "hostQueueCapacity": 1024,
+  "callbacksPerPoll": 4,
+  "baselineRegression": "Recovery callback sent an unbounded backlog instead of one page",
+  "environmentFailure": "restricted socket Permission denied; failed stage retained, final passed with local UDP allowed",
+  "newProductionFaultInjection": false,
+  "clientCommonVendorPackageOrSchemaChanged": false,
+  "deployed": false,
+  "realGameValidated": false,
+  "remaining": [
+    "per-principal budget",
+    "row-based SQL paging",
+    "safe archive",
+    "result-table disk budget",
+    "production latency/heap/network byte budgets",
+    "independent-process paging trace"
+  ],
+  "evidencePath": "/home/hunyuan2333/Phinix/Deliverables/Phinix-Rework-Server-Recovery-Pages-2026-10-22"
+}

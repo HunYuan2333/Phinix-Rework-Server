@@ -25,7 +25,27 @@ namespace Authentication
         /// <summary>
         /// <see cref="NetServer"/> to send packets and bind events to.
         /// </summary>
-        private NetServer netServer;
+        private IServerTransport netServer;
+        private PasswordlessSessionAuthority modernSessions;
+        public bool UsesModernIdentity => modernSessions != null;
+        public void UseModernIdentity(PasswordlessSessionAuthority authority) { modernSessions = authority ?? throw new ArgumentNullException(nameof(authority)); }
+        public bool TryGetModernPrincipal(string connection, string session, out string principal)
+        {
+            principal = null;
+            if (modernSessions == null || !modernSessions.TryAuthorize(connection, session, out var facts)) return false;
+            principal = facts.PrincipalId; return true;
+        }
+        public bool HasExistingClientKey(string proof)
+        { lock (credentialStoreLock) return credentialStore.Credentials.TryGetValue(proof, out var stored) && stored.AuthType == AuthTypes.ClientKey && stored.Username == proof; }
+        public event Action<string, string, string> SessionReplaced;
+        public void ReplaceSession(string connection, string oldSession, string newSession) => SessionReplaced?.Invoke(connection, oldSession, newSession);
+        private string persistencePath;
+        public void FlushLoadedCredentials()
+        {
+            if (UsesModernIdentity) return;
+            if (persistencePath == null) throw new IOException("Credential snapshot is not configured.");
+            Save(persistencePath);
+        }
 
         /// <summary>
         /// Name of the server displayed to connecting clients.
@@ -62,7 +82,7 @@ namespace Authentication
         /// </summary>
         private object credentialStoreLock = new object();
 
-        public ServerAuthenticator(NetServer netServer, string serverName, string serverDescription, AuthTypes authType)
+        public ServerAuthenticator(IServerTransport netServer, string serverName, string serverDescription, AuthTypes authType)
         {
             this.netServer = netServer;
             this.serverName = serverName;
@@ -101,7 +121,7 @@ namespace Authentication
             }
         }
 
-        public ServerAuthenticator(NetServer netServer, string serverName, string serverDescription, AuthTypes authType, string credentialStorePath) : this(netServer, serverName, serverDescription, authType)
+        public ServerAuthenticator(IServerTransport netServer, string serverName, string serverDescription, AuthTypes authType, string credentialStorePath) : this(netServer, serverName, serverDescription, authType)
         {
             Load(credentialStorePath);
         }
@@ -112,8 +132,21 @@ namespace Authentication
         /// <param name="connectionId">Connection ID</param>
         /// <param name="sessionId">Session ID</param>
         /// <returns>Session is valid and authenticated</returns>
+        public bool TryGetAuthenticatedSessionId(string connectionId, out string sessionId)
+        {
+            sessionId = null;
+            if (UsesModernIdentity) return false; // Alternate-wire bootstrap is not a modern identity escape.
+            lock (sessionsLock)
+            {
+                if (!sessions.TryGetValue(connectionId, out var session) || !session.Authenticated || session.Expiry <= DateTime.UtcNow) return false;
+                sessionId = session.SessionId;
+                return true;
+            }
+        }
+
         public bool IsAuthenticated(string connectionId, string sessionId)
         {
+            if (UsesModernIdentity) return TryGetModernPrincipal(connectionId, sessionId, out _);
             lock (sessionsLock)
             {
                 // Make sure the connection has a session
@@ -230,6 +263,7 @@ namespace Authentication
                     // Save the store to disk
                     Save(path);
 
+                    persistencePath = System.IO.Path.GetFullPath(path);
                     // Stop here
                     return;
                 }
@@ -246,6 +280,7 @@ namespace Authentication
                     }
                 }
 
+                persistencePath = System.IO.Path.GetFullPath(path);
                 RaiseLogEntry(new LogEventArgs(string.Format("Loaded {0} credential{1}", credentialStore.Credentials.Count, credentialStore.Credentials.Count != 1 ? "s" : "")));
             }
         }
@@ -258,18 +293,11 @@ namespace Authentication
         {
             lock (credentialStoreLock)
             {
-                // Create or truncate the credentials file
-                FileStream fs = File.Exists(path)
-                    ? File.Open(path, FileMode.Truncate, FileAccess.Write)
-                    : File.Create(path);
-                using (fs)
+                ServerStorage.AtomicFileSnapshot.Write(path, stream =>
                 {
-                    using (CodedOutputStream cos = new CodedOutputStream(fs))
-                    {
-                        // Write the credential store to disk
-                        credentialStore.WriteTo(cos);
-                    }
-                }
+                    using var writer = new CodedOutputStream(stream, leaveOpen: true);
+                    credentialStore.WriteTo(writer);
+                });
 
                 RaiseLogEntry(new LogEventArgs(string.Format("Saved {0} credential{1}", credentialStore.Credentials.Count, credentialStore.Credentials.Count != 1 ? "s" : "")));
             }
@@ -299,6 +327,7 @@ namespace Authentication
 
         private void ConnectionEstablishedHandler(object sender, ConnectionEventArgs e)
         {
+            if (UsesModernIdentity) return;
             RaiseLogEntry(new LogEventArgs("Sending HelloPacket to incoming connection " + e.ConnectionId.Highlight(HighlightType.ConnectionID), LogLevel.DEBUG));
 
             // Create a new session for this connection
@@ -359,6 +388,7 @@ namespace Authentication
         /// <inheritdoc />
         protected override void packetHandler(string module, string connectionId, byte[] data)
         {
+            if (UsesModernIdentity) { netServer.DisconnectPeer(connectionId); return; }
             // Validate the incoming packet and discard it if validation fails
             if (!ProtobufPacketHelper.ValidatePacket(typeof(ServerAuthenticator).Namespace, MODULE_NAME, module, data, out Any message, out TypeUrl typeUrl)) return;
 
@@ -366,11 +396,11 @@ namespace Authentication
             switch (typeUrl.Type)
             {
                 case "AuthenticatePacket":
-                    RaiseLogEntry(new LogEventArgs(string.Format("Got an AuthenticatePacket for session {0}", message.Unpack<AuthenticatePacket>().SessionId.Highlight(HighlightType.SessionID)), LogLevel.DEBUG));
+                    RaiseLogEntry(new LogEventArgs("Got an AuthenticatePacket", LogLevel.DEBUG));
                     authenticatePacketHandler(connectionId, message.Unpack<AuthenticatePacket>());
                     break;
                 case "ExtendSessionPacket":
-                    RaiseLogEntry(new LogEventArgs(string.Format("Got an ExtendSessionPacket for session {0}", message.Unpack<ExtendSessionPacket>().SessionId.Highlight(HighlightType.SessionID)), LogLevel.DEBUG));
+                    RaiseLogEntry(new LogEventArgs("Got an ExtendSessionPacket", LogLevel.DEBUG));
                     extendSessionPacketHandler(connectionId, message.Unpack<ExtendSessionPacket>());
                     break;
                 default:
@@ -421,7 +451,7 @@ namespace Authentication
                     // Fail the authentication attempt due to expired session
                     sendFailedAuthResponsePacket(connectionId, AuthFailureReason.SessionId, "Session has expired. Try logging in again.");
 
-                    RaiseLogEntry(new LogEventArgs(string.Format("Auth failure for {0} (SessID: {1}): Session expired", connectionId.Highlight(HighlightType.ConnectionID), session.SessionId.Highlight(HighlightType.SessionID)), LogLevel.DEBUG));
+                    RaiseLogEntry(new LogEventArgs("Auth failure: Session expired (Connection: " + connectionId.Highlight(HighlightType.ConnectionID) + ")", LogLevel.DEBUG));
 
                     // Stop here
                     return;
@@ -447,9 +477,9 @@ namespace Authentication
                         else
                         {
                             // Fail the authentication attempt due to missing credential
-                            sendFailedAuthResponsePacket(connectionId, AuthFailureReason.Credentials, string.Format("No credential found for the username \"{0}\".", packet.Username.Highlight(HighlightType.Username)));
+                            sendFailedAuthResponsePacket(connectionId, AuthFailureReason.Credentials, "Credentials were not recognized.");
 
-                            RaiseLogEntry(new LogEventArgs(string.Format("Auth failure for {0} (SessID: {1}): No credentials found for {2}", connectionId.Highlight(HighlightType.ConnectionID), session.SessionId.Highlight(HighlightType.SessionID), packet.Username.Highlight(HighlightType.Username)), LogLevel.DEBUG));
+                            RaiseLogEntry(new LogEventArgs("Auth failure: Credentials rejected (Connection: " + connectionId.Highlight(HighlightType.ConnectionID) + ")", LogLevel.DEBUG));
 
                             // Stop here
                             return;
@@ -471,7 +501,7 @@ namespace Authentication
                         // Fail the authentication attempt due to invalid stored credential
                         sendFailedAuthResponsePacket(connectionId, AuthFailureReason.InternalServerError, "Server's stored credential did not match its accepted authentication type. Try logging in again.");
 
-                        RaiseLogEntry(new LogEventArgs(string.Format("Auth failure for {0} (SessID: {1}): Stored credentials for {2} are of wrong type ({3})", connectionId.Highlight(HighlightType.ConnectionID), session.SessionId.Highlight(HighlightType.SessionID), packet.Username.Highlight(HighlightType.Username), credential.AuthType.ToString()), LogLevel.DEBUG));
+                        RaiseLogEntry(new LogEventArgs("Auth failure: Credentials rejected (Connection: " + connectionId.Highlight(HighlightType.ConnectionID) + ")", LogLevel.DEBUG));
 
                         // Stop here
                         return;
@@ -484,7 +514,7 @@ namespace Authentication
                         // Fail the authentication attempt due to mismatching password
                         sendFailedAuthResponsePacket(connectionId, AuthFailureReason.Credentials, "Invalid password provided.");
 
-                        RaiseLogEntry(new LogEventArgs(string.Format("Auth failure for {0} (SessID: {1}): Wrong password provided for {2}", connectionId.Highlight(HighlightType.ConnectionID), session.SessionId.Highlight(HighlightType.SessionID), packet.Username.Highlight(HighlightType.Username)), LogLevel.DEBUG));
+                        RaiseLogEntry(new LogEventArgs("Auth failure: Credentials rejected (Connection: " + connectionId.Highlight(HighlightType.ConnectionID) + ")", LogLevel.DEBUG));
 
                         // Stop here
                         return;
@@ -503,7 +533,7 @@ namespace Authentication
                     sendSuccessfulAuthResponsePacket(connectionId, session.SessionId, (int) expiresIn.TotalMilliseconds);
 
                     // Log this momentous occasion
-                    RaiseLogEntry(new LogEventArgs(string.Format("User \"{0}\" (ConnID: {1}, SessID: {2}) successfully authenticated", session.Username.Highlight(HighlightType.Username), session.ConnectionId.Highlight(HighlightType.ConnectionID), session.SessionId.Highlight(HighlightType.SessionID))));
+                    RaiseLogEntry(new LogEventArgs("Connection " + connectionId.Highlight(HighlightType.ConnectionID) + " successfully authenticated"));
                 }
             }
         }

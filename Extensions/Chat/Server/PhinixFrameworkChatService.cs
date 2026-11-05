@@ -38,12 +38,42 @@ namespace Phinix.ChatExtension.Server
         int NoticeRetentionWindowHours { get; }
     }
 
-    public class PhinixFrameworkChatService : IFrameworkChatServerApi
+    // Protocol-neutral notification of the same accepted message, for other plugin adapters.
+    public interface IFrameworkChatMessageEvents
     {
+        event Action<global::Phinix.Framework.BuiltInChatMessagePayload> MessageStored;
+    }
+
+    public partial class PhinixFrameworkChatService : IFrameworkChatServerApi, IFrameworkChatMessageEvents
+    {
+        public event Action<global::Phinix.Framework.BuiltInChatMessagePayload> MessageStored;
+        private void PublishStored(global::Phinix.Framework.BuiltInChatMessagePayload message)
+        {
+            var listeners = MessageStored;
+            if (listeners == null) return;
+            foreach (Action<global::Phinix.Framework.BuiltInChatMessagePayload> listener in listeners.GetInvocationList())
+            {
+                try { listener(message.Clone()); }
+                catch (Exception error)
+                {
+                    try { RaiseLogEntry(new LogEventArgs("Chat subscriber failed: " + error.GetType().Name, LogLevel.WARNING)); } catch { }
+                }
+            }
+        }
         private readonly IServerUserManager userManager;
         public event EventHandler<LogEventArgs> OnLogEntry;
 
-        public void RaiseLogEntry(LogEventArgs e) => OnLogEntry?.Invoke(this, e);
+        public void RaiseLogEntry(LogEventArgs e)
+        {
+            var listeners = OnLogEntry;
+            if (listeners == null) return;
+            foreach (EventHandler<LogEventArgs> listener in listeners.GetInvocationList())
+            {
+                // Diagnostics are best effort. A failed sink must not abort a message
+                // already stored, suppress its receipt, or prevent other log consumers.
+                try { listener(this, e); } catch (Exception) { }
+            }
+        }
 
         private readonly List<global::Phinix.Framework.BuiltInChatMessagePayload> messageHistory = new List<global::Phinix.Framework.BuiltInChatMessagePayload>();
         private readonly object messageHistoryLock = new object();
@@ -74,11 +104,14 @@ namespace Phinix.ChatExtension.Server
                 Timestamp = Timestamp.FromDateTime(DateTime.UtcNow)
             };
 
+            string displayNameAtSend = CaptureDisplayName(chatMessage.SenderUuid);
             lock (messageHistoryLock)
             {
                 messageHistory.Add(chatMessage.Clone());
+                RecordDisplayName(chatMessage, displayNameAtSend);
                 if (messageHistory.Count > messageHistoryCapacity)
                 {
+                    namesAtSend.Remove(messageHistory[0].MessageId);
                     messageHistory.RemoveAt(0);
                 }
             }
@@ -89,6 +122,7 @@ namespace Phinix.ChatExtension.Server
             }
 
             RaiseLogEntry(new LogEventArgs($"{TextHelper.StripRichText(displayName)}: {chatMessage.Message}"));
+            PublishStored(chatMessage);
             return chatMessage;
         }
 
@@ -122,11 +156,14 @@ namespace Phinix.ChatExtension.Server
                 chatMessage.ReplyToSnippet = replyToSnippet;
             }
 
+            string displayNameAtSend = CaptureDisplayName(chatMessage.SenderUuid);
             lock (messageHistoryLock)
             {
                 messageHistory.Add(chatMessage.Clone());
+                RecordDisplayName(chatMessage, displayNameAtSend);
                 if (messageHistory.Count > messageHistoryCapacity)
                 {
+                    namesAtSend.Remove(messageHistory[0].MessageId);
                     messageHistory.RemoveAt(0);
                 }
             }
@@ -137,6 +174,7 @@ namespace Phinix.ChatExtension.Server
             }
 
             RaiseLogEntry(new LogEventArgs($"{TextHelper.StripRichText(displayName)}: {chatMessage.Message}"));
+            PublishStored(chatMessage);
             return chatMessage;
         }
 
@@ -218,6 +256,7 @@ namespace Phinix.ChatExtension.Server
         public void Save(string path)
         {
             global::Phinix.Framework.BuiltInChatHistoryStore store;
+            byte[] nameSnapshots;
             lock (messageHistoryLock)
             lock (noticeHistoryLock)
             {
@@ -226,16 +265,15 @@ namespace Phinix.ChatExtension.Server
                     ChatMessages = { messageHistory.Select(message => message.Clone()) },
                     Notices = { noticeHistory.Select(notice => notice.Clone()) }
                 };
+                nameSnapshots = NameSnapshotBytes();
             }
 
-            FileStream fs = File.Exists(path)
-                ? File.Open(path, FileMode.Truncate, FileAccess.Write)
-                : File.Create(path);
-            using (fs)
-            using (CodedOutputStream cos = new CodedOutputStream(fs))
+            ServerStorage.AtomicFileSnapshot.Write(path, stream =>
             {
-                store.WriteTo(cos);
-            }
+                using var writer = new CodedOutputStream(stream, leaveOpen: true);
+                store.WriteTo(writer);
+                writer.WriteTag(NamesTag); writer.WriteBytes(ByteString.CopyFrom(nameSnapshots));
+            });
 
             RaiseLogEntry(new LogEventArgs($"Saved {store.ChatMessages.Count} chat messages, {store.Notices.Count} notices"));
         }
@@ -249,6 +287,7 @@ namespace Phinix.ChatExtension.Server
                 {
                     RaiseLogEntry(new LogEventArgs("No framework chat history file, generating a new one"));
                     messageHistory.Clear();
+                    namesAtSend.Clear();
                     noticeHistory.Clear();
                     Save(path);
                     return;
@@ -259,6 +298,7 @@ namespace Phinix.ChatExtension.Server
                 using (CodedInputStream cis = new CodedInputStream(fs))
                 {
                     store = global::Phinix.Framework.BuiltInChatHistoryStore.Parser.ParseFrom(cis);
+                    ReadNameSnapshots(fs, store.ChatMessages);
                 }
 
                 messageHistory.Clear();

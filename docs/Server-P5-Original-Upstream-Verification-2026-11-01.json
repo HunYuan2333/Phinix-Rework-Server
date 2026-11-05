@@ -1,0 +1,257 @@
+{
+  "date": "2026-11-01",
+  "localClone": "/home/hunyuan2333/Phinix/Phinix",
+  "origin": "https://github.com/thomotron/Phinix",
+  "branch": "master",
+  "head": "ce82b8f2cd57718f05de86458eebd3320f35c4d8",
+  "tree": "88955eb1e3fab5f0f6facdf13d7339e8045de2a8",
+  "commit": "2025-08-23 00:31:20 +0930 Release 0.9.7",
+  "clean": true,
+  "remoteMasterObserved": "ce82b8f2cd57718f05de86458eebd3320f35c4d8",
+  "remoteCheckCommand": "git ls-remote https://github.com/thomotron/Phinix.git HEAD refs/heads/master",
+  "submoduleState": "-dd06cc6c8f906b760ef224a085f45e7694dc426a Dependencies/protobuf",
+  "submoduleGitlink": "160000 commit dd06cc6c8f906b760ef224a085f45e7694dc426a\tDependencies/protobuf",
+  "fixtures": [
+    {
+      "fixture": "OriginalLoginChat",
+      "sourceSha": "ce82b8f2cd57718f05de86458eebd3320f35c4d8",
+      "previousSourceRepository": "https://github.com/HunYuan2333/Phinix",
+      "sourceRepository": "https://github.com/thomotron/Phinix",
+      "verifiedSourceFiles": [
+        {
+          "path": "Common/Chat/ClientChat.cs",
+          "sha256": "2a9b47d0d5a5f78d56de86458735d038fd85218985e19e19e7297f7248687a2e"
+        },
+        {
+          "path": "Common/Chat/ServerChat.cs",
+          "sha256": "c67796fd99222447a37a60d041886cceea8b3e65ce90989d96dd31acb62ae3fc"
+        },
+        {
+          "path": "Common/Chat/Packets/ChatMessagePacket.proto",
+          "sha256": "aa5332d2ad2e4beb6100b6d395bbe90e732e076403012567fbc2637409a2bf12"
+        },
+        {
+          "path": "Common/Chat/Packets/ChatMessageResponsePacket.proto",
+          "sha256": "2b2aba6a2f0f7ae38f7769acee054aa0dd30368c447c7a2b8fc545e9ac08e12b"
+        },
+        {
+          "path": "Common/UserManagement/Packets/LoginPacket.proto",
+          "sha256": "e740ea15f8e6db2e8c48f2124b0df1d86a32e5edfc49f03868d9df403da8bc19"
+        },
+        {
+          "path": "Common/Connections/NetClient.cs",
+          "sha256": "c84969f2e1185b06f1b9d6ab07e78a313a274d6055851e19306c07d9f9b12f0b"
+        },
+        {
+          "path": "Common/Connections/NetServer.cs",
+          "sha256": "f3ddcc860b0b749fe98a6964a30b47dcc485034d5e1aea9b1de2893dda27b908"
+        },
+        {
+          "path": "Common/Trading/ClientTrading.cs",
+          "sha256": "2461640bd9d6fb56366a3d2c8b140e5ae2d2d10f38c4e37f1700d0736df541be"
+        },
+        {
+          "path": "Common/Trading/Packets/CompleteTradePacket.proto",
+          "sha256": "7a77f8164d2c7e5c635e795f5bceb308ea8cf5b7d2d10056d143b52446771345"
+        }
+      ],
+      "normalizedSha256": "b4d425ab4d17bf8561c8bbb5f7efb57b7c6cf7b28e8bca2f5c62aa6d4488812c",
+      "packetBytesChanged": false
+    },
+    {
+      "fixture": "OriginalTrade",
+      "sourceSha": "ce82b8f2cd57718f05de86458eebd3320f35c4d8",
+      "previousSourceRepository": "https://github.com/thomotron/Phinix",
+      "sourceRepository": "https://github.com/thomotron/Phinix",
+      "verifiedSourceFiles": [
+        {
+          "path": "Common/Trading/Trading.csproj",
+          "sha256": "482ecbd4ef1caf919a8bc12e4ca69f5363ebc4a8bcfdf1e2a4178e8b7a20b15b"
+        },
+        {
+          "path": "Common/Trading/Trading.cs",
+          "sha256": "efc183c6b36cf990461ad301e6e78472a9c74a18de1276bfb9754ca16295d954"
+        },
+        {
+          "path": "Common/Trading/TradesSyncedEventArgs.cs",
+          "sha256": "436ebf654987f7e7735bdfdc8ce434a6e61ba6aceadbe7cf071fac9ecf00a6ca"
+        },
+        {
+          "path": "Common/Trading/TradeUpdateEventArgs.cs",
+          "sha256": "f1a8ea804a1c61b6aa4f1e1fb896014b7aefc2ea501f471e1537f11675565883"
+        },
+        {
+          "path": "Common/Trading/Trade.cs",
+          "sha256": "cd08522a4e066c6395bb4037739052a0a3ae17ff7ae754822756eba71216ebff"
+        },
+        {
+          "path": "Common/Trading/ThingReceivedEventArgs.cs",
+          "sha256": "662bcd024a1c74fae1a95e0e92e31b6aea6a5e76811c43058d7a156d387d3ff5"
+        },
+        {
+          "path": "Common/Trading/ServerTrading.cs",
+          "sha256": "ff2c506d3845c8823f4f6d1cc8e0c0195df1e5f6cbe5dfa82144530d529ba9ac"
+        },
+        {
+          "path": "Common/Trading/ImmutableTrade.cs",
+          "sha256": "e76c0d3ef7b3fd01af3546e9d5411df12ef3cfcb16868c07348c9495f6a17b94"
+        },
+        {
+          "path": "Common/Trading/CreateTradeEventArgs.cs",
+          "sha256": "c43731a8c92cbcfa57973537166b5dc9a0f61d1296d409038e2e34b49748a7b6"
+        },
+        {
+          "path": "Common/Trading/CompletedTrade.cs",
+          "sha256": "2b7aec7f2268a5d48851608351bfdd12e7a3e83fc6dd14e356bb242256557cb2"
+        },
+        {
+          "path": "Common/Trading/CompleteTradeEventArgs.cs",
+          "sha256": "510fcfa9d95c92179c6c6dfec5bfe5c7b6b5483411c9920856dda646383a751d"
+        },
+        {
+          "path": "Common/Trading/ClientTrading.cs",
+          "sha256": "2461640bd9d6fb56366a3d2c8b140e5ae2d2d10f38c4e37f1700d0736df541be"
+        },
+        {
+          "path": "Common/Connections/NetServer.cs",
+          "sha256": "f3ddcc860b0b749fe98a6964a30b47dcc485034d5e1aea9b1de2893dda27b908"
+        },
+        {
+          "path": "Common/Connections/NetCommon.cs",
+          "sha256": "7dbc79e6054576ba95d8f0230ae82832fcde2a51a555773335c0bffc2b4aa847"
+        },
+        {
+          "path": "Common/Connections/NetClient.cs",
+          "sha256": "c84969f2e1185b06f1b9d6ab07e78a313a274d6055851e19306c07d9f9b12f0b"
+        },
+        {
+          "path": "Common/Trading/Stores/TradeStore.proto",
+          "sha256": "4cbbe2135834373513e798b2d9e03d8e144fa630d34eee5e08d6e56321c930fa"
+        },
+        {
+          "path": "Common/Trading/Stores/ProtoThings.proto",
+          "sha256": "1c7a8c4b8678258bb253f1879142c3d57a2e0248fddb645511fa1087c7c9412d"
+        },
+        {
+          "path": "Common/Trading/Stores/CompletedTradeStore.proto",
+          "sha256": "def8dc2f350db6ee519b413b49d5f319c7b372fb09add3754b5ea90a7b194185"
+        },
+        {
+          "path": "Common/Trading/Stores/ActiveTradesStore.proto",
+          "sha256": "c9e5261935aee7ff87c9522037ce2bf72b9761cc2aea54fa13fb33cec011b55e"
+        },
+        {
+          "path": "Common/Trading/Properties/AssemblyInfo.cs",
+          "sha256": "1b4daa59b0b968734564563a2de0416a3f1c85560862edbecf29b9d5c67d7c45"
+        },
+        {
+          "path": "Common/Trading/Packets/UpdateTradeStatusPacket.proto",
+          "sha256": "942442ca9ee2839923943e7ff92282c4eaeb6042f191ae13b8cb8c9b38489d68"
+        },
+        {
+          "path": "Common/Trading/Packets/UpdateTradeItemsResponsePacket.proto",
+          "sha256": "0291a6de246050e93c2cbe2bc3c8642784ace4d141abe1fc970c3fa9eddf229b"
+        },
+        {
+          "path": "Common/Trading/Packets/UpdateTradeItemsPacket.proto",
+          "sha256": "629051e2eae1f1515e5b9f693f9c0669a9c233f43fc7570dfa51ecdb932f6c25"
+        },
+        {
+          "path": "Common/Trading/Packets/TradeProto.proto",
+          "sha256": "0a46947e59f1d72ff1ead4f4b48b5688ffcae81d70b28de0de4f8fdf844116d1"
+        },
+        {
+          "path": "Common/Trading/Packets/TradeFailureReason.proto",
+          "sha256": "922f4f9426e4c21be73a48068310b4f802232c70b65d34620cf06cfa9a08a4a9"
+        },
+        {
+          "path": "Common/Trading/Packets/Thing.proto",
+          "sha256": "97ceaa3c381e15c3eaacf9284c3b336d6a3a4ca2930d16ea08f1cb12cdb92bae"
+        },
+        {
+          "path": "Common/Trading/Packets/SyncTradesPacket.proto",
+          "sha256": "03a71aea0dc5802be42aa1b6cb3b957391fc2c1918dfa7e39e503fb2510e46b5"
+        },
+        {
+          "path": "Common/Trading/Packets/Quality.proto",
+          "sha256": "4087160d49a563bf7862e88d308d8799247b5356592d9913076c5eda772c78f8"
+        },
+        {
+          "path": "Common/Trading/Packets/CreateTradeResponsePacket.proto",
+          "sha256": "ebc2086d398fb7e419f9338c68d2c015c151e186cbf22c52b26381791b262906"
+        },
+        {
+          "path": "Common/Trading/Packets/CreateTradePacket.proto",
+          "sha256": "91a250616693bd8fbb2095f65da3732b94894d51016c60febfc15950c901b272"
+        },
+        {
+          "path": "Common/Trading/Packets/CompleteTradePacket.proto",
+          "sha256": "7a77f8164d2c7e5c635e795f5bceb308ea8cf5b7d2d10056d143b52446771345"
+        },
+        {
+          "path": "Common/Trading/Packets/compiled/UpdateTradeStatusPacket.cs",
+          "sha256": "2e74039377c2f023470addb4cd5e19777d498c41ccfe068ce42a321a5008c7df"
+        },
+        {
+          "path": "Common/Trading/Packets/compiled/UpdateTradeItemsResponsePacket.cs",
+          "sha256": "5a58fbef3adf48a13536cca6ee4eb75128e908908b38de319c51f4880b807e4e"
+        },
+        {
+          "path": "Common/Trading/Packets/compiled/UpdateTradeItemsPacket.cs",
+          "sha256": "6b9cfe7aca6a8f66efa9f4069efed957e1534be6d051f778dce902a161c4f2e2"
+        },
+        {
+          "path": "Common/Trading/Packets/compiled/TradeProto.cs",
+          "sha256": "8d02bfee4909c3b83c5d9e46840834f521503d016756cd863efa5a09d4d41774"
+        },
+        {
+          "path": "Common/Trading/Packets/compiled/TradeFailureReason.cs",
+          "sha256": "38231647b60810c3b795a7756f392c7bb122183d3c83d071e65d3711aef64b3c"
+        },
+        {
+          "path": "Common/Trading/Packets/compiled/Thing.cs",
+          "sha256": "7ca99d0431d17584394b6daf27f70207f695bebb0de342c29e04e27415ba45be"
+        },
+        {
+          "path": "Common/Trading/Packets/compiled/SyncTradesPacket.cs",
+          "sha256": "80a3d63327289d2e227b1614d32f640016ad8b81cfbe790a59a493fbff8f88f0"
+        },
+        {
+          "path": "Common/Trading/Packets/compiled/Quality.cs",
+          "sha256": "61dabd369086bc3d325f8d1f5f8556a0d369439e76279292bee34a8bb020dc0f"
+        },
+        {
+          "path": "Common/Trading/Packets/compiled/CreateTradeResponsePacket.cs",
+          "sha256": "4451241e18c13d45d17ef262d0fadecfd21a6e2b610fe29f205cf38e2e333150"
+        },
+        {
+          "path": "Common/Trading/Packets/compiled/CreateTradePacket.cs",
+          "sha256": "71c860d0f01fb473443c6213a18112f7f870cff4ba6af9d51b8d1c2a63a52640"
+        },
+        {
+          "path": "Common/Trading/Packets/compiled/CompleteTradePacket.cs",
+          "sha256": "71c528f0f8d689cc2b37831f845ec06f4c8497c36b7327d750bcaa0862e2be55"
+        },
+        {
+          "path": "Common/Trading/Stores/compiled/TradeStore.cs",
+          "sha256": "4277d4cf4354ad231c1f45ceac6df1316ea697c0e8f28bd85eb49bdfecfcd3fe"
+        },
+        {
+          "path": "Common/Trading/Stores/compiled/ProtoThings.cs",
+          "sha256": "14910517eaecaaeec62118eee79d9aff1ba70bce91b1f4052750bcc08d2c70ef"
+        },
+        {
+          "path": "Common/Trading/Stores/compiled/CompletedTradeStore.cs",
+          "sha256": "9d3f83d7bec6ed21ced578f153bbbea3efc185e48e0ab6cece490fd7f0197a34"
+        },
+        {
+          "path": "Common/Trading/Stores/compiled/ActiveTradesStore.cs",
+          "sha256": "3c18b98584e91ca6f1de99593e87f01b03f469b7edc94726c6cef5b49f6dafd9"
+        }
+      ],
+      "normalizedSha256": "84b219bc770e511760b6865b8d510d6b2272e63cb3712f5eadbdfa442b0ab341",
+      "packetBytesChanged": false
+    }
+  ],
+  "limitations": "Original clone submodule is uninitialized; no fresh legacy build or upgraded Server compatibility claim. Existing frozen deliverables unchanged."
+}

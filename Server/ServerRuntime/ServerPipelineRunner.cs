@@ -1,4 +1,6 @@
+using Connections;
 using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using Utils;
@@ -56,13 +58,36 @@ namespace ServerRuntime
             ItemObservers = itemObservers ?? Array.Empty<IServerItemObserver>();
         }
 
+        private static bool TryInboundGate(Func<bool> predicate, ServerFrameworkContext context, out bool eligible)
+        {
+            try { eligible = predicate(); return true; }
+            catch (Exception error)
+            {
+                eligible = false;
+                LogFailure(context, "Inbound predicate failed", error);
+                return false;
+            }
+        }
+
+        private static void LogFailure(ServerFrameworkContext context, string message, Exception error)
+        {
+            // Diagnostics must not resume a request with unknown effects or leak payloads.
+            try { context?.Log?.Invoke(message + ": " + error.GetType().Name, LogLevel.ERROR); } catch { }
+        }
+
         public bool ProcessIncomingMessage(FrameworkPacket message, ServerFrameworkContext context)
         {
             FrameworkPacket currentMessage = message;
             MessageHandlingResultAction terminalAction = MessageHandlingResultAction.Continue;
 
-            foreach (IServerInboundMessageInterceptor interceptor in InboundMessageInterceptors.Where(candidate => candidate.CanInterceptIncomingMessage(currentMessage)))
+            foreach (IServerInboundMessageInterceptor interceptor in InboundMessageInterceptors)
             {
+                if (!TryInboundGate(() => interceptor.CanInterceptIncomingMessage(currentMessage), context, out bool eligible))
+                {
+                    observeMessage(currentMessage, context, MessageHandlingResultAction.StopPropagation);
+                    return true;
+                }
+                if (!eligible) continue;
                 ServerIncomingMessageResult result = null;
                 try
                 {
@@ -70,17 +95,9 @@ namespace ServerRuntime
                 }
                 catch (Exception ex)
                 {
-                    context.Log?.Invoke(
-                        $"Message interceptor {interceptor.GetType().FullName} threw for '{currentMessage.MessageType}': {ex}",
-                        LogLevel.ERROR);
-                    continue;
-                }
-
-                if (result?.Action == MessageHandlingResultAction.LegacyFallback)
-                {
-                    context.Log?.Invoke(
-                        $"Message interceptor {interceptor.GetType().FullName} returned LegacyFallback for '{currentMessage.MessageType}' — treating as Continue.",
-                        LogLevel.WARNING);
+                    LogFailure(context, "Inbound processing failed", ex);
+                    observeMessage(currentMessage, context, MessageHandlingResultAction.StopPropagation);
+                    return true;
                 }
 
                 if (shouldContinue(result?.Action))
@@ -103,8 +120,14 @@ namespace ServerRuntime
             }
 
             bool matchedHandler = false;
-            foreach (IServerDefaultMessageHandler handler in DefaultMessageHandlers.Where(candidate => candidate.CanHandleIncomingMessage(currentMessage)))
+            foreach (IServerDefaultMessageHandler handler in DefaultMessageHandlers)
             {
+                if (!TryInboundGate(() => handler.CanHandleIncomingMessage(currentMessage), context, out bool eligible))
+                {
+                    observeMessage(currentMessage, context, MessageHandlingResultAction.StopPropagation);
+                    return true;
+                }
+                if (!eligible) continue;
                 matchedHandler = true;
                 ServerIncomingMessageResult result = null;
                 try
@@ -113,17 +136,9 @@ namespace ServerRuntime
                 }
                 catch (Exception ex)
                 {
-                    context.Log?.Invoke(
-                        $"Message handler {handler.GetType().FullName} threw for '{currentMessage.MessageType}': {ex}",
-                        LogLevel.ERROR);
-                    continue;
-                }
-
-                if (result?.Action == MessageHandlingResultAction.LegacyFallback)
-                {
-                    context.Log?.Invoke(
-                        $"Message handler {handler.GetType().FullName} returned LegacyFallback for '{currentMessage.MessageType}' — treating as Continue.",
-                        LogLevel.WARNING);
+                    LogFailure(context, "Inbound processing failed", ex);
+                    observeMessage(currentMessage, context, MessageHandlingResultAction.StopPropagation);
+                    return true;
                 }
 
                 if (shouldContinue(result?.Action))
@@ -158,8 +173,14 @@ namespace ServerRuntime
             FrameworkPacket currentCommand = command;
             MessageHandlingResultAction terminalAction = MessageHandlingResultAction.Continue;
 
-            foreach (IServerInboundCommandInterceptor interceptor in InboundCommandInterceptors.Where(candidate => candidate.CanInterceptIncomingCommand(currentCommand)))
+            foreach (IServerInboundCommandInterceptor interceptor in InboundCommandInterceptors)
             {
+                if (!TryInboundGate(() => interceptor.CanInterceptIncomingCommand(currentCommand), context, out bool eligible))
+                {
+                    observeCommand(currentCommand, context, MessageHandlingResultAction.StopPropagation);
+                    return true;
+                }
+                if (!eligible) continue;
                 ServerIncomingCommandResult result = null;
                 try
                 {
@@ -167,17 +188,9 @@ namespace ServerRuntime
                 }
                 catch (Exception ex)
                 {
-                    context.Log?.Invoke(
-                        $"Command interceptor {interceptor.GetType().FullName} threw for '{currentCommand.MessageType}': {ex}",
-                        LogLevel.ERROR);
-                    continue;
-                }
-
-                if (result?.Action == MessageHandlingResultAction.LegacyFallback)
-                {
-                    context.Log?.Invoke(
-                        $"Command interceptor {interceptor.GetType().FullName} returned LegacyFallback for '{currentCommand.MessageType}' — treating as Continue.",
-                        LogLevel.WARNING);
+                    LogFailure(context, "Inbound processing failed", ex);
+                    observeCommand(currentCommand, context, MessageHandlingResultAction.StopPropagation);
+                    return true;
                 }
 
                 if (shouldContinue(result?.Action))
@@ -200,8 +213,14 @@ namespace ServerRuntime
             }
 
             bool matchedHandler = false;
-            foreach (IServerDefaultCommandHandler handler in DefaultCommandHandlers.Where(candidate => candidate.CanHandleIncomingCommand(currentCommand)))
+            foreach (IServerDefaultCommandHandler handler in DefaultCommandHandlers)
             {
+                if (!TryInboundGate(() => handler.CanHandleIncomingCommand(currentCommand), context, out bool eligible))
+                {
+                    observeCommand(currentCommand, context, MessageHandlingResultAction.StopPropagation);
+                    return true;
+                }
+                if (!eligible) continue;
                 matchedHandler = true;
                 ServerIncomingCommandResult result = null;
                 try
@@ -210,17 +229,9 @@ namespace ServerRuntime
                 }
                 catch (Exception ex)
                 {
-                    context.Log?.Invoke(
-                        $"Command handler {handler.GetType().FullName} threw for '{currentCommand.MessageType}': {ex}",
-                        LogLevel.ERROR);
-                    continue;
-                }
-
-                if (result?.Action == MessageHandlingResultAction.LegacyFallback)
-                {
-                    context.Log?.Invoke(
-                        $"Command handler {handler.GetType().FullName} returned LegacyFallback for '{currentCommand.MessageType}' — treating as Continue.",
-                        LogLevel.WARNING);
+                    LogFailure(context, "Inbound processing failed", ex);
+                    observeCommand(currentCommand, context, MessageHandlingResultAction.StopPropagation);
+                    return true;
                 }
 
                 if (shouldContinue(result?.Action))
@@ -262,8 +273,11 @@ namespace ServerRuntime
             ServerIncomingItemResult terminalResult = null;
 
             // 1. InboundInterception
-            foreach (IServerInboundItemInterceptor interceptor in InboundItemInterceptors.Where(candidate => safeCanInterceptItem(candidate, currentItem, context)))
+            foreach (IServerInboundItemInterceptor interceptor in InboundItemInterceptors)
             {
+                if (!TryInboundGate(() => interceptor.CanInterceptIncomingItem(currentItem), context, out bool eligible))
+                    return stopItem(currentItem, context);
+                if (!eligible) continue;
                 ServerIncomingItemResult result = null;
                 try
                 {
@@ -271,17 +285,8 @@ namespace ServerRuntime
                 }
                 catch (Exception ex)
                 {
-                    context.Log?.Invoke(
-                        $"Item interceptor {interceptor.GetType().FullName} threw for '{currentItem.MessageType}': {ex}",
-                        LogLevel.ERROR);
-                    continue;
-                }
-
-                if (result?.Action == ItemHandlingResultAction.LegacyFallback)
-                {
-                    context.Log?.Invoke(
-                        $"Item interceptor {interceptor.GetType().FullName} returned LegacyFallback for '{currentItem.MessageType}' — treating as Continue.",
-                        LogLevel.WARNING);
+                    LogFailure(context, "Inbound item processing failed", ex);
+                    return stopItem(currentItem, context);
                 }
 
                 if (shouldContinueItem(result?.Action))
@@ -307,8 +312,11 @@ namespace ServerRuntime
 
             // 2. DefaultProcess (注册的 handlers)
             bool matchedHandler = false;
-            foreach (IServerDefaultItemHandler handler in DefaultItemHandlers.Where(candidate => safeCanHandleItem(candidate, currentItem, context)))
+            foreach (IServerDefaultItemHandler handler in DefaultItemHandlers)
             {
+                if (!TryInboundGate(() => handler.CanHandleIncomingItem(currentItem), context, out bool eligible))
+                    return stopItem(currentItem, context);
+                if (!eligible) continue;
                 matchedHandler = true;
                 ServerIncomingItemResult result = null;
                 try
@@ -317,23 +325,8 @@ namespace ServerRuntime
                 }
                 catch (Exception ex)
                 {
-                    context.Log?.Invoke(
-                        $"Item handler {handler.GetType().FullName} threw for '{currentItem.MessageType}': {ex}",
-                        LogLevel.ERROR);
-                    result = new ServerIncomingItemResult
-                    {
-                        Action = ItemHandlingResultAction.Continue,
-                        FailureReason = $"Handler '{handler.GetType().FullName}' threw exception",
-                        FailureException = ex
-                    };
-                    continue;
-                }
-
-                if (result?.Action == ItemHandlingResultAction.LegacyFallback)
-                {
-                    context.Log?.Invoke(
-                        $"Item handler {handler.GetType().FullName} returned LegacyFallback for '{currentItem.MessageType}' — treating as Continue.",
-                        LogLevel.WARNING);
+                    LogFailure(context, "Inbound item processing failed", ex);
+                    return stopItem(currentItem, context);
                 }
 
                 if (shouldContinueItem(result?.Action))
@@ -368,7 +361,15 @@ namespace ServerRuntime
             // 3. 内置兜底：如果没有 handler 处理，用注册的 codec 尝试解码（保留旧行为）
             if (terminalResult == null || shouldContinueItem(terminalResult?.Action))
             {
-                ServerIncomingItemResult builtinResult = decodeWithCodecsBuiltin(currentItem, context);
+                ServerIncomingItemResult builtinResult;
+                try { builtinResult = decodeWithCodecsBuiltin(currentItem, context); }
+                catch (Exception error)
+                {
+                    LogFailure(context, "Inbound item decoding failed", error);
+                    return stopItem(currentItem, context);
+                }
+                if (builtinResult != null && isBlockedItem(builtinResult.Action))
+                    return stopItem(currentItem, context);
                 if (builtinResult != null && isHandledItem(builtinResult.Action))
                 {
                     terminalResult = builtinResult;
@@ -389,34 +390,12 @@ namespace ServerRuntime
             return matchedHandler || (terminalResult != null && isHandledItem(terminalResult.Action));
         }
 
-        private static bool safeCanInterceptItem(IServerInboundItemInterceptor interceptor, FrameworkPacket item, ServerFrameworkContext context)
+        private bool stopItem(FrameworkPacket item, ServerFrameworkContext context)
         {
-            try
-            {
-                return interceptor.CanInterceptIncomingItem(item);
-            }
-            catch (Exception ex)
-            {
-                context.Log?.Invoke(
-                    $"Item interceptor {interceptor.GetType().FullName}.CanIntercept threw for '{item.MessageType}': {ex}",
-                    LogLevel.ERROR);
-                return false;
-            }
-        }
-
-        private static bool safeCanHandleItem(IServerDefaultItemHandler handler, FrameworkPacket item, ServerFrameworkContext context)
-        {
-            try
-            {
-                return handler.CanHandleIncomingItem(item);
-            }
-            catch (Exception ex)
-            {
-                context.Log?.Invoke(
-                    $"Item handler {handler.GetType().FullName}.CanHandle threw for '{item.MessageType}': {ex}",
-                    LogLevel.ERROR);
-                return false;
-            }
+            // Consumed/stopped is not a successful business or delivery receipt.
+            observeItem(item, context, ItemHandlingResultAction.StopPropagation,
+                new ServerIncomingItemResult { Action = ItemHandlingResultAction.StopPropagation });
+            return true;
         }
 
         private ServerIncomingItemResult decodeWithCodecsBuiltin(FrameworkPacket item, ServerFrameworkContext context)
@@ -447,14 +426,11 @@ namespace ServerRuntime
 
             foreach (IItemCodec codec in ItemCodecs)
             {
-                if (!codec.CanDecode(payload, codecContext))
-                {
-                    continue;
-                }
-
                 try
                 {
+                    if (!codec.CanDecode(payload, codecContext)) continue;
                     object decoded = codec.Decode(payload, codecContext);
+                    if (decoded == null) throw new InvalidDataException("Item decoder returned no result.");
                     if (decoded != null && codec.CanEncode(decoded, codecContext))
                     {
                         codec.Encode(decoded, codecContext);
@@ -469,10 +445,8 @@ namespace ServerRuntime
                 }
                 catch (Exception ex)
                 {
-                    context.Log?.Invoke(
-                        $"Item codec '{codec.CodecId}' threw for '{item.MessageType}': {ex}",
-                        LogLevel.ERROR);
-                    continue;
+                    LogFailure(context, "Inbound item codec failed", ex);
+                    return new ServerIncomingItemResult { Action = ItemHandlingResultAction.StopPropagation };
                 }
             }
 
@@ -487,7 +461,58 @@ namespace ServerRuntime
             };
         }
 
-        public void DispatchOutbound(FrameworkPacket packet, ServerOutboundPacketContext context)
+        public void DispatchOutbound(FrameworkPacket packet, ServerOutboundPacketContext context) => dispatchOutbound(packet, context, false);
+
+        public PacketDispatchResult DispatchOutboundWithResult(FrameworkPacket packet, ServerOutboundPacketContext context,
+            Func<string, FrameworkPacket, TransportSendOutcome> deliver)
+        {
+            var outcomes = (context?.TargetConnectionIds ?? Array.Empty<string>()).Where(id => !string.IsNullOrEmpty(id))
+                .Distinct().ToDictionary(id => id, _ => TransportSendOutcome.NotSent);
+            if (packet == null || context == null || deliver == null) return new PacketDispatchResult(outcomes);
+            bool uncertainFailure = false, closed = false;
+            var handoffGate = new object();
+            var attempted = new HashSet<string>();
+            var snapshot = createSnapshot(context, context.TargetConnectionIds);
+            snapshot.DeliverToConnection = (id, outgoing) =>
+            {
+                lock (handoffGate)
+                {
+                    // Report publication closes this scoped callback. Async work must initiate a
+                    // separate dispatch, rather than send after its caller received NotSent.
+                    if (closed || string.IsNullOrEmpty(id)) return;
+                    try
+                    {
+                        // Interceptors receive the same gated handoff, never a capability bypass.
+                        if ((context.IsConnectionFrameworkCapable != null && !context.IsConnectionFrameworkCapable(id)) ||
+                            (!string.IsNullOrEmpty(outgoing?.MessageType) && context.ConnectionHasCapability != null && !context.ConnectionHasCapability(id, outgoing.MessageType)))
+                        { if (!attempted.Contains(id)) outcomes[id] = TransportSendOutcome.NotSent; return; }
+                        // An interceptor may call delivery and then Continue; never send a second copy.
+                        if (!attempted.Add(id)) { outcomes[id] = TransportSendOutcome.Unknown; return; }
+                        outcomes[id] = deliver(id, outgoing);
+                    }
+                    catch { outcomes[id] = TransportSendOutcome.Unknown; }
+                }
+            };
+            try { dispatchOutbound(packet, snapshot, true); }
+            catch (Exception error)
+            {
+                // Interceptor/predicate may already have produced side effects. Do not continue
+                // another candidate or misclassify the request as safe to retry.
+                lock (handoffGate)
+                {
+                    uncertainFailure = closed = true;
+                    foreach (string id in outcomes.Keys.ToArray()) outcomes[id] = TransportSendOutcome.Unknown;
+                }
+                try { context.Log?.Invoke("Outbound dispatch failed: " + error.GetType().Name, LogLevel.ERROR); } catch { }
+            }
+            lock (handoffGate)
+            {
+                closed = true;
+                return new PacketDispatchResult(outcomes, uncertainFailure);
+            }
+        }
+
+        private void dispatchOutbound(FrameworkPacket packet, ServerOutboundPacketContext context, bool stopOnFailure)
         {
             if (packet == null || context?.DeliverToConnection == null)
             {
@@ -507,6 +532,7 @@ namespace ServerRuntime
                 }
                 catch (Exception ex)
                 {
+                    if (stopOnFailure) throw;
                     context.Log?.Invoke(
                         $"Outbound packet interceptor {interceptor.GetType().FullName}.CanIntercept threw for '{currentPacket.MessageType}': {ex}",
                         LogLevel.ERROR);
@@ -525,6 +551,7 @@ namespace ServerRuntime
                 }
                 catch (Exception ex)
                 {
+                    if (stopOnFailure) throw;
                     context.Log?.Invoke(
                         $"Outbound packet interceptor {interceptor.GetType().FullName} threw for '{currentPacket.MessageType}': {ex}",
                         LogLevel.ERROR);
@@ -571,7 +598,7 @@ namespace ServerRuntime
                 }
             }
 
-            foreach (string connectionId in currentTargets.Where(connectionId => !string.IsNullOrEmpty(connectionId)))
+            foreach (string connectionId in currentTargets.Where(connectionId => !string.IsNullOrEmpty(connectionId)).Distinct())
             {
                 if (context.IsConnectionFrameworkCapable != null && !context.IsConnectionFrameworkCapable(connectionId))
                 {
@@ -606,8 +633,7 @@ namespace ServerRuntime
         {
             return !action.HasValue ||
                    action.Value == MessageHandlingResultAction.Continue ||
-                   action.Value == MessageHandlingResultAction.Observe ||
-                   action.Value == MessageHandlingResultAction.LegacyFallback;
+                   action.Value == MessageHandlingResultAction.Observe;
         }
 
         private static bool isReplace(MessageHandlingResultAction? action)
@@ -640,9 +666,7 @@ namespace ServerRuntime
                 }
                 catch (Exception ex)
                 {
-                    context.Log?.Invoke(
-                        $"Message observer {observer.GetType().FullName}.CanObserve threw for '{message.MessageType}': {ex}",
-                        LogLevel.ERROR);
+                    LogFailure(context, "Inbound observer failed", ex);
                     continue;
                 }
 
@@ -657,9 +681,7 @@ namespace ServerRuntime
                 }
                 catch (Exception ex)
                 {
-                    context.Log?.Invoke(
-                        $"Message observer {observer.GetType().FullName} threw for '{message.MessageType}': {ex}",
-                        LogLevel.ERROR);
+                    LogFailure(context, "Inbound observer failed", ex);
                 }
             }
         }
@@ -675,9 +697,7 @@ namespace ServerRuntime
                 }
                 catch (Exception ex)
                 {
-                    context.Log?.Invoke(
-                        $"Command observer {observer.GetType().FullName}.CanObserve threw for '{command.MessageType}': {ex}",
-                        LogLevel.ERROR);
+                    LogFailure(context, "Inbound observer failed", ex);
                     continue;
                 }
 
@@ -692,9 +712,7 @@ namespace ServerRuntime
                 }
                 catch (Exception ex)
                 {
-                    context.Log?.Invoke(
-                        $"Command observer {observer.GetType().FullName} threw for '{command.MessageType}': {ex}",
-                        LogLevel.ERROR);
+                    LogFailure(context, "Inbound observer failed", ex);
                 }
             }
         }
@@ -710,9 +728,7 @@ namespace ServerRuntime
                 }
                 catch (Exception ex)
                 {
-                    context.Log?.Invoke(
-                        $"Item observer {observer.GetType().FullName}.CanObserve threw for '{item.MessageType}': {ex}",
-                        LogLevel.ERROR);
+                    LogFailure(context, "Inbound observer failed", ex);
                     continue;
                 }
 
@@ -727,9 +743,7 @@ namespace ServerRuntime
                 }
                 catch (Exception ex)
                 {
-                    context.Log?.Invoke(
-                        $"Item observer {observer.GetType().FullName} threw for '{item.MessageType}': {ex}",
-                        LogLevel.ERROR);
+                    LogFailure(context, "Inbound observer failed", ex);
                 }
             }
         }
@@ -737,8 +751,7 @@ namespace ServerRuntime
         private static bool shouldContinueItem(ItemHandlingResultAction? action)
         {
             return !action.HasValue ||
-                   action.Value == ItemHandlingResultAction.Continue ||
-                   action.Value == ItemHandlingResultAction.LegacyFallback;
+                   action.Value == ItemHandlingResultAction.Continue;
         }
 
         private static bool isReplaceItem(ItemHandlingResultAction? action)

@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "collector": "coverlet.console",
+  "version": "6.0.4",
+  "packageSha512": "vf8Eso1jIgSdEJ0YJdcx8U4PgZZScdVBpqAejwT0ZEic+aYnzXpQ3juPzhmn0tvTXmlNLnGpsxCfnUyRbJJrcQ==",
+  "assemblies": [
+    "TradeExtension.Server",
+    "Authentication.Server",
+    "UserManagement.Server"
+  ],
+  "excludedFiles": [
+    "**/obj/**",
+    "**/compiled/**",
+    "**/Dependencies/**"
+  ],
+  "testSuite": "ServerSafetyRegressionTests",
+  "scope": "Safety component pilot only; excludes generated/vendor/test assemblies; no whole-server or game coverage claim"
+}

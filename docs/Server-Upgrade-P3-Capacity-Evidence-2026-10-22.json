@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "date": "2026-10-22",
+  "taskIds": [
+    "SV-36 subset",
+    "SV-31/32 subset",
+    "TQ-30/31 subset",
+    "PF-07 subset"
+  ],
+  "serverHead": "5a0508acb703319e60dd5600e3e0facd0397b294",
+  "sourceState": "dirty; exact file hashes, not a new committed revision",
+  "sourceSha256": {
+    "Extensions/Trade/Server/PhinixFrameworkTradeStore.cs": "dec1ccbc509882ca76951ffc8a33dfe19621cc3109e231e8e6e6ca6bb8b10e30",
+    "Extensions/Trade/Server/PhinixFrameworkTradePersistence.cs": "bd0f654621ccf9bba6eb291129fb19c10687d26a6325d4e33fc87fdc762c25e8",
+    "Extensions/Trade/Server/PhinixFrameworkTradeServerService.cs": "590800d776322b34fb5efbf9ed5cd144095ebc7be9e2c014f1edac046e4a1638",
+    "Tests/ServerTradePersistenceTests/Program.cs": "6f805890b6b3f515a293ef7b7d21739d5d8574c820448a26a1703403c862bc1b"
+  },
+  "stagePassed": true,
+  "stageChecks": 33,
+  "profile": "existing-rework-component",
+  "modelSeeds": [
+    20261015,
+    20261017
+  ],
+  "capacitySeed": "deterministic fixed 256 KiB payloads",
+  "newProductionFaultHooks": false,
+  "baselineRegression": "Completion reservation admitted an oversized future terminal ledger",
+  "layers": "L1/L2 plus existing process kill/recovery checks",
+  "softAdmissionBytes": 3145728,
+  "hardLedgerBytes": 4194304,
+  "noClientCommonVendorOrSchemaChange": true,
+  "deployed": false,
+  "newUdpValidation": false,
+  "realGameValidated": false,
+  "remaining": [
+    "per-principal quotas",
+    "paging",
+    "incremental storage",
+    "safe archive",
+    "operation-result disk budget",
+    "production CPU/GC/latency measurement",
+    "legacy ledger above hard terminalization limit"
+  ],
+  "evidenceDirectory": "/home/hunyuan2333/Phinix/Deliverables/Phinix-Rework-Server-Capacity-2026-10-22"
+}

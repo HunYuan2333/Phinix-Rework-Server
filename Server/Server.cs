@@ -5,6 +5,12 @@ using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Timers;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Runtime.InteropServices;
+using Autofac;
+using ServerRuntime;
+using Timer = System.Timers.Timer;
 using Authentication;
 using Connections;
 using PhinixServer.Framework;
@@ -24,87 +30,169 @@ namespace PhinixServer
         // Module instance variables
         public static Config Config;
         public static Logger Logger;
-        public static NetServer Connections;
+        public static IServerTransport Connections;
         public static ServerAuthenticator Authenticator;
         public static ServerUserManager UserManager;
         public static PhinixFrameworkServer Framework;
 
-        // Exiting flag to stop the main run loop
-        private static bool exiting = false;
+        private static readonly CancellationTokenSource shutdownRequested = new CancellationTokenSource();
+        private static ServerSaveLifecycle saveLifecycle;
 
         // Save timer
         private static Timer saveTimer;
 
         static void Main()
         {
+            try { Run(); }
+            catch (Exception error)
+            {
+                // Startup failures must not invoke the normal final-save path or expose payloads.
+                Environment.ExitCode = 1;
+                Console.Error.WriteLine("Server startup failed: " + error.GetType().Name);
+            }
+        }
+
+        private static void Run()
+        {
             // Read in the config and initialise the logging module
+            const string identityModeAnchor = "identity-authority.required";
+            if (System.IO.File.Exists(identityModeAnchor) && !System.IO.File.Exists(CONFIG_FILE))
+                throw new System.IO.IOException("Expected modern server configuration is missing; refusing default identity settings.");
             Config = Config.Load(CONFIG_FILE);
+            if (System.IO.File.Exists(identityModeAnchor) && (Config.ModernIdentity == null || !System.IO.File.Exists(Config.ModernIdentity.DatabaseFile)))
+                throw new System.IO.IOException("Expected modern authority is missing or disabled; refusing an identity downgrade.");
             Logger = new Logger(Config.LogPath, Config.DisplayVerbosity, Config.LogVerbosity);
 
             // Set up module instances
-            Connections = new NetServer(new IPEndPoint(Config.Address, Config.Port), Config.MaxConnections);
-            Authenticator = new ServerAuthenticator(
-                netServer: Connections,
-                serverName: Config.ServerName,
-                serverDescription: Config.ServerDescription,
-                authType: Config.AuthType
-            );
-            UserManager = new ServerUserManager(Connections, Authenticator, Config.MaxDisplayNameLength);
+            using IContainer container = ServerComposition.Build(Config);
+            using ILifetimeScope application = container.BeginLifetimeScope();
+            Connections = application.Resolve<IServerTransport>();
+            Authenticator = application.Resolve<ServerAuthenticator>();
+            UserManager = application.Resolve<ServerUserManager>();
+            var workQueue = application.Resolve<ServerWorkQueue>();
+            var dispatcher = new FrameworkServerPacketDispatcher();
+            EventHandler drainWork = (_, _) => workQueue.Drain();
+            var faultSource = Connections as IServerTransportFaultSource;
+            Action<string> onTransportFailure = errorType =>
+            {
+                Environment.ExitCode = 1;
+                RequestShutdown();
+                Console.Error.WriteLine("Server transport worker failed: " + errorType);
+            };
+            saveLifecycle = new ServerSaveLifecycle(SaveStates);
+            using var timer = new Timer(Config.SaveInterval) { AutoReset = true };
+            saveTimer = timer;
+
+            try
+            {
+                Authenticator.OnLogEntry += ILoggableHandler;
+                UserManager.OnLogEntry += ILoggableHandler;
+                Connections.PollCompleted += drainWork;
+                if (faultSource != null) faultSource.WorkerFailed += onTransportFailure;
+                timer.Elapsed += saveHandler;
+                RunApplication(application, identityModeAnchor, workQueue, dispatcher);
+            }
+            catch
+            {
+                // Unwind while the application scope and the services borrowed by plugins still exist.
+                try { saveLifecycle.StopWithoutSave(Quiesce); }
+                catch (Exception error) { Console.Error.WriteLine("Server cleanup failed: " + error.GetType().Name); }
+                throw;
+            }
+            finally
+            {
+                timer.Elapsed -= saveHandler;
+                dispatcher.ConfigureWithResult(null);
+                Connections.PollCompleted -= drainWork;
+                if (faultSource != null) faultSource.WorkerFailed -= onTransportFailure;
+                Authenticator.OnLogEntry -= ILoggableHandler;
+                UserManager.OnLogEntry -= ILoggableHandler;
+                if (Framework != null) Framework.OnLogEntry -= ILoggableHandler;
+            }
+        }
+
+        private static void RunApplication(ILifetimeScope application, string identityModeAnchor,
+            ServerWorkQueue workQueue, FrameworkServerPacketDispatcher frameworkPacketDispatcher)
+        {
+            // Refuse corrupt core snapshots before activating any extensions.
+            Authenticator.Load(Config.CredentialDatabasePath);
+            UserManager.Load(Config.UserDatabasePath);
+            if (Config.ModernIdentity != null)
+            {
+                application.Resolve<PasswordlessIdentityEndpoint>();
+                IdentityAuthorityBootstrap.PinMode(identityModeAnchor, application.Resolve<PasswordlessIdentityStore>().ServerId);
+            }
             ExtensionHostContext extensionHostContext = new ExtensionHostContext
             {
                 HostKind = "server",
                 Log = (message, level) => ILoggableHandler(typeof(Server), new LogEventArgs(message, level)),
                 StorageProvider = new FileSystemExtensionStorageProvider(System.IO.Path.Combine("framework-extensions", "server"))
             };
+            extensionHostContext.AddService<ServerStorage.IOperationJournalFactory>(application.Resolve<ServerStorage.IOperationJournalFactory>());
             extensionHostContext.AddService(UserManager);
             extensionHostContext.AddService<IServerUserManager>(UserManager);
-            FrameworkServerPacketDispatcher frameworkPacketDispatcher = new FrameworkServerPacketDispatcher();
+            extensionHostContext.AddService<IServerTransport>(Connections);
+            extensionHostContext.AddService<IServerPrincipalAuthorization>(UserManager);
+            extensionHostContext.AddService<IServerWorkQueue>(workQueue);
             extensionHostContext.AddService<IFrameworkServerPacketDispatcher>(frameworkPacketDispatcher);
+            extensionHostContext.AddService<IResultServerPacketDispatcher>(frameworkPacketDispatcher);
             extensionHostContext.AddService<IExtensionConfigProvider>(Config);
             ExtensionAssemblyLoader.LoadAssemblies(
                 GetExtensionProbeDirectories(),
                 (message, level) => ILoggableHandler(typeof(Server), new LogEventArgs(message, level)));
             Framework = new PhinixFrameworkServer(Connections, Authenticator, UserManager, extensionHostContext);
-            frameworkPacketDispatcher.Configure((connectionId, sourceExtensionId, packet) =>
-                Framework?.DispatchExtensionPacket(sourceExtensionId, connectionId, packet));
-            extensionHostContext.AddService<IFrameworkServerBroadcaster>(Framework);
+            frameworkPacketDispatcher.ConfigureWithResult((connectionId, sourceExtensionId, packet) =>
+                Framework?.DispatchExtensionPacketWithResult(sourceExtensionId, connectionId, packet) ??
+                PacketDispatchResult.Single(connectionId, global::Connections.TransportSendOutcome.NotSent));
 
             // Add handler for ILoggable modules
-            Authenticator.OnLogEntry += ILoggableHandler;
-            UserManager.OnLogEntry += ILoggableHandler;
             Framework.OnLogEntry += ILoggableHandler;
 
-            // Load saved data
-            Authenticator.Load(Config.CredentialDatabasePath);
-            UserManager.Load(Config.UserDatabasePath);
-
-            // Set up the save timer
-            saveTimer = new Timer
+            Console.CancelKeyPress += RequestShutdown;
+            try
             {
-                AutoReset = true,
-                Enabled = true,
-                Interval = Config.SaveInterval
-            };
-            saveTimer.Elapsed += saveHandler;
-            saveTimer.Start();
+                using var terminateSignal = OperatingSystem.IsWindows() ? null : PosixSignalRegistration.Create(PosixSignal.SIGTERM, context =>
+                {
+                    context.Cancel = true;
+                    RequestShutdown();
+                });
+                if (!shutdownRequested.IsCancellationRequested)
+                {
+                    Connections.Start();
+                    Logger.Log(Verbosity.INFO, Config.ModernIdentity != null ? "Accepting TLS passwordless identity v1" : string.Format("Accepting auth type \"{0}\"", Config.AuthType.ToString()));
+                    Logger.Log(Verbosity.INFO, string.Format("Phinix server version {0} listening on {1}:{2}", Version, Connections.Endpoint.Address, Connections.LocalPort));
+                    saveTimer.Start();
+                    RunConsole();
+                    StopAndSave();
+                }
+                else
+                {
+                    saveLifecycle.StopWithoutSave(Quiesce);
+                }
+            }
+            finally { Console.CancelKeyPress -= RequestShutdown; }
+        }
 
-            // Start listening for connections
-            Connections.Start();
-
-            // State our auth type and where we're listening from
-            Logger.Log(Verbosity.INFO, string.Format("Accepting auth type \"{0}\"", Config.AuthType.ToString()));
-            Logger.Log(Verbosity.INFO, string.Format("Phinix server version {0} listening on {1}:{2}", Version, Connections.Endpoint.Address, Connections.Endpoint.Port));
-
-            // Set up an exit condition on SIGINT/Ctrl+C
-            Console.CancelKeyPress += shutdownHandler;
-
+        private static void RunConsole()
+        {
             // Start interpreting commands
             CommandInterpreter interpreter = new CommandInterpreter(
                 () => Framework?.ResolveExtensionApis<IServerConsoleCommandProvider>() ?? Array.Empty<IServerConsoleCommandProvider>());
-            while (!exiting)
+            while (!shutdownRequested.IsCancellationRequested)
             {
                 // Wait until we've got a command to interpret
-                string line = Console.ReadLine();
+                string line;
+                try
+                {
+                    line = Task.Run(() => Console.ReadLine()).WaitAsync(shutdownRequested.Token).GetAwaiter().GetResult();
+                }
+                catch (OperationCanceledException) { break; }
+                if (line == null)
+                {
+                    // Dedicated/background server: EOF disables console input, not the server.
+                    shutdownRequested.Token.WaitHandle.WaitOne();
+                    break;
+                }
 
                 // Don't do anything if the command is empty
                 if (string.IsNullOrEmpty(line)) continue;
@@ -118,7 +206,7 @@ namespace PhinixServer
                 // This is checked here to avoid weird workarounds from the interpreter
                 if (command == "exit" || command == "quit" || command == "stop")
                 {
-                    shutdownHandler();
+                    RequestShutdown();
                     break;
                 }
 
@@ -147,53 +235,46 @@ namespace PhinixServer
         /// <param name="e"></param>
         private static void saveHandler(object sender, ElapsedEventArgs e)
         {
-            Logger.Log(Verbosity.INFO, "Saving module states...");
-
-            // Save module states
-            Authenticator.Save(Config.CredentialDatabasePath);
-            UserManager.Save(Config.UserDatabasePath);
-            Framework.SaveExtensionState();
-
-            // Save config too
-            Config.Save(CONFIG_FILE);
-
-            Logger.Log(Verbosity.INFO, "Saved module states");
+            try { saveLifecycle.TrySave(); }
+            catch (Exception error)
+            {
+                Environment.ExitCode = 1;
+                // Do not log arbitrary exception messages from persistence implementations.
+                Console.Error.WriteLine("Server save failed: " + error.GetType().Name);
+            }
         }
 
-        /// <summary>
-        /// Handles server shutdown events.
-        /// Used to safely save and shut down modules before closing.
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private static void shutdownHandler(object sender = null, EventArgs e = null)
+        private static void SaveStates()
         {
-            Logger.Log(Verbosity.INFO, "Server shutting down");
-
-            // Stop the save timer
-            saveTimer.Stop();
-            saveTimer.Dispose();
-
-            // Shut down extensions first so they can send final notifications before transport layer is down
-            Framework.ShutdownExtensions();
-            Framework.SaveExtensionState();
-
-            // Log everyone out
-            UserManager.LogOutAll();
-
-            // Close all connections
-            Connections.Stop();
-
-            // Save module states
-            Authenticator.Stop();
             Authenticator.Save(Config.CredentialDatabasePath);
             UserManager.Save(Config.UserDatabasePath);
-
-            // Save the config
+            if (!Framework.TrySaveExtensionState())
+                throw new IOException("One or more extension states could not be saved.");
             Config.Save(CONFIG_FILE);
+        }
 
-            // Exit the main run loop
-            exiting = true;
+        private static void RequestShutdown(object sender = null, EventArgs e = null)
+        {
+            if (e is ConsoleCancelEventArgs consoleEvent) consoleEvent.Cancel = true;
+            shutdownRequested.Cancel();
+        }
+
+        private static void Quiesce()
+        {
+            saveTimer.Stop();
+            Connections.Stop();
+            Framework?.ShutdownExtensions();
+            UserManager.LogOutAll();
+        }
+
+        private static void StopAndSave()
+        {
+            try { saveLifecycle.Stop(Quiesce); }
+            catch (Exception error)
+            {
+                Environment.ExitCode = 1;
+                Console.Error.WriteLine("Server shutdown failed: " + error.GetType().Name);
+            }
         }
 
         /// <summary>

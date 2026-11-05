@@ -8,6 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../ServerStorage/ServerStorage.csproj" />
+    <InternalsVisibleTo Include="ServerSafetyRegressionTests" />
     <Compile Include="..\UserManagement\ServerUserManager.cs">
       <Link>ServerUserManager.cs</Link>
     </Compile>

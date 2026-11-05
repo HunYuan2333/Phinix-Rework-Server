@@ -1,0 +1,175 @@
+{
+  "schema": 1,
+  "classification": "redacted-derived-original-module-capture",
+  "sourceRepository": "https://github.com/thomotron/Phinix",
+  "sourceSha": "ce82b8f2cd57718f05de86458eebd3320f35c4d8",
+  "protobufRepository": "https://github.com/thomotron/protobuf",
+  "protobufSha": "dd06cc6c8f906b760ef224a085f45e7694dc426a",
+  "producerSha256": {
+    "Program.cs": "a2d75a032488eb00b91dce2deb61538daae4a4cefc0a1bd87ce365e1f2d24370",
+    "LegacyModuleProbe.csproj": "40330fc3997053f035ab1ccd40089ca80c40768a2308e026746d9118c2f38ecc"
+  },
+  "runnerSha256": "9e4468ba17d3c857f112773a0f2998202266979a713a05639da6100fae40bf1c",
+  "runtime": "Mono JIT compiler version 6.12.0 (makepkg/0cbf0e290c3 Tue Jun 11 13:06:07 CEST 2024)",
+  "sdk": ".NET SDK:\n Version:           10.0.112\n Commit:            95017c711e\n Workload version:  10.0.100-manifests.63b36e85\n MSBuild version:   18.0.11\n\nRuntime Environment:\n OS Name:     cachyos\n OS Version:  \n OS Platform: Linux\n RID:         arch-x64\n Base Path:   /usr/share/dotnet/sdk/10.0.112/\n\n.NET workloads installed:\nThere are no installed workloads to display.\nConfigured to use workload sets when installing new manifests.\nNo workload sets are installed. Run \"dotnet workload restore\" to install a workload set.\n\nHost:\n  Version:      10.0.12\n  Architecture: x64\n  Commit:       95017c711e\n\n.NET SDKs installed:\n  10.0.112 [/usr/share/dotnet/sdk]\n\n.NET runtimes installed:\n  Microsoft.NETCore.App 10.0.12 [/usr/share/dotnet/shared/Microsoft.NETCore.App]\n\nOther architectures found:\n  None\n\nEnvironment variables:\n  Not set\n\nglobal.json file:\n  Not found\n\nLearn more:\n  https://aka.ms/dotnet/info\n\nDownload .NET:\n  https://aka.ms/dotnet/download\n",
+  "sourceInputs": {
+    "Common/Chat/ClientChat.cs": "2a9b47d0d5a5f78d56de86458735d038fd85218985e19e19e7297f7248687a2e",
+    "Common/Chat/ServerChat.cs": "c67796fd99222447a37a60d041886cceea8b3e65ce90989d96dd31acb62ae3fc",
+    "Common/Chat/Packets/ChatMessagePacket.proto": "aa5332d2ad2e4beb6100b6d395bbe90e732e076403012567fbc2637409a2bf12",
+    "Common/Chat/Packets/ChatMessageResponsePacket.proto": "2b2aba6a2f0f7ae38f7769acee054aa0dd30368c447c7a2b8fc545e9ac08e12b",
+    "Common/UserManagement/Packets/LoginPacket.proto": "e740ea15f8e6db2e8c48f2124b0df1d86a32e5edfc49f03868d9df403da8bc19",
+    "Common/Connections/NetClient.cs": "c84969f2e1185b06f1b9d6ab07e78a313a274d6055851e19306c07d9f9b12f0b",
+    "Common/Connections/NetServer.cs": "f3ddcc860b0b749fe98a6964a30b47dcc485034d5e1aea9b1de2893dda27b908",
+    "Common/Trading/ClientTrading.cs": "2461640bd9d6fb56366a3d2c8b140e5ae2d2d10f38c4e37f1700d0736df541be",
+    "Common/Trading/Packets/CompleteTradePacket.proto": "7a77f8164d2c7e5c635e795f5bceb308ea8cf5b7d2d10056d143b52446771345"
+  },
+  "binaryHashes": {
+    "Common/Authentication/bin/Release/Authentication.dll": "81a569fd642b63b37073209d33564ff3e0a0844b9b708cd298e4bf81d55558d5",
+    "Common/Authentication/bin/Release/LiteNetLib.dll": "c4ad697e3032a221892d894f1f225738a819b4c061b3de7f8ac4437b01b9e0c8",
+    "Common/Authentication/bin/Release/Connections.dll": "a9d2c22097d282fc8e757cccbf3c5ae3176773f0ed455086682490157a2d10ca",
+    "Common/Authentication/bin/Release/Google.Protobuf.dll": "27421822621d2a334638e4462c141d150aeaec96eebc12afdc17ef4f6dc8996c",
+    "Common/Authentication/bin/Release/Pastel.dll": "43a7ef0c7dfc76986a3e955472795d0979213f3bfc7f57e2ecf1e5771f4940ed",
+    "Common/Authentication/bin/Release/Utils.dll": "8ff5f79a7c02bd804bca0986ee725cbf2a60b94bc9d7f0b1338228e6da3da8b5",
+    "Common/Chat/bin/Release/Chat.dll": "23c929d98bd54d37d03bd54758df81fe7036bfde651d7cad50d8cf8412ee91ab",
+    "Common/Chat/bin/Release/Pastel.dll": "43a7ef0c7dfc76986a3e955472795d0979213f3bfc7f57e2ecf1e5771f4940ed",
+    "Common/Chat/bin/Release/Connections.dll": "a9d2c22097d282fc8e757cccbf3c5ae3176773f0ed455086682490157a2d10ca",
+    "Common/Chat/bin/Release/Utils.dll": "8ff5f79a7c02bd804bca0986ee725cbf2a60b94bc9d7f0b1338228e6da3da8b5",
+    "Common/Chat/bin/Release/Google.Protobuf.dll": "27421822621d2a334638e4462c141d150aeaec96eebc12afdc17ef4f6dc8996c",
+    "Common/Chat/bin/Release/LiteNetLib.dll": "c4ad697e3032a221892d894f1f225738a819b4c061b3de7f8ac4437b01b9e0c8",
+    "Common/Chat/bin/Release/UserManagement.dll": "5bcd24229f5d5500d27fee1223230006ec7e6554daccfe3ea386fa9b4905ca46",
+    "Common/Chat/bin/Release/Authentication.dll": "81a569fd642b63b37073209d33564ff3e0a0844b9b708cd298e4bf81d55558d5",
+    "Common/Connections/bin/Release/Connections.dll": "a9d2c22097d282fc8e757cccbf3c5ae3176773f0ed455086682490157a2d10ca",
+    "Common/Connections/bin/Release/Pastel.dll": "43a7ef0c7dfc76986a3e955472795d0979213f3bfc7f57e2ecf1e5771f4940ed",
+    "Common/Connections/bin/Release/Google.Protobuf.dll": "27421822621d2a334638e4462c141d150aeaec96eebc12afdc17ef4f6dc8996c",
+    "Common/Connections/bin/Release/Utils.dll": "8ff5f79a7c02bd804bca0986ee725cbf2a60b94bc9d7f0b1338228e6da3da8b5",
+    "Common/Connections/bin/Release/LiteNetLib.dll": "c4ad697e3032a221892d894f1f225738a819b4c061b3de7f8ac4437b01b9e0c8",
+    "Common/Trading/bin/Release/Trading.dll": "0e04ec8a78cda59bdf344d11bfeadd26b162ac529b3330ad9f7106ad70f7b685",
+    "Common/Trading/bin/Release/Pastel.dll": "43a7ef0c7dfc76986a3e955472795d0979213f3bfc7f57e2ecf1e5771f4940ed",
+    "Common/Trading/bin/Release/Utils.dll": "8ff5f79a7c02bd804bca0986ee725cbf2a60b94bc9d7f0b1338228e6da3da8b5",
+    "Common/Trading/bin/Release/LiteNetLib.dll": "c4ad697e3032a221892d894f1f225738a819b4c061b3de7f8ac4437b01b9e0c8",
+    "Common/Trading/bin/Release/Authentication.dll": "81a569fd642b63b37073209d33564ff3e0a0844b9b708cd298e4bf81d55558d5",
+    "Common/Trading/bin/Release/UserManagement.dll": "5bcd24229f5d5500d27fee1223230006ec7e6554daccfe3ea386fa9b4905ca46",
+    "Common/Trading/bin/Release/Google.Protobuf.dll": "27421822621d2a334638e4462c141d150aeaec96eebc12afdc17ef4f6dc8996c",
+    "Common/Trading/bin/Release/Connections.dll": "a9d2c22097d282fc8e757cccbf3c5ae3176773f0ed455086682490157a2d10ca",
+    "Common/UserManagement/bin/Release/UserManagement.dll": "5bcd24229f5d5500d27fee1223230006ec7e6554daccfe3ea386fa9b4905ca46",
+    "Common/UserManagement/bin/Release/Pastel.dll": "43a7ef0c7dfc76986a3e955472795d0979213f3bfc7f57e2ecf1e5771f4940ed",
+    "Common/UserManagement/bin/Release/Utils.dll": "8ff5f79a7c02bd804bca0986ee725cbf2a60b94bc9d7f0b1338228e6da3da8b5",
+    "Common/UserManagement/bin/Release/LiteNetLib.dll": "c4ad697e3032a221892d894f1f225738a819b4c061b3de7f8ac4437b01b9e0c8",
+    "Common/UserManagement/bin/Release/Google.Protobuf.dll": "27421822621d2a334638e4462c141d150aeaec96eebc12afdc17ef4f6dc8996c",
+    "Common/UserManagement/bin/Release/Connections.dll": "a9d2c22097d282fc8e757cccbf3c5ae3176773f0ed455086682490157a2d10ca",
+    "Common/UserManagement/bin/Release/Authentication.dll": "81a569fd642b63b37073209d33564ff3e0a0844b9b708cd298e4bf81d55558d5",
+    "Common/Utils/bin/Release/Utils.dll": "8ff5f79a7c02bd804bca0986ee725cbf2a60b94bc9d7f0b1338228e6da3da8b5",
+    "Common/Utils/bin/Release/Pastel.dll": "43a7ef0c7dfc76986a3e955472795d0979213f3bfc7f57e2ecf1e5771f4940ed",
+    "Common/Utils/bin/Release/Google.Protobuf.dll": "27421822621d2a334638e4462c141d150aeaec96eebc12afdc17ef4f6dc8996c",
+    "Dependencies/protobuf/csharp/src/Google.Protobuf/bin/Release/net472/Google.Protobuf.dll": "27421822621d2a334638e4462c141d150aeaec96eebc12afdc17ef4f6dc8996c"
+  },
+  "packageInputs": {
+    ".nuget/LiteNetLib.0.7.7.3/lib/net35/LiteNetLib.dll": "c4ad697e3032a221892d894f1f225738a819b4c061b3de7f8ac4437b01b9e0c8",
+    ".nuget/LiteNetLib.0.7.7.3/lib/wpa81/LiteNetLibWin81.dll": "fcfb937548a54102755f0fd34aeec5c81c459b32f968ec0e3a55a7740b4be577",
+    ".nuget/LiteNetLib.0.7.7.3/lib/netcoreapp1.1/LiteNetLib.dll": "ed5bebd78191fb7bef149063fb4a226e9fb4350d46edc80b0ec8ef428ea8872f",
+    ".nuget/LiteNetLib.0.7.7.3/lib/netstandard2.0/LiteNetLib.dll": "320526331c04be0218341e68412b51df5752aa5381842c7c9d26e414c217eca0",
+    ".nuget/Pastel.1.3.1/lib/netstandard2.0/Pastel.dll": "43a7ef0c7dfc76986a3e955472795d0979213f3bfc7f57e2ecf1e5771f4940ed"
+  },
+  "captureManifestSha256": "757b2bda35af7e931f6a66df6b2939a0137453d8900879e95c00b2710da22496",
+  "checks": [
+    {
+      "command": [
+        "dotnet",
+        "restore",
+        "/tmp/phinix-original-z_qnpnxl/original/Dependencies/protobuf/csharp/src/Google.Protobuf/Google.Protobuf.csproj",
+        "--disable-parallel",
+        "-m:1",
+        "-p:NuGetAudit=false",
+        "-p:TargetFrameworks=net472",
+        "-p:TargetFramework=net472"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 0.464,
+      "passed": true,
+      "name": "protobuf-restore"
+    },
+    {
+      "command": [
+        "dotnet",
+        "msbuild",
+        "/tmp/phinix-original-z_qnpnxl/original/Common/Chat/Chat.csproj",
+        "-t:Build",
+        "-p:Configuration=Release",
+        "-m:1",
+        "-p:BuildInParallel=false",
+        "-p:TargetFramework=net472",
+        "-p:TargetFrameworkRootPath=/home/hunyuan2333/.nuget/packages/microsoft.netframework.referenceassemblies.net472/1.0.3/build/",
+        "-p:EnableSourceControlManagerQueries=false",
+        "-p:EnableSourceLink=false"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 1.366,
+      "passed": true,
+      "name": "chat-build"
+    },
+    {
+      "command": [
+        "dotnet",
+        "msbuild",
+        "/tmp/phinix-original-z_qnpnxl/original/Common/Trading/Trading.csproj",
+        "-t:Build",
+        "-p:Configuration=Release",
+        "-m:1",
+        "-p:BuildInParallel=false",
+        "-p:TargetFramework=net472",
+        "-p:TargetFrameworkRootPath=/home/hunyuan2333/.nuget/packages/microsoft.netframework.referenceassemblies.net472/1.0.3/build/",
+        "-p:EnableSourceControlManagerQueries=false",
+        "-p:EnableSourceLink=false"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 0.467,
+      "passed": true,
+      "name": "trading-build"
+    },
+    {
+      "command": [
+        "dotnet",
+        "build",
+        "/tmp/phinix-original-z_qnpnxl/producer/LegacyModuleProbe.csproj",
+        "-c",
+        "Release",
+        "-m:1",
+        "-p:BuildInParallel=false",
+        "-p:NuGetAudit=false",
+        "-p:LegacyOriginalRoot=/tmp/phinix-original-z_qnpnxl/original"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 0.614,
+      "passed": true,
+      "name": "producer-build"
+    },
+    {
+      "command": [
+        "mono",
+        "/tmp/phinix-original-z_qnpnxl/producer/bin/Release/net472/LegacyModuleProbe.exe",
+        "/tmp/phinix-p0-original-acceptance/capture.json"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 0.364,
+      "passed": true,
+      "name": "original-udp-smoke"
+    }
+  ],
+  "derivedFixtureHashesReproduced": true,
+  "rawBytesRetained": false,
+  "capabilities": {
+    "reliableTradeCompletionAck": false,
+    "modernHandshake": false
+  },
+  "limitations": [
+    "No upgraded Server adapter used or tested",
+    "No original Trade runtime scenario captured",
+    "No ExistingRework profile captured",
+    "No RimWorld game asset/delivery proof"
+  ]
+}

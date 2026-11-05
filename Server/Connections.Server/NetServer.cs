@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 using System.Net;
 using System.Threading;
 using LiteNetLib;
@@ -9,22 +10,70 @@ using Utils;
 
 namespace Connections
 {
-    public class NetServer : NetCommon, IDisposable
+    public class NetServer : NetCommon, IServerTransport, IServerTransportFaultSource
     {
         /// <inheritdoc />
         public override event EventHandler<LogEventArgs> OnLogEntry;
         /// <inheritdoc />
-        public override void RaiseLogEntry(LogEventArgs e) => OnLogEntry?.Invoke(this, e);
+        public override void RaiseLogEntry(LogEventArgs e)
+        {
+            var listeners = OnLogEntry;
+            if (listeners == null) return;
+            foreach (EventHandler<LogEventArgs> listener in listeners.GetInvocationList())
+                try { listener(this, e); } catch (Exception) { }
+        }
+
+        private void PublishPollCompleted()
+        {
+            var listeners = PollCompleted;
+            if (listeners == null) return;
+            foreach (EventHandler listener in listeners.GetInvocationList())
+            {
+                try { listener(this, EventArgs.Empty); }
+                catch (Exception error) { RaiseLogEntry(new LogEventArgs("UDP poll observer failed: " + error.GetType().Name, LogLevel.ERROR)); }
+            }
+        }
+
+        private bool PublishConnectionEvent(EventHandler<ConnectionEventArgs> listeners, ConnectionEventArgs args)
+        {
+            bool complete = true;
+            if (listeners == null) return complete;
+            foreach (EventHandler<ConnectionEventArgs> listener in listeners.GetInvocationList())
+            {
+                try { listener(this, args); }
+                catch (Exception error)
+                {
+                    complete = false;
+                    RaiseLogEntry(new LogEventArgs("UDP connection observer failed: " + error.GetType().Name, LogLevel.ERROR));
+                }
+            }
+            return complete;
+        }
         
         /// <summary>
         /// Whether the server is currently listening for connections.
         /// </summary>
         public bool Listening => server != null && server.IsRunning;
+        public int LocalPort => server?.LocalPort ?? 0;
+        // Neutral host continuation point, on the same worker as packet dispatch.
+        public event EventHandler PollCompleted;
+        public event Action<string> WorkerFailed;
+        private int workerFailed;
+
+        private void ReportWorkerFailure(Exception error)
+        {
+            if (Interlocked.Exchange(ref workerFailed, 1) != 0) return;
+            RaiseLogEntry(new LogEventArgs("UDP worker failed: " + error.GetType().Name, LogLevel.ERROR));
+            var listeners = WorkerFailed;
+            if (listeners == null) return;
+            foreach (Action<string> listener in listeners.GetInvocationList())
+                try { listener(error.GetType().Name); } catch (Exception) { }
+        }
 
         /// <summary>
         /// <see cref="IPEndPoint"/> the server is listening on.
         /// </summary>
-        public readonly IPEndPoint Endpoint;
+        public IPEndPoint Endpoint { get; }
         
         /// <summary>
         /// Raised when a new connection is established.
@@ -39,6 +88,7 @@ namespace Connections
         /// Server that piggy-backs the listener and communicates with clients.
         /// </summary>
         private NetManager server;
+        private readonly PinnedUdpPeerSynchronization peerSynchronization;
         /// <summary>
         /// Collection of currently-connected peers organised by their connection ID.
         /// </summary>
@@ -66,6 +116,7 @@ namespace Connections
                 PingInterval = 5000,
                 DisconnectTimeout = 30000
             };
+            peerSynchronization = PinnedUdpPeerSynchronization.InstallServer(server, ReportWorkerFailure);
             this.connectedPeers = new Dictionary<string, NetPeer>();
             
             // Subscribe to events
@@ -79,7 +130,10 @@ namespace Connections
                 }
 
                 // Raise the connection established event for this peer
-                OnConnectionEstablished?.Invoke(this, new ConnectionEventArgs(connectionId));
+                // A partially executed authentication/startup observer cannot leave an
+                // admitted connection behind. Other subscribers still receive cleanup.
+                if (!PublishConnectionEvent(OnConnectionEstablished, new ConnectionEventArgs(connectionId)))
+                    DisconnectPeer(connectionId);
             };
             listener.PeerDisconnectedEvent += (peer, info) =>
             {
@@ -91,7 +145,7 @@ namespace Connections
                 }
 
                 // Raise the connection established event for this peer
-                OnConnectionClosed?.Invoke(this, new ConnectionEventArgs(connectionId));
+                PublishConnectionEvent(OnConnectionClosed, new ConnectionEventArgs(connectionId));
             };
         }
 
@@ -100,20 +154,33 @@ namespace Connections
         /// </summary>
         public void Start()
         {
+            // This frozen backend exposes Start(port) only; it binds IPv4 wildcard.
+            // Refuse unsupported intent instead of silently listening on all interfaces.
+            if (!IPAddress.Any.Equals(Endpoint.Address))
+                throw new NotSupportedException("The pinned UDP backend supports IPAddress 0.0.0.0 only; the requested bind address cannot be honored.");
             // Stop listening
             Stop();
 
             // Start listening
-            server.Start(Endpoint.Port);
+            if (!server.Start(Endpoint.Port))
+                throw new IOException("Transport could not start listening.");
             
             // Start a polling thread to check for incoming packets
             pollThreadStopRequested = false;
             pollThread = new Thread(() =>
             {
-                while (!pollThreadStopRequested)
+                try
                 {
-                    server.PollEvents();
-                    Thread.Sleep(10);
+                    while (!pollThreadStopRequested && Volatile.Read(ref workerFailed) == 0)
+                    {
+                        server.PollEvents();
+                        PublishPollCompleted();
+                        Thread.Sleep(10);
+                    }
+                }
+                catch (Exception error) when (error is not OutOfMemoryException)
+                {
+                    ReportWorkerFailure(error);
                 }
             });
             pollThread.IsBackground = true;
@@ -133,12 +200,12 @@ namespace Connections
 
             pollThreadStopRequested = true;
             Thread activePollThread = pollThread;
+            if (activePollThread == Thread.CurrentThread)
+                throw new InvalidOperationException("Cannot confirm poll worker termination from that worker.");
+            if (activePollThread != null && !activePollThread.Join(1000))
+                throw new TimeoutException("Poll worker did not stop within the shutdown deadline.");
+            // Keep the reference on failure so a later cleanup can still join the worker.
             pollThread = null;
-
-            if (activePollThread != null && activePollThread != Thread.CurrentThread)
-            {
-                activePollThread.Join(1000);
-            }
         }
 
         /// <summary>
@@ -153,7 +220,7 @@ namespace Connections
         /// <exception cref="NotConnectedException">Recipient must be connected to send a message</exception>
         private readonly object sendLock = new object();
 
-        public void Send(string connectionId, string module, byte[] serialisedMessage)
+        private (NetPeer Peer, NetDataWriter Writer) PrepareSend(string connectionId, string module, byte[] serialisedMessage)
         {
             // Disallow null parameters
             if (string.IsNullOrEmpty(connectionId)) throw new ArgumentException("Connection ID cannot be null or empty", nameof(connectionId));
@@ -184,10 +251,57 @@ namespace Connections
             writer.Put(module);
             writer.Put(serialisedMessage);
 
-            // Serialise access to LiteNetLib's NetPeer.Send which is not thread-safe
+            return (peer, writer);
+        }
+
+        public void Send(string connectionId, string module, byte[] serialisedMessage)
+        {
+            var prepared = PrepareSend(connectionId, module, serialisedMessage);
             lock (sendLock)
+            lock (peerSynchronization.PeerGate)
             {
-                peer.Send(writer, SendOptions.ReliableOrdered);
+                if (prepared.Peer.ConnectionState != ConnectionState.Connected)
+                    throw new NotConnectedException(prepared.Peer);
+                prepared.Peer.Send(prepared.Writer, SendOptions.ReliableOrdered);
+            }
+        }
+
+        /// <summary>
+        /// Reports local transport evidence, never remote receipt or business commitment.
+        /// Preparation failures are NotSent; exceptions/races after handoff remain Unknown.
+        /// This method never retries or switches protocols and does not log private payloads.
+        /// </summary>
+        public TransportSendOutcome TrySendWithOutcome(string connectionId, string module, byte[] serialisedMessage)
+        {
+            (NetPeer Peer, NetDataWriter Writer) prepared;
+            try { prepared = PrepareSend(connectionId, module, serialisedMessage); }
+            catch (Exception) { return TransportSendOutcome.NotSent; }
+
+            lock (sendLock)
+            lock (peerSynchronization.PeerGate)
+            {
+                return AttemptTransportSend(
+                    () => prepared.Peer.ConnectionState == ConnectionState.Connected,
+                    () => prepared.Peer.Send(prepared.Writer, SendOptions.ReliableOrdered));
+            }
+        }
+
+        // A local handoff boundary, not a remotely triggerable fault hook. Keep uncertain
+        // exceptions after Send starts distinct from errors known to precede any Send call.
+        private static TransportSendOutcome AttemptTransportSend(Func<bool> isConnected, Action handoff)
+        {
+            bool attempted = false;
+            try
+            {
+                if (!isConnected()) return TransportSendOutcome.NotSent;
+                attempted = true;
+                handoff();
+                // The pinned LiteNetLib Send can silently return for a disconnected peer.
+                return isConnected() ? TransportSendOutcome.Submitted : TransportSendOutcome.Unknown;
+            }
+            catch (Exception)
+            {
+                return attempted ? TransportSendOutcome.Unknown : TransportSendOutcome.NotSent;
             }
         }
 
@@ -242,7 +356,7 @@ namespace Connections
                 if (!connectedPeers.TryGetValue(connectionId, out peer)) return;
                 connectedPeers.Remove(connectionId);
             }
-            server.DisconnectPeer(peer);
+            lock (peerSynchronization.PeerGate) server.DisconnectPeer(peer);
         }
 
         /// <summary>

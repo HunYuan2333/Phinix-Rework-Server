@@ -1,4 +1,5 @@
 using System;
+using ServerRuntime;
 using System.Collections.Generic;
 using Utils;
 using Utils.Framework;
@@ -13,7 +14,8 @@ namespace Phinix.TradeExtension.Server
         private IFrameworkTradeServerApi tradeApi;
         private UserManagement.IServerUserManager userManager;
         private EventHandler<Utils.LogEventArgs> logForwarder;
-        private EventHandler<UserManagement.ServerLoginEventArgs> loginForwarder;
+        private EventHandler<ServerSessionReadyEventArgs> readyForwarder;
+        private IServerSessionReadiness readiness;
         private IFrameworkServerPacketDispatcher packetDispatcher;
 
         public string ExtensionId => FrameworkTradeProtocol.Capability;
@@ -24,8 +26,12 @@ namespace Phinix.TradeExtension.Server
         {
             userManager = builder.HostContext.GetRequiredService<UserManagement.IServerUserManager>();
             packetDispatcher = builder.HostContext.GetRequiredService<IFrameworkServerPacketDispatcher>();
-            tradeApi = tradeApi ?? new PhinixFrameworkTradeServerService(userManager);
+            var config = builder.HostContext.GetRequiredService<IExtensionConfigProvider>().GetConfig<TradeServerConfig>();
+            config.Validate();
+            tradeApi = tradeApi ?? new PhinixFrameworkTradeServerService(userManager, builder.HostContext.GetRequiredService<IServerSessionReadiness>(), builder.HostContext.GetRequiredService<IServerWorkQueue>(), config);
             builder.RegisterApi(tradeApi);
+            builder.RegisterApi((ITradeNegotiationApi)tradeApi);
+            builder.RegisterApi((ITradeEndpointRegistration)tradeApi);
             builder.HostContext.RegisterPersistent(ExtensionId, TradeStateStorageName, tradeApi);
             builder.AddCapabilityProvider(this);
             builder.AddServerDefaultCommandHandler(this);
@@ -44,32 +50,39 @@ namespace Phinix.TradeExtension.Server
                 logForwarder = (_, logEvent) => hostContext.Log?.Invoke(logEvent.Message, logEvent.LogLevel);
             }
 
-            if (loginForwarder == null)
+            readiness = hostContext.GetRequiredService<IServerSessionReadiness>();
+            if (readyForwarder == null)
             {
-                loginForwarder = (_, args) => tradeApi.HandleUserLoggedIn(
-                    args.ConnectionId,
-                    null,
-                    args.Uuid,
-                    (connectionId, packet) => packetDispatcher.Send(connectionId, packet, ExtensionId));
+                // Only durable Pending may be attempted; imported/attempted Unknown is retained.
+                readyForwarder = (_, args) =>
+                {
+                    tradeApi.HandleSnapshotRequest(new ServerFrameworkContext
+                {
+                    ConnectionId = args.ConnectionId,
+                    SessionId = args.SessionId,
+                    SenderUuid = args.PrincipalId,
+                    SendMessage = (connectionId, packet) => packetDispatcher.Send(connectionId, packet, ExtensionId)
+                });
+                    tradeApi.HandleUserLoggedIn(args.ConnectionId, args.SessionId, args.PrincipalId,
+                        (connectionId, packet) => packetDispatcher.Send(connectionId, packet, ExtensionId));
+                };
             }
 
             tradeApi.OnLogEntry += logForwarder;
-            if (userManager != null)
-            {
-                userManager.OnLogin += loginForwarder;
-            }
+            readiness.SessionReady += readyForwarder;
         }
 
         public void Shutdown(ExtensionHostContext hostContext)
         {
+            (tradeApi as PhinixFrameworkTradeServerService)?.CancelPendingRecovery();
             if (tradeApi != null && logForwarder != null)
             {
                 tradeApi.OnLogEntry -= logForwarder;
             }
 
-            if (userManager != null && loginForwarder != null)
+            if (readiness != null && readyForwarder != null)
             {
-                userManager.OnLogin -= loginForwarder;
+                readiness.SessionReady -= readyForwarder;
             }
         }
 
@@ -87,6 +100,10 @@ namespace Phinix.TradeExtension.Server
             yield return FrameworkTradeProtocol.CancelledEventType;
             yield return FrameworkTradeProtocol.CompletionAckRequestType;
             yield return FrameworkTradeProtocol.CompletionAckResponseType;
+            yield return FrameworkTradeOperationQueryProtocol.RequestType;
+            yield return FrameworkTradeOperationQueryProtocol.ResponseType;
+            yield return TradeDeliveryProtocol.Request;
+            yield return TradeDeliveryProtocol.Response;
         }
 
         public bool CanHandleIncomingCommand(FrameworkPacket command)
@@ -97,7 +114,8 @@ namespace Phinix.TradeExtension.Server
                     command.MessageType == FrameworkTradeProtocol.CreateRequestType ||
                     command.MessageType == FrameworkTradeProtocol.OfferUpdateRequestType ||
                     command.MessageType == FrameworkTradeProtocol.StatusUpdateRequestType ||
-                    command.MessageType == FrameworkTradeProtocol.CompletionAckRequestType);
+                    command.MessageType == FrameworkTradeProtocol.CompletionAckRequestType ||
+                    command.MessageType == FrameworkTradeOperationQueryProtocol.RequestType || command.MessageType==TradeDeliveryProtocol.Request);
         }
 
         public ServerIncomingCommandResult HandleIncomingCommand(FrameworkPacket command, ServerFrameworkContext context)
@@ -107,6 +125,12 @@ namespace Phinix.TradeExtension.Server
 
             switch (command.MessageType)
             {
+                case TradeDeliveryProtocol.Request:
+                    ((ITradeDeliveryReceiptApi)tradeApi).HandleDeliveryReceipt(command,context);
+                    break;
+                case FrameworkTradeOperationQueryProtocol.RequestType:
+                    ((IFrameworkTradeOperationQueryApi)tradeApi).HandleOperationQueryRequest(command, context);
+                    break;
                 case FrameworkTradeProtocol.SnapshotType:
                     tradeApi.HandleSnapshotRequest(context);
                     break;
@@ -170,7 +194,15 @@ namespace Phinix.TradeExtension.Server
                 };
             }
 
-            tradeApi.CacheItemPacket(itemPacket.MessageId, payload);
+            if (!(tradeApi is IScopedFrameworkTradeItemCache cache) ||
+                !cache.TryCacheItemPacket(itemPacket.MessageId, payload, context))
+            {
+                return new ServerIncomingItemResult
+                {
+                    Action = ItemHandlingResultAction.StopPropagation,
+                    FailureReason = "Item cache rejected the packet scope, identity, content or capacity."
+                };
+            }
 
             context.Log?.Invoke(
                 $"[TradeServer] Cached item packet id={itemPacket.MessageId}, codec={payload.CodecId}",

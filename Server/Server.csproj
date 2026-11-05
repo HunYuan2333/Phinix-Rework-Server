@@ -9,6 +9,10 @@
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
 
+  <PropertyGroup><RestorePackagesWithLockFile>true</RestorePackagesWithLockFile><RestoreLockedMode>true</RestoreLockedMode></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="ServerStorage/ServerStorage.csproj" /><PackageReference Include="Autofac" Version="[9.3.2]" /></ItemGroup>
+
   <ItemGroup>
     <Compile Include="Command.cs" />
     <Compile Include="CommandInterpreter.cs" />
@@ -17,6 +21,8 @@
     <Compile Include="HelpEntry.cs" />
     <Compile Include="Logger.cs" />
     <Compile Include="Server.cs" />
+    <Compile Include="ServerComposition.cs" />
+    <Compile Include="../Extensions/LegacyAdapter/Pipeline/PluginResultAdapter.cs" Link="ExtensionCompatibility/PluginResultAdapter.cs" />
     <Compile Include="Commands\*.cs" />
     <Compile Include="Framework\FrameworkServerPacketDispatcher.cs" />
     <Compile Include="Framework\PhinixFrameworkServer.cs" />
@@ -52,6 +58,11 @@
     <OfficialServerExtensionContractProject Include="../Dependencies/Phinix.Common/Extensions/Trade/Contracts/TradeExtension.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="../Extensions/LegacyAdapter/Server/LegacyAdapter.Server.csproj" ReferenceOutputAssembly="false" />
+    <OfficialServerExtensionProject Include="../Extensions/LegacyAdapter/Server/LegacyAdapter.Server.csproj" />
+  </ItemGroup>
+
   <Target Name="CopyOfficialServerExtensions" AfterTargets="Build">
     <PropertyGroup>
       <_ExtensionsBase>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\Extensions'))</_ExtensionsBase>
@@ -60,6 +71,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <_OfficialServerExtensionFile Include="$(_ExtensionsBase)\LegacyAdapter\Server\$(_ExtensionsConfigBin)\LegacyAdapter.Server.dll" />
       <_OfficialServerExtensionFile Include="$(_ExtensionsBase)\Chat\Server\$(_ExtensionsConfigBin)\ChatExtension.Server.dll" />
       <_OfficialServerExtensionFile Include="$(MSBuildThisFileDirectory)../Dependencies/Phinix.Common/Extensions/Chat/Contracts/$(_ExtensionsConfigBin)\ChatExtension.dll" />
       <_OfficialServerExtensionFile Include="$(_ExtensionsBase)\Trade\Server\$(_ExtensionsConfigBin)\TradeExtension.Server.dll" />

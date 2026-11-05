@@ -1,0 +1,195 @@
+{
+  "schema": 1,
+  "classifiedDirectories": [
+    "Extensions/Trade/Server",
+    "Server/Framework",
+    "Server/ServerRuntime",
+    "Tests/ServerReferenceModel",
+    "Server/ServerStorage",
+    "Server/ServerTransport",
+    "Server/Connections.Server",
+    "Extensions/LegacyAdapter/Server",
+    "Extensions/LegacyAdapter/Pipeline"
+  ],
+  "nonDomainFiles": [
+    {
+      "path": "Extensions/Trade/Server/BuiltInTradeServerExtension.cs",
+      "reason": "Plugin composition and Framework adapter entry"
+    },
+    {
+      "path": "Extensions/Trade/Server/TradeServerConfig.cs",
+      "reason": "Plugin configuration"
+    },
+    {
+      "path": "Extensions/Trade/Server/Properties/AssemblyInfo.cs",
+      "reason": "Assembly metadata"
+    },
+    {
+      "path": "Server/Framework/ILegacyTradeRuntime.cs",
+      "reason": "Dormant historical source, excluded by Server.csproj explicit Compile list"
+    },
+    {
+      "path": "Server/Framework/LegacyServerTradeRuntimeAdapter.cs",
+      "reason": "Dormant historical source, excluded by Server.csproj explicit Compile list"
+    },
+    {
+      "path": "Extensions/Trade/Server/FrameworkTradeOperationQuery.cs",
+      "reason": "Modern Framework query DTO and authenticated wire translation; store lookup remains in domain persistence, no Legacy branches or mutation"
+    },
+    {
+      "path": "Extensions/Trade/Server/TradeDeliveryReceipts.cs",
+      "reason": "Modern receipt wire DTO/validation/translation only; immutable DeliveryReceiptIntent is translated before invoking the core in TradeDeliveryState.cs. Request fingerprint/wire format unchanged."
+    },
+    {
+      "path": "Extensions/Trade/Server/LegacyTradeOfferAdapter.cs",
+      "reason": "P5/SV-50/52 explicit historical Rework wire translator: inline/default/ref normalization and whole-batch rejection only; no store, commit, refund or receipt ownership."
+    },
+    {
+      "path": "Extensions/LegacyAdapter/Server/OriginalChatCodec.cs",
+      "reason": "P5 explicit Legacy Adapter: old Chat wire/auth/expressibility/response correlation only; shares existing Chat service/history and neutral host ports."
+    },
+    {
+      "path": "Extensions/LegacyAdapter/Server/OriginalChatAdapter.cs",
+      "reason": "P5 explicit Legacy Adapter: old Chat wire/auth/expressibility/response correlation only; shares existing Chat service/history and neutral host ports."
+    },
+    {
+      "path": "Extensions/LegacyAdapter/Server/LegacyChatServerExtension.cs",
+      "reason": "P5 explicit Legacy Adapter: old Chat wire/auth/expressibility/response correlation only; shares existing Chat service/history and neutral host ports."
+    },
+    {
+      "path": "Extensions/LegacyAdapter/Server/OriginalTradeItemCodec.cs",
+      "reason": "P5/SV-52 original item/offer wire translation, authenticated request and result correlation only; shares existing trade transaction owner, no independent store or commit/ACK/refund authority."
+    },
+    {
+      "path": "Extensions/LegacyAdapter/Server/OriginalTradeOfferCodec.cs",
+      "reason": "P5/SV-52 original item/offer wire translation, authenticated request and result correlation only; shares existing trade transaction owner, no independent store or commit/ACK/refund authority."
+    },
+    {
+      "path": "Extensions/LegacyAdapter/Server/OriginalTradeOfferBridge.cs",
+      "reason": "P5/SV-52 original item/offer wire translation, authenticated request and result correlation only; shares existing trade transaction owner, no independent store or commit/ACK/refund authority."
+    },
+    {
+      "path": "Extensions/LegacyAdapter/Pipeline/PluginResultAdapter.cs",
+      "reason": "Frozen plugin ABI adapter at host invocation boundary only; obsolete actions normalized before neutral ServerRuntime; no wire/business/storage authority."
+    },
+    {
+      "path": "Extensions/LegacyAdapter/Server/OriginalTradeRefusalAdapter.cs",
+      "reason": "Original trade module composition/configuration: default-off refusal guard or explicitly enabled weaker original profile; depends on trade provider, owns no business ledger/refund/receipt authority."
+    },
+    {
+      "path": "Extensions/Trade/Server/TradeNegotiationTerms.cs",
+      "reason": "Server-only Framework adapter entry and generic item projection port; negotiated terms themselves are protocol-neutral domain data in TradeTerms.cs."
+    },
+    {
+      "path": "Extensions/LegacyAdapter/Server/OriginalTradeBasicItemProjection.cs",
+      "reason": "Explicit user-authorized lossy original-item projection; no independent ledger, receipt, refund or protocol-dependent domain branch."
+    },
+    {
+      "path": "Extensions/Trade/Server/TradeEndpointRouting.cs",
+      "reason": "Trade-owned authenticated endpoint/session/output port and bounded recovery orchestration; domain ledger remains protocol-neutral and host has no business routing branches."
+    },
+    {
+      "path": "Extensions/LegacyAdapter/Server/OriginalTradeWireCodec.cs",
+      "reason": "Pinned original raw packet parsing, field-direction and output translation only; no independent business state or acknowledgements."
+    },
+    {
+      "path": "Extensions/LegacyAdapter/Server/OriginalTradeAdapter.cs",
+      "reason": "Opt-in original UDP trade adapter: live principal proof, raw outputs and truthful protocol detection; owns no business ledger or refund authority."
+    },
+    {
+      "path": "Extensions/LegacyAdapter/Server/OriginalChatTextProjection.cs",
+      "reason": "Read-only original display projection: preserve message identity/text and render unsupported reply/mention context explicitly; no core mutation or invented acknowledgment."
+    },
+    {
+      "path": "Extensions/Chat/Server/ChatMessageNames.cs",
+      "reason": "Chat-owned atomic local history extension and authoritative display-name snapshots; no authentication credentials, wire schema or Legacy branch in core."
+    }
+  ],
+  "domain": [
+    "Extensions/Trade/Server/PhinixFrameworkTradeStore.cs",
+    "Tests/ServerReferenceModel/OfferModel.cs",
+    "Extensions/Trade/Server/PhinixFrameworkTradePersistence.cs",
+    "Extensions/Trade/Server/TradeAdmissionPolicy.cs",
+    "Extensions/Trade/Server/TradeArchive.cs",
+    "Extensions/Trade/Server/TradeOfflineImport.cs",
+    "Extensions/Trade/Server/TradeDeliveryState.cs",
+    "Server/Authentication.Server/PasswordlessIdentityStore.cs",
+    "Server/Authentication.Server/PasswordlessSessionAuthority.cs",
+    "Extensions/Trade/Server/TradeTerms.cs"
+  ],
+  "host": [
+    "Server/Server.cs",
+    "Server/Framework/FrameworkServerPacketDispatcher.cs",
+    "Server/Framework/PhinixFrameworkServer.cs",
+    "Server/ServerRuntime/ServerPipelineRunner.cs",
+    "Server/ServerRuntime/ServerSaveLifecycle.cs",
+    "Server/ServerComposition.cs",
+    "Server/ServerStorage/AtomicFileSnapshot.cs",
+    "Server/ServerRuntime/PacketDispatchResult.cs",
+    "Server/ServerRuntime/ServerSessionRegistry.cs",
+    "Server/ServerRuntime/FrameworkAdmissionControl.cs",
+    "Server/ServerStorage/SqliteOperationJournal.cs",
+    "Server/ServerRuntime/ServerWorkQueue.cs",
+    "Server/ServerTransport/TlsPacketChannel.cs",
+    "Server/ServerTransport/TlsPacketListener.cs",
+    "Server/ServerTransport/TlsModulePacket.cs",
+    "Server/Connections.Server/IServerTransport.cs",
+    "Server/Connections.Server/TlsNetServer.cs",
+    "Server/Connections.Server/NetServer.cs",
+    "Server/Connections.Server/TransportSendOutcome.cs",
+    "Server/Connections.Server/AssemblyInfo.cs",
+    "Server/Connections.Server/AuthenticatedTransportConnection.cs",
+    "Server/ServerTransport/IdentityWire.cs",
+    "Server/Authentication.Server/IdentityAuthorityBootstrap.cs",
+    "Server/Authentication.Server/PasswordlessIdentityEndpoint.cs",
+    "Server/ServerRuntime/IServerPrincipalAuthorization.cs",
+    "Server/Connections.Server/PinnedUdpPeerSynchronization.cs",
+    "Server/Connections.Server/PinnedUdpReceiveBudget.cs"
+  ],
+  "assemblyRules": {
+    "Server/bin/Release/net10.0/PhinixServer.dll": [
+      "ChatExtension",
+      "ChatExtension.Server",
+      "TradeExtension",
+      "TradeExtension.Server",
+      "LegacyAdapter.Server"
+    ],
+    "Server/ServerRuntime/bin/Release/net10.0/ServerRuntime.dll": [
+      "ChatExtension",
+      "ChatExtension.Server",
+      "TradeExtension",
+      "TradeExtension.Server"
+    ],
+    "Tests/ServerReferenceModel/bin/Release/net10.0/ServerReferenceModel.dll": [
+      "Utils",
+      "UserManagement",
+      "Authentication",
+      "Connections",
+      "TradeExtension",
+      "TradeExtension.Server",
+      "ServerRuntime",
+      "Google.Protobuf"
+    ],
+    "Server/ServerStorage/bin/Release/net10.0/ServerStorage.dll": [
+      "Autofac",
+      "Stateless",
+      "Utils",
+      "Google.Protobuf",
+      "TradeExtension",
+      "TradeExtension.Server",
+      "ChatExtension",
+      "ChatExtension.Server"
+    ]
+  },
+  "baseline": [],
+  "transitionalBoundaries": [
+    {
+      "path": "Extensions/Trade/Server/PhinixFrameworkTradeServerService.cs",
+      "reason": "Existing Framework adapter and service combined; historical inline Items must migrate to Adapter by P2/P5"
+    },
+    {
+      "path": "Extensions/Chat/Server/PhinixFrameworkChatService.cs",
+      "reason": "Current Chat service also handles Framework packets; no separate domain assembly yet"
+    }
+  ]
+}

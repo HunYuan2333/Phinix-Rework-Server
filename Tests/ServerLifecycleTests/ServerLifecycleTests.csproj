@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework></PropertyGroup>
+  <ItemGroup><ProjectReference Include="../../Server/Server.csproj" /></ItemGroup>
+  <ItemGroup><Reference Include="LiteNetLib"><HintPath>../../Dependencies/Phinix.Common/libs/netstandard2.0/LiteNetLib.dll</HintPath></Reference></ItemGroup>
+  <ItemGroup><ProjectReference Include="../../Dependencies/Phinix.Common/Extensions/Trade/Contracts/TradeExtension.csproj" /></ItemGroup>
+  <ItemGroup><ProjectReference Include="../../Dependencies/Phinix.Common/Extensions/Chat/Contracts/ChatExtension.csproj" /></ItemGroup>
+</Project>

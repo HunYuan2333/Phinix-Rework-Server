@@ -9,7 +9,7 @@ using Utils.Framework;
 
 namespace Phinix.LegacyAdapter.Server;
 
-// Explicitly lossy, opt-in projection. The strict codec remains lossless.
+// Explicitly lossy original profile projection. The strict codec remains lossless.
 // Preserve every root/nested item and stack; discard only state absent from ProtoThing.
 public sealed class OriginalTradeBasicItemProjection : ITradeBasicItemProjection
 {

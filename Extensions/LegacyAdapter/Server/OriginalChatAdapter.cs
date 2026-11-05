@@ -49,7 +49,7 @@ namespace Phinix.LegacyAdapter.Server
             lock (lifetime)
             {
                 lock (gate) if (active) throw new InvalidOperationException("OriginalChatAlreadyStarted");
-                // This opt-in profile is explicitly scoped to the established UDP endpoint.
+                // This compatibility profile is explicitly scoped to the established UDP endpoint.
                 if (transport is IAuthenticatedServerTransport) throw new NotSupportedException("OriginalChatRequiresUdpProfile");
                 transport.RegisterPacketHandler(OriginalChatCodec.Module, Receive);
                 lock (gate) active = true;

@@ -26,7 +26,7 @@ The server repository pins the shared layer as a Git submodule at `Dependencies/
 
 ## 部署运行（面向部署者） / Deployment (For Deployers)
 
-原版普通聊天 Adapter 默认关闭；独立原版/Framework 普通聊天混合网络检查已通过，真实游戏仍待 P6。原版完整资产交易不支持：raw Trading 会明确断开，Framework 向未协商交易能力的对端创建交易会持久拒绝。不要用内部报价 bridge 的组件检查推导原版交易可用。参见 [P5 支持矩阵与证据](docs/Server-Upgrade-P5-Closeout-2026-11-02.md)。 后续 [服务端设计哲学复审及修复](docs/Server-P5-Design-and-Reliability-Audit-2026-11-02.md) 已补生命周期与故障隔离。固定UDP后端只支持 `IPAddress=0.0.0.0`；其他监听地址明确拒绝启动，不会静默忽略配置。
+原版 Phinix 普通聊天与基础物品交易兼容默认开启，可独立关闭。原版交易仅使用基础物品属性和当前报价确认，交付按原版能力尽力尝试。固定 UDP 后端只支持 `IPAddress=0.0.0.0`，其他监听地址会拒绝启动。详见 [服务端配置](docs/Server-Trade-Configuration.md)。
 
 默认部署使用 UDP / ClientKey，无需证书。TCP＋TLS 与现代无密码身份已有实验实现，不建议使用，尚未完成真实客户端及部署者实机验收；本轮取消现代身份切换及旧登录退役，后续列为 TODO，不是默认部署要求；已有自动化证据见 [P4 收口记录](docs/Server-Upgrade-P4-Closeout-2026-11-01.md)。
 
@@ -185,4 +185,4 @@ docker build -t phinix-rework:local .
 
 测试保障：[测试与质量保障专项规划](docs/Server-Test-and-Quality-Assurance-Plan.md)，包含从 P0 开始的 L1～L4、Headless 协议 Harness、独立 Legacy golden、资产与故障 oracle、CI/专用环境及逐阶段退出门槛。P0～P5 封闭开发不要求独立发布；测试任务已关联 RoadMap，尚未实施。
 
-原版交易显式兼容入口及 P3 业务客户端提示已接通，部署开关、真实原版模块/UDP 证据和识别限制见 [2026-11-04 实施记录](docs/Server-Upgrade-P5-Original-Trade-Network-2026-11-04.md)。默认关闭该有损兼容开关，未部署 ECS，未替代真实游戏到账验收。
+原版交易入口和 Rework 客户端兼容提示的实现与限制见 [网络验收记录](docs/Server-Upgrade-P5-Original-Trade-Network-2026-11-04.md)。该记录中的默认关闭策略已由当前版本替换。

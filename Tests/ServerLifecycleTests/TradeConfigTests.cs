@@ -60,7 +60,7 @@ internal static class TradeConfigTests
                 .GetType("Phinix.LegacyAdapter.Server.OriginalTradeServerConfig", true)!;
             var readAdapter = typeof(Config).GetMethod("GetConfig")!.MakeGenericMethod(adapterType);
             bool Enabled(string path) => (bool)adapterType.GetProperty("Enabled")!.GetValue(readAdapter.Invoke(Config.Load(path), null))!;
-            Check(!Enabled(source), "Original trading unexpectedly enabled by default");
+            Check(Enabled(source), "Original trading was not enabled with no saved section");
             string enabled = source + ".original-on", disabled = source + ".original-off";
             Check(Tool(source, enabled, "--original-trading", "on") == 0 && Enabled(enabled), "Original adapter candidate not readable by actual provider");
             Check(Tool(enabled, disabled, "--original-trading", "off") == 0 && !Enabled(disabled), "Original adapter could not be disabled");
@@ -68,6 +68,7 @@ internal static class TradeConfigTests
             var readChatAdapter = typeof(Config).GetMethod("GetConfig")!.MakeGenericMethod(chatAdapterType);
             string both = source + ".both-adapters", chatOff = source + ".chat-off";
             bool ChatEnabled(string path) => (bool)chatAdapterType.GetProperty("Enabled")!.GetValue(readChatAdapter.Invoke(Config.Load(path), null))!;
+            Check(ChatEnabled(source), "Original chat was not enabled with no saved section");
             Check(Tool(enabled, both, "--original-chat", "on") == 0 && Enabled(both) && ChatEnabled(both), "Chat enable lost trade config or could not be read by actual provider");
             Check(Tool(both, chatOff, "--original-chat", "off") == 0 && Enabled(chatOff) && !ChatEnabled(chatOff), "Chat disable changed independent trade switch");
             Check(before.SequenceEqual(File.ReadAllBytes(source)) && Config.Load(disabled).ExtensionConfigs["unrelated.plugin"] == original.ExtensionConfigs["unrelated.plugin"], "Original adapter edit changed source or unrelated settings");

@@ -28,7 +28,7 @@
 
 2026-11-09 用户黑盒候选来自当时完整工作树；最终分支提交筛选了本任务范围，故不声称用户逐字节验收过最终提交。两者的 Relay 逻辑一致，最终提交范围已独立完成上述白盒与双版构建。
 
-Example 继续使用独立分支 codex/command-relay-test-panel；正式 Host pin、版本和索引不在本次分支交付中更新。本次不发布 GitHub Release、不打 tag、不推送 main、不替换已交付 ZIP、不重新部署测试服务器。
+Example 继续使用独立分支 codex/command-relay-test-panel；该候选分支的 ci/config.json 固定到实际 Host 源码提交 9c0c5aecd8dd6214bf4d6427f0879fc74de2d28e，使远端候选可取得对应 Relay 契约。main 正式发行配置、产品版本和索引未更新。本次不发布 GitHub Release、不打 tag、不推送 main、不替换已交付 ZIP、不重新部署测试服务器。
 
 ## 可复核入口与证据
 

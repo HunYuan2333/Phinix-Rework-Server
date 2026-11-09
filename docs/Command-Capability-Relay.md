@@ -1,5 +1,7 @@
 # Command Capability Relay 服务端实现
 
+插件接入、扩展点示例及执行位置选择见 [服务端插件开发指南](Plugin-Development.md)。
+
 Framework 通过 core.command-relay.v1 协商客户端中继协议。普通 Command 缺省执行服务端 Handler，显式 CommandRoute.Mode 为 Relay 的请求通过统一 Command Pipeline 的 Interceptor 后进入能力 Router。
 
 CommandCapabilityRouter 维护当前 Ready 连接 epoch 的完整能力快照及反向索引。路由键为 PluginId、CommandType、Version，按版本精确匹配。声明与客户端 Handler 独立。
@@ -40,35 +42,16 @@ IRelayTransport 提供有界中继提交。UDP 在新增 Relay 前检查接收�
 
 这些预算针对中继的准入与放大。客户端收包前分片与队列保护已接入同一共享实现，实际固定 net35 DLL 的网络预算测试通过。长时压力及进程峰值内存仍需独立验收。历史 UDP/ClientKey 的认证和链路安全限制继续适用。
 
-## 验证记录
+## 验证与共享交付
 
-2026-11-09 在当前工作树运行以下验证。
+2026-11-10 两端 Common 精确引用统一为 `911047cf8a6dd34e661e107e182e9c921b8e9586`。共享预算位于 Common/Connections/PinnedUdpReceiveBudget.cs；两端按固定 net35/netstandard DLL 校验哈希及反射布局后复用。不要恢复为两份独立预算实现或跟随移动分支刷新子模块。
 
-- 完整服务端阶段回归通过 50 项检查，证据为 /tmp/phinix-command-relay-stage-final/manifest.json。
-- 真实 UDP 测试通过认证、登录、协商、快照、能力广播、发送者身份、接收会话、旧客户端排除及单播错误。服务端未加载对应业务插件。
-- 最终 Phase35ServerRuntimeTests 通过 12 组、95 条断言，包含旧 Command characterization、声明所有权、ACK 重试与重连、路由、权限、预算、异常隔离及冻结旧 JSON 信封测试。
-- 阶段回归覆盖既有 Chat、Trade、Adapter、身份、TLS、持久化、模型、架构与独立进程恢复。
+用户反馈黑盒全部通过，并授权交叉兼容、压力场景采用白盒作为本次验收标准。最终 Pipeline 通过 21 组、628 条断言，服务端阶段回归通过 50 项。真实 UDP Relay 验证身份、登录、协商、快照、广播、单播、可信身份、接收会话及旧协议连接排除，服务端未安装对应业务插件。阶段回归包含 Chat、Trade、Adapter、身份/TLS、持久化、架构和进程恢复。
 
-复现入口如下。
+压力白盒包含虚拟时钟 1800 秒/18000 请求/27000 逐连接结果、1000 次慢接收者部分提交、全局广播放大预算、129 接收者整次拒绝、100 轮重连清理、64 条待决请求上限和超时恢复。真实 UDP 后端验证 2048/连接及 8192/全局出站积压拒绝与 ACK 排空；TLS 验证实际 16 帧 Channel、4 MiB 字节预算及排空恢复。两端实际固定 DLL 的收包预算包含 1 MiB 载荷、异常分片/合包、重组、事件/字节水位和恢复。
 
 ```sh
 python3 tools/quality/check.py --suite stage --isolated --output /tmp/phinix-relay-new-evidence --timeout 120
-dotnet build Tests/Phase35ServerRuntimeTests/Phase35ServerRuntimeTests.csproj -c Release
-dotnet Tests/Phase35ServerRuntimeTests/bin/Release/net10.0/Phase35ServerRuntimeTests.dll
-dotnet build Tests/ServerLifecycleTests/ServerLifecycleTests.csproj -c Release
-dotnet Tests/ServerLifecycleTests/bin/Release/net10.0/ServerLifecycleTests.dll --relay-network
 ```
 
-本次尚未进行真实游戏联机、长时洪峰或真实旧发行版交叉部署。Common 协议修改位于两个消费方的子模块工作树，发布前需形成共享提交并统一精确 gitlink。两端新增 CommandRelay.cs、ClientCommandRelay.cs 的内容应保持一致。完整插件 API 与客户端行为说明位于 Phinix-Rework 的 docs/Command-Capability-Relay.md。
-
-## 共享预算后续实现
-
-2026-11-09 将 PinnedUdpReceiveBudget 提取到 Common/Connections，两端按各自固定 LiteNetLib DLL 校验后复用。服务端原有同步回调与收包资源行为保持。提取后的服务端阶段回归再次通过 50 项检查，专项 UDP RECEIVE BUDGET 测试也通过。证据为 /tmp/phinix-relay-shared-budget-stage/manifest.json。
-
-客户端 net35 测试覆盖真实 1 MiB 载荷、异常分片、合包、分片组及事件数/字节水位、排空、轮询故障和重连。两个后端的资源预算水位继续包含末次重组与可靠窗口余量。
-
-## R0–R4 关闭与 R5 交接
-
-R0–R4 已完成核对，最新 Pipeline 白盒通过 13 组、109 条断言。本次阶段回归通过 50 项，证据为 /tmp/phinix-relay-r0-r4-closeout/manifest.json。客户端仓库 docs/roadmaps/Command-Capability-Relay-R0-R4-Closeout.md 记录调用链和共享交付方式，Command-Capability-Relay-Source-Baseline.json 记录关键源码指纹。
-
-R5 白盒代码包含 RelayWhiteBoxTests.cs 的并发声明及真实模块回滚断言。客户端仓库 docs/roadmaps/Command-Capability-Relay-R5-Tests.md 提供白盒命令及执行结果，并提供由用户执行的 B01–B18、C01–C04、P01–P05 和最终验收清单。真实发行版交叉部署、游戏内验收及最终包指纹保持待执行。
+证据、冻结旧组件矩阵及验收边界见 [R5 最终核对](Command-Capability-Relay-R5-Final-Verification.md) 和 [交付摘要](Command-Capability-Relay-R5-Delivery.json)。虚拟时钟、注入边界和冻结旧组件不等于真实旧发行进程混部或实机长时 RSS 测量。完整客户端 API 说明见 [客户端 Relay 参考](https://github.com/HunYuan2333/Phinix-Rework/blob/codex/command-capability-relay/docs/Command-Capability-Relay.md)。

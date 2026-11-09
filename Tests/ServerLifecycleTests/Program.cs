@@ -26,6 +26,7 @@ internal static class Program
         if (args.Length == 1 && args[0] == "--send-outcome") { SendOutcomeTests.Basic(); return; }
         if (args.Length == 1 && args[0] == "--send-network") { SendOutcomeTests.Network(); return; }
         if (args.Length == 1 && args[0] == "--config-validation") { StartupValidationTests.Run(); return; }
+        if (args.Length == 1 && args[0] == "--relay-network") { ReadyNetworkTests.RunRelay(); return; }
         if (args.Length == 1 && args[0] == "--ready-network") { ReadyNetworkTests.Run(); return; }
         if (args.Length == 2 && args[0] == "--write-control-fixture") { AdmissionControlTests.WriteFixture(args[1]); return; }
         if (args.Length == 4 && args[0] == "--p3-wire") { P3NetworkProbe.Run(int.Parse(args[1]), args[2], args[3]); return; }

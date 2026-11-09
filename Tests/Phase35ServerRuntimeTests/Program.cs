@@ -19,7 +19,20 @@ internal static partial class Program
         AssertMessageObserverExceptionDoesNotBlockLaterObservers();
         AssertCommandObserverExceptionDoesNotBlockLaterObservers();
         AssertLegacyApisRemoved();
-        Console.WriteLine("PASS ServerFull 8 cases; " + assertions + " assertions"); return 0;
+        AssertCommandCharacterization();
+        AssertRelayContracts();
+        AssertRelayRouting();
+        AssertRelayPipeline();
+        AssertRelayWhiteBoxLifecycle();
+        AssertRelayCompatibilityMatrix();
+        AssertRelaySustainedLoad();
+        AssertRelaySlowRecipient();
+        AssertRelayBroadcastAmplification();
+        AssertRelayReconnectStress();
+        AssertRelayPendingFlood();
+        AssertRelayTlsQueueBounds();
+        AssertRelayUdpQueueBounds();
+        Console.WriteLine("PASS ServerFull 21 groups; " + assertions + " assertions"); return 0;
     } catch(Exception error) { Console.Error.WriteLine(error); return 1; } }
     private static void AssertPreHandleInterceptorCanRewriteMessageBeforeDefaultHandler()
     {
@@ -250,6 +263,23 @@ internal static partial class Program
         Assert(laterObserverCalled, "Throwing command observer should not block later observers.");
         Assert(logged, "Throwing command observer should be logged.");
     }
+    private static void AssertCommandCharacterization()
+    {
+        var harness = new PipelineTestHarness();
+        var command = new FrameworkPacket { Kind = "command", MessageType = "unknown" };
+        int observed = 0;
+        harness.CommandObservers.Add(new DelegateServerCommandObserver(_ => true, (_, __, ___) => observed++));
+        Assert(!harness.Runner.ProcessIncomingCommand(command, CreateServerContext()), "Unknown command remains unconsumed.");
+        Assert(observed == 0, "Unmatched old command does not notify observers.");
+        harness.InboundCommandInterceptors.Add(new DelegateServerInboundCommandInterceptor(_ => true,
+            (packet, _) => new ServerIncomingCommandResult { Action = MessageHandlingResultAction.Replace,
+                Command = new FrameworkPacket { Kind = "command", MessageType = "rewritten" } }));
+        harness.DefaultCommandHandlers.Add(new DelegateServerDefaultCommandHandler(packet => packet.MessageType == "rewritten",
+            (_, __) => new ServerIncomingCommandResult { Action = MessageHandlingResultAction.Continue }));
+        Assert(harness.Runner.ProcessIncomingCommand(command, CreateServerContext()), "Matched Continue consumes old command.");
+        Assert(observed == 1, "Matched Continue notifies observers once.");
+    }
+
     private static void AssertLegacyApisRemoved()
     {
         string repoRoot = GetRepositoryRoot();

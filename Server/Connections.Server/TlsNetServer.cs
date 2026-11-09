@@ -15,7 +15,7 @@ using Utils;
 namespace Connections
 {
     // TLS adapter uses the same module handlers as UDP. All lifecycle/application callbacks run on one poll worker.
-    public sealed class TlsNetServer : IServerTransport, IAuthenticatedServerTransport
+    public sealed class TlsNetServer : IServerTransport, IAuthenticatedServerTransport, IRelayTransport
     {
         private readonly object gate = new();
         private readonly object lifecycle = new();
@@ -191,6 +191,8 @@ namespace Connections
         }
         public void Send(string connectionId, string module, byte[] payload)
         { if (TrySendWithOutcome(connectionId, module, payload) == TransportSendOutcome.NotSent) throw new IOException("TLS packet was not admitted."); }
+        public TransportSendOutcome TrySendRelay(string connectionId, string module, byte[] payload) =>
+            payload == null || payload.Length > 64 * 1024 ? TransportSendOutcome.NotSent : TrySendWithOutcome(connectionId, module, payload);
         public bool TrySend(string connectionId, string module, byte[] payload) => TrySendWithOutcome(connectionId, module, payload) == TransportSendOutcome.Submitted;
         public void DisconnectPeer(string id)
         { Session session; lock (gate) sessions.TryGetValue(id ?? "", out session); if (session != null) session.Channel.DisposeAsync().GetAwaiter().GetResult(); }

@@ -26,7 +26,7 @@ namespace Connections
                 if (failed) return;
                 try
                 {
-                    if (budget != null && error == 0 && !budget.CanReceive(bytes.AsSpan(0, count), endpoint)) return;
+                    if (budget != null && error == 0 && !budget.CanReceive(bytes, count, endpoint)) return;
                     receive(bytes, count, error, endpoint);
                 }
                 catch (Exception exception) when (onFailure != null && exception is not OutOfMemoryException)

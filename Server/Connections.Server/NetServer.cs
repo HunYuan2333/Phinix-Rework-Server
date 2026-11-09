@@ -10,7 +10,7 @@ using Utils;
 
 namespace Connections
 {
-    public class NetServer : NetCommon, IServerTransport, IServerTransportFaultSource
+    public class NetServer : NetCommon, IServerTransport, IServerTransportFaultSource, IRelayTransport
     {
         /// <inheritdoc />
         public override event EventHandler<LogEventArgs> OnLogEntry;
@@ -282,6 +282,27 @@ namespace Connections
             {
                 return AttemptTransportSend(
                     () => prepared.Peer.ConnectionState == ConnectionState.Connected,
+                    () => prepared.Peer.Send(prepared.Writer, SendOptions.ReliableOrdered));
+            }
+        }
+
+        public TransportSendOutcome TrySendRelay(string connectionId, string module, byte[] payload)
+        {
+            if (payload == null || payload.Length > 64 * 1024) return TransportSendOutcome.NotSent;
+            (NetPeer Peer, NetDataWriter Writer) prepared;
+            try { prepared = PrepareSend(connectionId, module, payload); }
+            catch { return TransportSendOutcome.NotSent; }
+            lock (sendLock)
+            lock (peerSynchronization.PeerGate)
+            {
+                // Count queued fragments before allocating another reliable payload.
+                if (prepared.Peer.PacketsCountInReliableOrderedQueue >= 2048) return TransportSendOutcome.NotSent;
+                lock (connectedPeersLock)
+                {
+                    long queued = connectedPeers.Values.Sum(peer => (long)peer.PacketsCountInReliableOrderedQueue);
+                    if (queued >= 8192) return TransportSendOutcome.NotSent;
+                }
+                return AttemptTransportSend(() => prepared.Peer.ConnectionState == ConnectionState.Connected,
                     () => prepared.Peer.Send(prepared.Writer, SendOptions.ReliableOrdered));
             }
         }

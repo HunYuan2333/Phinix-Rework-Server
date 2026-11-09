@@ -19,7 +19,7 @@ using UserManagement;
 using Utils;
 using Utils.Framework;
 
-internal static class ReadyNetworkTests
+internal static partial class ReadyNetworkTests
 {
     private const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
     private static void Check(bool value, string reason) { if (!value) throw new Exception(reason); }
@@ -84,6 +84,12 @@ internal static class ReadyNetworkTests
             var packet = new FrameworkPacket { Kind = FrameworkProtocol.KindHello, MessageId = Guid.NewGuid().ToString(), Version = version, SessionId = Session, SenderUuid = Principal,
                 PayloadJson = FrameworkSerialization.SerializePayload(new FrameworkCapabilitiesPayload { Capabilities = caps.ToList() }) };
             Send(FrameworkProtocol.ModuleName, FrameworkSerialization.SerializePacket(packet)); return packet.MessageId;
+        }
+        public void SendFramework(FrameworkPacket packet)
+        {
+            packet.SessionId = Session;
+            packet.SenderUuid = Principal;
+            Send(FrameworkProtocol.ModuleName, FrameworkSerialization.SerializePacket(packet));
         }
         public string UnsupportedCommand()
         {

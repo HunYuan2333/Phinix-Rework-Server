@@ -144,7 +144,9 @@
     "Server/Authentication.Server/PasswordlessIdentityEndpoint.cs",
     "Server/ServerRuntime/IServerPrincipalAuthorization.cs",
     "Server/Connections.Server/PinnedUdpPeerSynchronization.cs",
-    "Server/Connections.Server/PinnedUdpReceiveBudget.cs"
+    "Server/ServerRuntime/CommandCapabilityRouter.cs",
+    "Server/ServerRuntime/CommandProcessingResult.cs",
+    "Server/Connections.Server/IRelayTransport.cs"
   ],
   "assemblyRules": {
     "Server/bin/Release/net10.0/PhinixServer.dll": [

@@ -1,0 +1,99 @@
+{
+  "schema": 1,
+  "date": "2026-11-10",
+  "acceptance": "User-reported blackbox pass; user authorized whitebox substitution for cross-version and stress acceptance.",
+  "commonCommit": "911047cf8a6dd34e661e107e182e9c921b8e9586",
+  "branches": {
+    "client": "codex/command-capability-relay",
+    "server": "codex/command-capability-relay",
+    "common": "codex/command-capability-relay",
+    "example": "codex/command-relay-test-panel"
+  },
+  "results": {
+    "serverStageChecks": 50,
+    "pipelineGroups": 21,
+    "pipelineAssertions": 628,
+    "clientGroups": 7,
+    "clientAssertions": 97,
+    "chatScenarios": 20,
+    "exampleAssertions": 140,
+    "exampleLifecycleCycles": 5,
+    "builds": [
+      "1.6/net472",
+      "1.7/net10.0"
+    ],
+    "udpAndTlsQueueBounds": "passed",
+    "net35ReceiveBudgetAndRecovery": "passed"
+  },
+  "evidence": [
+    {
+      "path": "/tmp/phinix-relay-r5-final-stage-20261110-c/manifest.json",
+      "sha256": "c0e85f429f63a50ed801cf6be1478ade0d7a8d4b0ef77908f30b83142d736885"
+    },
+    {
+      "path": "/tmp/phinix-relay-r5-final-stage-20261110-c/pipeline-test.txt",
+      "sha256": "ea702a3fafbde4a1c7d69d688ce89ad9a50853a1347e95b5128d9521e1a959ad"
+    },
+    {
+      "path": "/tmp/phinix-relay-r5-final-client-tests.log",
+      "sha256": "3d1cd96b2c5a93ad6c39b6582bb1cfff1b5a5a77d5cf1e5a8dcf44222ce5889f"
+    },
+    {
+      "path": "/tmp/phinix-relay-r5-final-transport-lifetime-c/manifest.json",
+      "sha256": "9ab32e2351cd8fc12296c0a9772d969463b3659f18b5796d50cb25662acb5139"
+    },
+    {
+      "path": "/tmp/phinix-relay-r5-final-chat-regression-c/manifest.json",
+      "sha256": "db59b48dd26cbab104bfd06642405c25810c0e0df28dbaf71f285b7fdff15b01"
+    },
+    {
+      "path": "/tmp/phinix-relay-r5-final-build16/source-fingerprints.json",
+      "sha256": "566988d979a119376f847b4b1010f9dd1c0d12108fcdd29b6370b3dc80d508ff"
+    },
+    {
+      "path": "/tmp/phinix-relay-r5-final-build17/source-fingerprints.json",
+      "sha256": "7eddcec1e2e7e6c3e33e3ce44a811a3f4470b9848f84db39eca093e5f916693b"
+    },
+    {
+      "path": "/tmp/phinix-relay-r5-final-example-tests.log",
+      "sha256": "06b40f2289be516f243caab675612329d80cb0976223d48fca093bba5cc16e47"
+    }
+  ],
+  "stagedSourceFiles": {
+    "Phinix-Rework": {
+      "Client/Common/Connections.Client/NetClient.cs": "7213269dffc3d0d21ef67736072980800014d4d5d5b3a7cdaa14ede8c018462a",
+      "Client/Common/Connections.Client/PinnedClientUdpReceiveGuard.cs": "a62f0d0d66e6466bcd2f5c0d960d543735383cf98436feca6d0ceffe956844ee",
+      "Client/Source/Framework/PhinixFrameworkClient.cs": "38f2bd245fb1f0ddcecee3511ba0c1a130e3510c71e9043d7e0b2b2b1c5b8037",
+      "Samples/CommandRelay/CommandRelay.Sample.csproj": "504037e6340a9fc15e8d234b86959bb1c89d15606add92ed8956a6ce8e0601a1",
+      "Samples/CommandRelay/ResearchRelayModule.cs": "5f6371cdff62fa9efa03603c8c7321e20b08852a96052cd683319e8c8a55cf9e",
+      "Tests/ChatRegressionTests/Program.cs": "8bbe85fbc66178d192cee070f466fb8918489c3d96695edf26beaf2b7abbecdc",
+      "Tests/ClientTransportLifetimeTests/Program.cs": "b5d3b1b787978d88d598f5b0a1f74ca1c5fc95ea2dd1047d2399e5254741ac66",
+      "Tests/ClientTransportLifetimeTests/ReceiveBudgetTests.cs": "068cd551f30aacfd76eacd776d6ada476000beebbe7579dc8ecd40b93bd77a8d",
+      "Tests/Phase35ClientRuntimeTests/ClientExtensionRuntimeTests.cs": "60ac2380f0cfcd68a8a14f13cc2cbed8e83104481a39826535f2d1455bf6bbaa",
+      "Tests/Phase35ClientRuntimeTests/Phase35ClientRuntimeTests.csproj": "5db5abe017341c18aca7166a69a7b5c6c95d629bcc42fe31bceb9e6f83cb97fa",
+      "Tests/Phase35ClientRuntimeTests/Program.cs": "5e10db7b6bc771cba5a48cda70e8d132eb0bb167f0000035b8697fd4107ac87e",
+      "tools/quality/run-client-component-probes.py": "37449858362f19faa403f71da365ad98273de2351d26752a7294eebddeceb210"
+    },
+    "Phinix-Rework-Server": {
+      "Server/Connections.Server/IRelayTransport.cs": "7018121040e29ec9a298c41c4003f31b30b06e1e5ffaca6429d49d27dd53b3b6",
+      "Server/Connections.Server/NetServer.cs": "1268da9e33066b6ba8646b8bfd933d373e63833658d82075e5058b060e4ceaa6",
+      "Server/Connections.Server/PinnedUdpPeerSynchronization.cs": "b2b4e4939fb9969fbb15d44e24bf02706856d10a8d5e3bc89179914e9fcf5a8f",
+      "Server/Connections.Server/TlsNetServer.cs": "7a6c5687c1ccfd0282b2074f4f71f884fc777134906e71a228d6ad0b07ed5475",
+      "Server/Framework/PhinixFrameworkServer.cs": "bad8761681318936f026a5d58a24af28643b91609e370289ccc399f4384c6a1c",
+      "Server/ServerRuntime/CommandCapabilityRouter.cs": "e6e1fd67828067e898dbc224f31edd81b05d19b5728aefd53e3628799e3702a1",
+      "Server/ServerRuntime/CommandProcessingResult.cs": "fd00f9ef9460ed076cd2ab55a977571eb790e9dbbc0799f11f183844cdbaf283",
+      "Server/ServerRuntime/ServerPipelineRunner.cs": "92e61610667bb9717b6f2b849a88697e9d8f0ce7c08c32d3a587d6ad6796b517",
+      "Tests/Phase35ServerRuntimeTests/Fixtures/LegacyFrameworkPacket.cs": "bae5b9f9c4c00cc4fb6ff034fd1c2e1458d8fd251cf6b9e2d5e80ddd6ce8348c",
+      "Tests/Phase35ServerRuntimeTests/Fixtures/LegacyServerPipelineRunner.cs": "7c77c7c71755aaa614863480914af4a83c4c399505ee3a2b623d280bbeabd58e",
+      "Tests/Phase35ServerRuntimeTests/Phase35ServerRuntimeTests.csproj": "dcac2d957a00a717a29bf0dfaed1114fcfadfe17a733b81252c0e37d6ac6877f",
+      "Tests/Phase35ServerRuntimeTests/Program.cs": "7e2217127b24a02ca052305373009b1bafbd67d63e3966453d11d849bd8f9d9e",
+      "Tests/Phase35ServerRuntimeTests/RelayAcceptanceTests.cs": "078af4f48dddebb37b364759b8ace3816c9a0787666dc2a36e3749dd59de3013",
+      "Tests/Phase35ServerRuntimeTests/RelayTests.cs": "0685d23cf74b81a113b9fb06daa75eb61284a9ed6c47722debdd7026d930047c",
+      "Tests/Phase35ServerRuntimeTests/RelayWhiteBoxTests.cs": "e53519a00c56d6e59058fb67cb8c5e2cd042e55040b0a55fd6dd2aecc31404e3",
+      "Tests/ServerLifecycleTests/Program.cs": "5824174ed0b042c17bca9976a63e5c20699dff7f4496593de29592ace0c1a74a",
+      "Tests/ServerLifecycleTests/ReadyNetworkTests.cs": "28c5159da897297df0f357edee519810af17641c3017aaf30c0813c056a4cb61",
+      "Tests/ServerLifecycleTests/RelayNetworkTests.cs": "ce1995b8315740d463d982f0780d329ddbdca29f968d711d971af219581e611a",
+      "tools/quality/check.py": "8e53867e5526dc78f3465465ccdd5fb718348f8a1a9cae19b63110a54a7b8186"
+    }
+  }
+}

@@ -103,6 +103,10 @@
     {
       "path": "Extensions/Chat/Server/ChatMessageNames.cs",
       "reason": "Chat-owned atomic local history extension and authoritative display-name snapshots; no authentication credentials, wire schema or Legacy branch in core."
+    },
+    {
+      "path": "Extensions/Trade/Server/TradeRecoveryContinuations.cs",
+      "reason": "Trade-owned connection-scoped recovery continuation scheduling over neutral work-queue and poll ports; retains cursors across backpressure and validates session lifetime, without owning ledger mutation, delivery outcomes, receipts or refunds. Paired with the existing Framework/endpoint orchestration boundaries."
     }
   ],
   "domain": [

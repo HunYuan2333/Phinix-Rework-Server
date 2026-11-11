@@ -66,17 +66,29 @@ public sealed partial class PhinixFrameworkTradeServerService : ITradeEndpointRe
         bool Current() => generation == System.Threading.Volatile.Read(ref recoveryGeneration) &&
             expected.Confirmed && TryEndpoint(expected.ConnectionId, out var current) && current == expected;
         if (!Current()) return;
-        var page = store.GetPendingCompletionPageFor(expected.PrincipalId, after, recoveryPageSize);
+        PhinixFrameworkTradeStore.PendingCompletionNotification[] page;
+        try { page = store.GetPendingCompletionPageFor(expected.PrincipalId, after, recoveryPageSize); }
+        catch (ServerStorage.JournalBusyException)
+        {
+            QueueRecoveryContinuation(expected.ConnectionId, Current, () => RecoverEndpoint(expected, send, after, generation), 1000);
+            return;
+        }
+        Exception failure = null;
         foreach (var notification in page)
         {
             if (!Current()) return;
-            SendCompletionEvent(expected.ConnectionId, expected.SessionId, notification, send);
+            try { SendCompletionEvent(expected.ConnectionId, expected.SessionId, notification, send); }
+            catch (Exception error) { failure ??= error; }
+        }
+        if (failure != null)
+        {
+            QueueRecoveryContinuation(expected.ConnectionId, Current, () => RecoverEndpoint(expected, send, after, generation), 5000);
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
         }
         if (page.Length == recoveryPageSize && Current())
         {
             string cursor = page[page.Length - 1].DeliveryId;
-            if (workQueue == null || !workQueue.TryEnqueue(() => RecoverEndpoint(expected, send, cursor, generation)))
-                RaiseLogEntry(new Utils.LogEventArgs("Trade endpoint recovery continuation unavailable; remaining deliveries stay Pending.", Utils.LogLevel.WARNING));
+            QueueRecoveryContinuation(expected.ConnectionId, Current, () => RecoverEndpoint(expected, send, cursor, generation));
         }
     }
 }

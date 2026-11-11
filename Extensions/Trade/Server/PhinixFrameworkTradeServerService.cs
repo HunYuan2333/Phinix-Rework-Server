@@ -44,16 +44,25 @@ namespace Phinix.TradeExtension.Server
         private const int MaxCacheBytes = 16 * MaxItemBytes;
         private const int MaxKeyCharacters = 256;
         private const int MaxMetadataEntries = 1024;
+        private const long ItemCacheLifetimeMilliseconds = 10 * 60 * 1000;
+        private Func<long> itemCacheClock = () => Environment.TickCount64;
+        private long nextItemCacheWarning;
 
         private sealed class CachedItem
         {
             public FrameworkItemPayload Payload;
             public int EncodedBytes;
+            public long CreatedAt;
+            public Func<bool> ScopeIsCurrent;
         }
 
         public event EventHandler<LogEventArgs> OnLogEntry;
 
-        public void RaiseLogEntry(LogEventArgs e) => OnLogEntry?.Invoke(this, e);
+        public void RaiseLogEntry(LogEventArgs e)
+        {
+            foreach (EventHandler<LogEventArgs> observer in OnLogEntry?.GetInvocationList() ?? Array.Empty<Delegate>())
+                try { observer(this, e); } catch { /* Diagnostics cannot interrupt committed trade outcomes. */ }
+        }
 
         public PhinixFrameworkTradeServerService(IServerUserManager userManager) : this(userManager, null) { }
 
@@ -73,7 +82,46 @@ namespace Phinix.TradeExtension.Server
             diagnosticLogging = config.DiagnosticLogging;
         }
 
-        public void CancelPendingRecovery() => System.Threading.Interlocked.Increment(ref recoveryGeneration);
+        public void CancelPendingRecovery()
+        {
+            System.Threading.Interlocked.Increment(ref recoveryGeneration);
+            lock (recoveryGate) { recoveryContinuations.Clear(); nextRecoveryWarning = 0; }
+        }
+
+        internal void ClearItemPacketCache()
+        {
+            lock (itemPacketCache) { itemPacketCache.Clear(); nextItemCacheWarning = 0; }
+        }
+
+        // Staging is not durable ownership. Reclaim abandoned packets before admission,
+        // but never evict a live, unexpired batch just to admit another one.
+        private void PruneItemPacketCache()
+        {
+            long now = itemCacheClock();
+            foreach (var entry in itemPacketCache.ToArray())
+                if (now - entry.Value.CreatedAt >= ItemCacheLifetimeMilliseconds || !CacheScopeCurrent(entry.Value))
+                    itemPacketCache.Remove(entry.Key);
+        }
+
+        private static bool CacheScopeCurrent(CachedItem item)
+        {
+            // A stopped/failing optional endpoint cannot poison reclamation for every player.
+            try { return item.ScopeIsCurrent == null || item.ScopeIsCurrent(); }
+            catch { return false; }
+        }
+
+        private Func<bool> CaptureCacheScope(ServerFrameworkContext context)
+        {
+            string connection = context.ConnectionId, owner = context.SenderUuid, session = context.SessionId;
+            if (readiness != null && readiness.TryGetReady(connection, out var expected) &&
+                expected.PrincipalId == owner && expected.SessionId == session)
+                return () => readiness.TryGetReady(connection, out var current) && current.Epoch == expected.Epoch &&
+                    current.PrincipalId == owner && current.SessionId == session;
+            if (TryEndpoint(connection, out var endpoint) && endpoint.PrincipalId == owner && endpoint.SessionId == session)
+                return () => TryEndpoint(connection, out var current) && current == endpoint;
+            // Compatibility callers without a session directory still have bounded staging.
+            return null;
+        }
 
         private static byte[] Intent<T>(string kind, T payload) => Encoding.UTF8.GetBytes(kind + "\n" + FrameworkSerialization.SerializePayload(payload));
 
@@ -134,6 +182,7 @@ namespace Phinix.TradeExtension.Server
             if (encodedBytes > MaxItemBytes) return false;
             lock (itemPacketCache)
             {
+                PruneItemPacketCache();
                 var key = CacheKey(context, packetId);
                 if (itemPacketCache.TryGetValue(key, out CachedItem existing))
                 {
@@ -150,10 +199,20 @@ namespace Phinix.TradeExtension.Server
                         sessionBytes += entry.Value.EncodedBytes;
                 }
                 // Refuse new input without evicting any legitimate reference.
-                if (itemPacketCache.Count >= MaxCachedItemPackets || globalBytes + encodedBytes > MaxCacheBytes || sessionBytes + encodedBytes > MaxSessionBytes) return false;
+                if (itemPacketCache.Count >= MaxCachedItemPackets || globalBytes + encodedBytes > MaxCacheBytes || sessionBytes + encodedBytes > MaxSessionBytes)
+                {
+                    long now = itemCacheClock();
+                    if (now >= nextItemCacheWarning)
+                    {
+                        nextItemCacheWarning = now + 30000;
+                        try { RaiseLogEntry(new LogEventArgs($"Trade item staging capacity reached: packets={itemPacketCache.Count}/{MaxCachedItemPackets}, globalBytes={globalBytes}/{MaxCacheBytes}, sessionBytes={sessionBytes}/{MaxSessionBytes}, incomingBytes={encodedBytes}.", LogLevel.WARNING)); }
+                        catch { /* Diagnostics do not change admission or retain resources. */ }
+                    }
+                    return false;
+                }
                 itemPacketCache.Add(key, new CachedItem {
                     Payload = FrameworkSerialization.DeserializePayload<FrameworkItemPayload>(serialized),
-                    EncodedBytes = encodedBytes
+                    EncodedBytes = encodedBytes, CreatedAt = itemCacheClock(), ScopeIsCurrent = CaptureCacheScope(context)
                 });
                 return true;
             }
@@ -199,17 +258,29 @@ namespace Phinix.TradeExtension.Server
             bool Current() => generation == System.Threading.Volatile.Read(ref recoveryGeneration) &&
                 readiness.TryGetReady(expected.ConnectionId, out var current) && current.Epoch == expected.Epoch;
             if (!Current()) return;
-            var page = store.GetPendingCompletionPageFor(expected.PrincipalId, after, recoveryPageSize);
+            PhinixFrameworkTradeStore.PendingCompletionNotification[] page;
+            try { page = store.GetPendingCompletionPageFor(expected.PrincipalId, after, recoveryPageSize); }
+            catch (ServerStorage.JournalBusyException)
+            {
+                QueueRecoveryContinuation(expected.ConnectionId, Current, () => RecoverPage(expected, sendMessage, after, generation), 1000);
+                return;
+            }
+            Exception failure = null;
             foreach (var notification in page)
             {
                 if (!Current()) return;
-                SendCompletionEvent(expected.ConnectionId, expected.SessionId, notification, sendMessage);
+                try { SendCompletionEvent(expected.ConnectionId, expected.SessionId, notification, sendMessage); }
+                catch (Exception error) { failure ??= error; }
+            }
+            if (failure != null)
+            {
+                QueueRecoveryContinuation(expected.ConnectionId, Current, () => RecoverPage(expected, sendMessage, after, generation), 5000);
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
             }
             if (page.Length == recoveryPageSize && Current())
             {
                 string cursor = page[page.Length - 1].DeliveryId;
-                if (workQueue == null || !workQueue.TryEnqueue(() => RecoverPage(expected, sendMessage, cursor, generation)))
-                    RaiseLogEntry(new LogEventArgs("Trade recovery continuation unavailable; unattempted deliveries remain Pending.", LogLevel.WARNING));
+                QueueRecoveryContinuation(expected.ConnectionId, Current, () => RecoverPage(expected, sendMessage, cursor, generation));
             }
         }
 
@@ -317,16 +388,22 @@ namespace Phinix.TradeExtension.Server
                 return;
             }
 
-            SendCreateResponse(context.ConnectionId, context, true, snapshot.TradeId, payload.OtherPartyUuid, FrameworkTradeFailureReason.None, null, command.GetCorrelationId());
-            if (created.Replayed) return;
-            SendCreateResponse(otherPartyConnectionId, context, true, snapshot.TradeId, context.SenderUuid, FrameworkTradeFailureReason.None, null, command.GetCorrelationId());
-            SendSnapshot(context.ConnectionId, context, snapshot, command.GetCorrelationId());
-            SendSnapshot(otherPartyConnectionId, context, snapshot, command.GetCorrelationId());
+            if (created.Replayed)
+            { SendCreateResponse(context.ConnectionId, context, true, snapshot.TradeId, payload.OtherPartyUuid, FrameworkTradeFailureReason.None, null, command.GetCorrelationId()); return; }
+            NotifyAll(
+                () => SendCreateResponse(context.ConnectionId, context, true, snapshot.TradeId, payload.OtherPartyUuid, FrameworkTradeFailureReason.None, null, command.GetCorrelationId()),
+                () => SendCreateResponse(otherPartyConnectionId, context, true, snapshot.TradeId, context.SenderUuid, FrameworkTradeFailureReason.None, null, command.GetCorrelationId()),
+                () => SendSnapshot(context.ConnectionId, context, snapshot, command.GetCorrelationId()),
+                () => SendSnapshot(otherPartyConnectionId, context, snapshot, command.GetCorrelationId()));
         }
 
         public void HandleOfferUpdateRequest(FrameworkPacket command, ServerFrameworkContext context)
         {
-            lock (itemPacketCache) HandleOfferUpdateRequestCore(command, context);
+            lock (itemPacketCache)
+            {
+                PruneItemPacketCache();
+                HandleOfferUpdateRequestCore(command, context);
+            }
         }
 
         private void HandleOfferUpdateRequestCore(FrameworkPacket command, ServerFrameworkContext context)
@@ -360,6 +437,7 @@ namespace Phinix.TradeExtension.Server
             FrameworkTradeStateSnapshot snapshot;
             List<FrameworkItemPayload> items;
             FrameworkTradeFailureReason failureReason;
+            string failureMessage = null;
             bool accepted;
             // Cache resolution and consumption are serialized. The store revalidates the target
             // at mutation time, so concurrent cancellation also leaves references untouched.
@@ -371,6 +449,7 @@ namespace Phinix.TradeExtension.Server
                 {
                     accepted = false;
                     failureReason = FrameworkTradeFailureReason.InternalServerError;
+                    failureMessage = "Trade item batch is missing, expired or invalid. Submit a new complete offer.";
                 }
                 List<FrameworkItemPayload> sourceItems = items;
                 if (accepted)
@@ -380,6 +459,7 @@ namespace Phinix.TradeExtension.Server
                     {
                         accepted = false;
                         failureReason = FrameworkTradeFailureReason.InternalServerError;
+                        failureMessage = "Trade items could not be converted for the selected trade terms.";
                     }
                 }
                 snapshot = null;
@@ -409,14 +489,15 @@ namespace Phinix.TradeExtension.Server
 
             if (!accepted)
             {
-                var rejection = store.Execute(context.SenderUuid, command.MessageId, intent, _ => new TradeOperationResult { Success = false, Failure = failureReason });
+                var rejection = store.Execute(context.SenderUuid, command.MessageId, intent, _ => new TradeOperationResult { Success = false, Failure = failureReason, FailureMessage = failureMessage });
                 SendOfferUpdateResponse(context.ConnectionId, context, rejection.Success, payload.TradeId,
                     rejection.Items ?? new List<FrameworkItemPayload>(), rejection.Failure, rejection.FailureMessage ?? "Trade offer rejected: invalid target or incomplete item batch.", command.GetCorrelationId());
                 return;
             }
 
-            SendOfferUpdateResponse(context.ConnectionId, context, true, payload.TradeId, items, FrameworkTradeFailureReason.None, null, command.GetCorrelationId());
-            BroadcastSnapshot(snapshot, context, payload.TradeId, command.GetCorrelationId());
+            NotifyAll(
+                () => SendOfferUpdateResponse(context.ConnectionId, context, true, payload.TradeId, items, FrameworkTradeFailureReason.None, null, command.GetCorrelationId()),
+                () => BroadcastSnapshot(snapshot, context, payload.TradeId, command.GetCorrelationId()));
         }
 
         // The adapter translates historical wire representations; only this boundary
@@ -464,25 +545,28 @@ namespace Phinix.TradeExtension.Server
 
             if (diagnosticLogging) RaiseLogEntry(new LogEventArgs($"[TradeServer] HandleStatusUpdate: SUCCESS tradeId={payload.TradeId}, completed={completed}", LogLevel.INFO));
 
-            SendStatusUpdateResponse(
+            NotifyAll(() => SendStatusUpdateResponse(
                 context.ConnectionId,
                 context,
                 true,
                 payload.TradeId,
                 FrameworkTradeFailureReason.None,
                 null,
-                command.GetCorrelationId() == command.MessageId ? payload.TradeId : command.GetCorrelationId());
+                command.GetCorrelationId() == command.MessageId ? payload.TradeId : command.GetCorrelationId()),
+                () =>
+                {
+                    if (changed.Replayed) return;
+                    if (completed) SendCompletionEvents(snapshot, context, wasCancelled, command.GetCorrelationId());
+                    else BroadcastSnapshot(snapshot, context, payload.TradeId, command.GetCorrelationId());
+                });
 
-            if (changed.Replayed) return;
-            if (completed)
-            {
-                if (diagnosticLogging) RaiseLogEntry(new LogEventArgs($"[TradeServer] HandleStatusUpdate: trade COMPLETED, wasCancelled={wasCancelled}", LogLevel.INFO));
-                SendCompletionEvents(snapshot, context, wasCancelled, command.GetCorrelationId());
-                return;
-            }
+        }
 
-            if (diagnosticLogging) RaiseLogEntry(new LogEventArgs("[TradeServer] HandleStatusUpdate: broadcasting snapshot to participants", LogLevel.DEBUG));
-            BroadcastSnapshot(snapshot, context, payload.TradeId, command.GetCorrelationId());
+        private static void NotifyAll(params Action[] notifications)
+        {
+            Exception failure = null;
+            foreach (var notify in notifications) try { notify(); } catch (Exception error) { failure ??= error; }
+            if (failure != null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
         }
 
         private void BroadcastSnapshot(FrameworkTradeStateSnapshot snapshot, ServerFrameworkContext context, string tradeId, string correlationId)
@@ -492,6 +576,7 @@ namespace Phinix.TradeExtension.Server
                 return;
             }
 
+            var notifications = new List<Action>();
             foreach (FrameworkTradeParticipantSnapshot participant in snapshot.Participants ?? new List<FrameworkTradeParticipantSnapshot>())
             {
                 if (!userManager.TryGetConnection(participant.Uuid, out string connectionId))
@@ -503,8 +588,9 @@ namespace Phinix.TradeExtension.Server
                 }
 
                 if (diagnosticLogging) RaiseLogEntry(new LogEventArgs($"[TradeServer] BroadcastSnapshot: sending snapshot to uuid={participant.Uuid} via connectionId={connectionId}", LogLevel.INFO));
-                SendSnapshot(connectionId, context, snapshot, correlationId);
+                notifications.Add(() => SendSnapshot(connectionId, context, snapshot, correlationId));
             }
+            NotifyAll(notifications.ToArray());
         }
 
         private void SendSnapshot(string connectionId, ServerFrameworkContext context, FrameworkTradeStateSnapshot snapshot, string correlationId)
@@ -614,6 +700,7 @@ namespace Phinix.TradeExtension.Server
                 return;
             }
 
+            var notifications = new List<Action>();
             foreach (FrameworkTradeParticipantSnapshot participant in snapshot.Participants ?? new List<FrameworkTradeParticipantSnapshot>())
             {
                 if (!userManager.TryGetConnection(participant.Uuid, out string connectionId))
@@ -635,8 +722,9 @@ namespace Phinix.TradeExtension.Server
                 }
 
                 if (diagnosticLogging) RaiseLogEntry(new LogEventArgs($"[TradeServer] SendCompletionEvents: sending pending completion for tradeId={snapshot.TradeId} to uuid={participant.Uuid}", LogLevel.INFO));
-                SendCompletionEvent(connectionId, context.SessionId, notification, context.SendMessage, correlationId);
+                notifications.Add(() => SendCompletionEvent(connectionId, context.SessionId, notification, context.SendMessage, correlationId));
             }
+            NotifyAll(notifications.ToArray());
         }
 
         public void Save(string path)

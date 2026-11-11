@@ -29,6 +29,7 @@ internal sealed partial class PhinixFrameworkTradeStore
 {
     private SqliteOperationJournal journal;
     private bool persistenceFailed;
+    private bool refreshRequired;
     private bool consentMigrationRequired;
     private void EnsurePersistence()
     {
@@ -39,7 +40,13 @@ internal sealed partial class PhinixFrameworkTradeStore
             {
                 VerifyAuthority(authorityPath);
                 VerifyRevision(journal.ReadState(RevisionKey));
+                if (refreshRequired)
+                {
+                    ImportState(journal.ReadState(StateKey));
+                    refreshRequired = false;
+                }
             }
+            catch (JournalBusyException) { throw; }
             catch { persistenceFailed = true; throw; }
         }
     }
@@ -240,8 +247,10 @@ internal sealed partial class PhinixFrameworkTradeStore
                 return resultBytes;
             },admissionPolicy.StorageBytes);
             if (!committed.Replayed) liveRevision = nextRevision;
+            // A temporary read lock after commit must neither poison the authority nor
+            // let the next operation use the old in-memory projection.
+            refreshRequired = true;
             EnsurePersistence();
-            ImportState(journal.ReadState(StateKey));
             var response = Deserialize<TradeOperationResult>(committed.Result); response.Replayed = committed.Replayed; return response;
         }
     }

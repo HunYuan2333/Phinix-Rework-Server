@@ -9,6 +9,20 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the image after all quality and smoke checks pass
+        type: boolean
+        required: false
+        default: false
+      publish_tag:
+        description: Optional mutable tag in addition to the immutable commit tag
+        type: choice
+        required: false
+        default: sha-only
+        options:
+          - sha-only
+          - dev
 
 permissions:
   contents: read
@@ -45,6 +59,7 @@ jobs:
         tags: |
           type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
           type=ref,event=branch,enable=${{ github.ref == 'refs/heads/dev' }}
+          type=raw,value=dev,enable=${{ github.event_name == 'workflow_dispatch' && inputs.publish && inputs.publish_tag == 'dev' && github.ref != 'refs/heads/dev' }}
           type=semver,pattern={{version}}
           type=sha,format=long
 
@@ -71,14 +86,14 @@ jobs:
         bash tools/quality/docker_smoke.sh "$image"
 
     - name: Log in to Docker Hub
-      if: github.event_name != 'pull_request' && vars.SERVER_IMAGE_PUBLISH_ENABLED == 'true'
+      if: github.event_name != 'pull_request' && (vars.SERVER_IMAGE_PUBLISH_ENABLED == 'true' || (github.event_name == 'workflow_dispatch' && inputs.publish))
       uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
       with:
         username: ${{ secrets.DOCKER_HUB_USERNAME }}
         password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
     - name: Push the tested image
-      if: github.event_name != 'pull_request' && vars.SERVER_IMAGE_PUBLISH_ENABLED == 'true'
+      if: github.event_name != 'pull_request' && (vars.SERVER_IMAGE_PUBLISH_ENABLED == 'true' || (github.event_name == 'workflow_dispatch' && inputs.publish))
       env:
         IMAGE_TAGS: ${{ steps.tags.outputs.tags }}
       run: |

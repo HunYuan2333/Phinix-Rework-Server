@@ -103,6 +103,14 @@
     {
       "path": "Extensions/Chat/Server/ChatMessageNames.cs",
       "reason": "Chat-owned atomic local history extension and authoritative display-name snapshots; no authentication credentials, wire schema or Legacy branch in core."
+    },
+    {
+      "path": "Extensions/Trade/Server/TradeRecoveryContinuations.cs",
+      "reason": "Trade-owned connection-scoped recovery continuation scheduling over neutral work-queue and poll ports; retains cursors across backpressure and validates session lifetime, without owning ledger mutation, delivery outcomes, receipts or refunds. Paired with the existing Framework/endpoint orchestration boundaries."
+    },
+    {
+      "path": "Server/Framework/ServerDiagnosticText.cs",
+      "reason": "Host-owned bounded sensitive exception rendering: original type/cause/frame diagnostics only; no business state, persistence or recovery decisions."
     }
   ],
   "domain": [
@@ -144,7 +152,9 @@
     "Server/Authentication.Server/PasswordlessIdentityEndpoint.cs",
     "Server/ServerRuntime/IServerPrincipalAuthorization.cs",
     "Server/Connections.Server/PinnedUdpPeerSynchronization.cs",
-    "Server/Connections.Server/PinnedUdpReceiveBudget.cs"
+    "Server/ServerRuntime/CommandCapabilityRouter.cs",
+    "Server/ServerRuntime/CommandProcessingResult.cs",
+    "Server/Connections.Server/IRelayTransport.cs"
   ],
   "assemblyRules": {
     "Server/bin/Release/net10.0/PhinixServer.dll": [

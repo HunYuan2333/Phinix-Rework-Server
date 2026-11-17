@@ -30,6 +30,7 @@ namespace PhinixServer.Framework
         private readonly ServerPipelineRunner pipelineRunner;
         private readonly HashSet<string> serverCapabilities;
         private readonly ServerSessionRegistry sessionRegistry;
+        private readonly CommandCapabilityRouter relayRouter;
 
         public PhinixFrameworkServer(IServerTransport netServer, ServerAuthenticator authenticator, ServerUserManager userManager, ExtensionHostContext extensionHostContext = null)
         {
@@ -42,6 +43,11 @@ namespace PhinixServer.Framework
                 (connection, principal, session) => userManager.IsAuthenticatedPrincipal(connection, session, principal),
                 (message, level) => RaiseLogEntry(new LogEventArgs(message, level)));
             this.extensionHostContext.AddService<IServerSessionReadiness>(sessionRegistry);
+            this.extensionHostContext.TryGetService<RelayLimits>(out var relayLimits);
+            relayRouter = new CommandCapabilityRouter(sessionRegistry, userManager.GetConnections,
+                player => userManager.GetConnections().Any(id => userManager.IsLoggedIn(id, player)), relayLimits);
+            if (this.extensionHostContext.TryGetService<ICommandRelayAuthorization>(out var relayAuthorization))
+                relayRouter.Authorization = relayAuthorization;
             // All modules resolve the same neutral port during registration/activation.
             // The port refuses dispatch until initialization has finished.
             this.extensionHostContext.AddService<IFrameworkServerBroadcaster>(this);
@@ -141,7 +147,11 @@ namespace PhinixServer.Framework
             return saved;
         }
 
-        private void ConnectionClosed(object sender, ConnectionEventArgs args) => sessionRegistry.Remove(args.ConnectionId);
+        private void ConnectionClosed(object sender, ConnectionEventArgs args)
+        {
+            relayRouter.Remove(args.ConnectionId);
+            sessionRegistry.Remove(args.ConnectionId);
+        }
 
         private void DetachTransport()
         {
@@ -210,6 +220,9 @@ namespace PhinixServer.Framework
 
             switch (packet.Kind)
             {
+                case CommandRelayProtocol.SnapshotKind:
+                    handleCapabilitySnapshot(connectionId, packet, data.Length);
+                    break;
                 case FrameworkProtocol.KindHello:
                     handleHello(connectionId, packet);
                     break;
@@ -296,6 +309,8 @@ namespace PhinixServer.Framework
                 })
             };
 
+            if (bound.Capabilities.Contains(CommandRelayProtocol.Capability, StringComparer.OrdinalIgnoreCase))
+                response.SetMetadataValue(CommandRelayProtocol.EpochMetadata, bound.Epoch);
             response.SetCorrelationId(packet.GetCorrelationId());
             RaiseLogEntry(new LogEventArgs($"Framework hello accepted from {connectionId.Highlight(HighlightType.ConnectionID)}. Responding with {serverCapabilities.Count} capability/capabilities."));
             if (sendPacketWithOutcome(connectionId, response) == TransportSendOutcome.Submitted)
@@ -324,35 +339,88 @@ namespace PhinixServer.Framework
             }
         }
 
+        private void handleCapabilitySnapshot(string connectionId, FrameworkPacket packet, int encodedLength)
+        {
+            if (!sessionRegistry.MatchesReady(connectionId, packet.SenderUuid, packet.SessionId) || !relayRouter.Supports(connectionId)) return;
+            // Excess control traffic is dropped before payload decoding or ACK amplification.
+            if (!relayRouter.AdmitControl(connectionId)) return;
+            CommandCapabilityAck ack;
+            if (encodedLength > CommandRelayProtocol.MaxPacketBytes)
+                ack = new CommandCapabilityAck { Error = "PayloadTooLarge" };
+            else
+            {
+                try { ack = relayRouter.Apply(connectionId, FrameworkSerialization.DeserializePayload<CommandCapabilitySnapshot>(packet.PayloadJson)); }
+                catch { ack = new CommandCapabilityAck { Error = "InvalidCapability" }; }
+            }
+            sendRelayControl(connectionId, CommandRelayProtocol.AckKind, ack);
+        }
+
+        private void sendRelayControl<T>(string connectionId, string kind, T payload)
+        {
+            if (!sessionRegistry.TryGetReady(connectionId, out var session)) return;
+            sendPacketWithOutcome(connectionId, new FrameworkPacket { Kind = kind,
+                SenderUuid = FrameworkProtocol.SystemSenderUuid, SessionId = session.SessionId,
+                PayloadJson = FrameworkSerialization.SerializePayload(payload) });
+        }
+
         private void handleCommand(string connectionId, FrameworkPacket command)
         {
-            // 管线消息路由细节 → DEBUG（设计哲学 §3.8），避免每条命令刷服务端日志
-            RaiseLogEntry(new LogEventArgs($"Received framework command '{command.MessageType}' flow={command.Flow} kind={command.Kind} from {connectionId}", LogLevel.DEBUG));
-
+            bool relay = command.CommandRoute?.Mode == CommandProcessingMode.Relay;
             if (!sessionRegistry.MatchesReady(connectionId, command.SenderUuid, command.SessionId))
             {
                 rejectAdmission(connectionId, command, "not_ready", "Admission");
-                RaiseLogEntry(new LogEventArgs(
-                    "Rejected framework command without a matching Ready session.",
-                    LogLevel.WARNING));
                 return;
             }
-
-            if (!connectionHasCapability(connectionId, command.MessageType))
+            if (!sessionRegistry.TryGetReady(connectionId, out var sender)) return;
+            if (relay && (string.IsNullOrEmpty(command.MessageId) || command.MessageId.Length > 128)) return;
+            // Capture trusted facts outside the plugin-mutable context and packet.
+            string principal = sender.PrincipalId, epoch = sender.Epoch, requestId = command.MessageId;
+            string Validate(FrameworkPacket current)
             {
-                rejectAdmission(connectionId, command, "unsupported_capability", "Admission");
-                RaiseLogEntry(new LogEventArgs($"Rejected framework command '{command.MessageType}' from connection {connectionId.Highlight(HighlightType.ConnectionID)} because the capability was not negotiated.", LogLevel.WARNING));
-                return;
+                if (current == null || current.CommandRoute != null && !Enum.IsDefined(typeof(CommandProcessingMode), current.CommandRoute.Mode))
+                    return "InvalidCommand";
+                if (relay) return relayRouter.Validate(connectionId, principal, epoch, current);
+                return null; // Preserve ordinary Command replacement admission semantics.
             }
-
-            if (!pipelineRunner.ProcessIncomingCommand(command, createServerContext(connectionId, command.SenderUuid, command.SessionId, null)))
+            if (!relay && !connectionHasCapability(connectionId, command.MessageType))
+            { rejectAdmission(connectionId, command, "unsupported_capability", "Admission"); return; }
+            string admission = relay ? relayRouter.Admit(connectionId) : null;
+            if (admission != null)
+            { sendRelayControl(connectionId, CommandRelayProtocol.ResultKind, RelayResult.Failure(requestId, admission)); return; }
+            var processed = pipelineRunner.ProcessCommand(command,
+                createServerContext(connectionId, principal, sender.SessionId, null), Validate,
+                final =>
+                {
+                    final.SenderUuid = principal;
+                    final.MessageId = requestId;
+                    return relayRouter.Route(connectionId, principal, epoch, final, (packet, targets) =>
+                    {
+                        // Freeze the authorized target set. Outbound hooks can only narrow it.
+                        var allowed = new HashSet<string>(targets);
+                        int authorizedBytes = FrameworkSerialization.SerializePacket(packet).Length;
+                        return pipelineRunner.DispatchOutboundWithResult(packet, new ServerOutboundPacketContext
+                        {
+                            TargetConnectionIds = targets,
+                            IsConnectionFrameworkCapable = id => allowed.Contains(id) && relayRouter.Supports(id),
+                            Log = (message, level) => RaiseLogEntry(new LogEventArgs(message, level))
+                        }, (id, outgoing) =>
+                        {
+                            if (!allowed.Contains(id) || Validate(outgoing) != null || !relayRouter.Eligible(id, outgoing) ||
+                                outgoing.SenderUuid != principal || outgoing.MessageId != requestId ||
+                                (outgoing.CommandRoute.TargetPlayerUuid == null && id == connectionId))
+                                return TransportSendOutcome.NotSent;
+                            if (FrameworkSerialization.SerializePacket(outgoing).Length > authorizedBytes) return TransportSendOutcome.NotSent;
+                            return sendPacketWithOutcome(id, outgoing);
+                        });
+                    });
+                });
+            if (relay)
             {
-                RaiseLogEntry(new LogEventArgs($"No server framework command handler registered for command type '{command.MessageType}'.", LogLevel.WARNING));
+                processed.Relay.RequestMessageId = requestId;
+                sendRelayControl(connectionId, CommandRelayProtocol.ResultKind, processed.Relay);
             }
-            else
-            {
-                RaiseLogEntry(new LogEventArgs($"Framework command '{command.MessageType}' consumed by the pipeline.", LogLevel.DEBUG));
-            }
+            else if (!processed.Consumed)
+                RaiseLogEntry(new LogEventArgs("No server framework handler registered for command.", LogLevel.WARNING));
         }
 
         private void handleItem(string connectionId, FrameworkPacket item)
@@ -575,7 +643,9 @@ namespace PhinixServer.Framework
                 }
             }
             catch { return TransportSendOutcome.NotSent; }
-            TransportSendOutcome outcome = netServer.TrySendWithOutcome(connectionId, FrameworkProtocol.ModuleName, serialized);
+            TransportSendOutcome outcome = packet.CommandRoute?.Mode == CommandProcessingMode.Relay
+                ? (netServer as IRelayTransport)?.TrySendRelay(connectionId, FrameworkProtocol.ModuleName, serialized) ?? TransportSendOutcome.NotSent
+                : netServer.TrySendWithOutcome(connectionId, FrameworkProtocol.ModuleName, serialized);
             if (outcome != TransportSendOutcome.Submitted)
             {
                 try { RaiseLogEntry(new LogEventArgs($"Framework transport outcome={outcome} for packet '{packet.Kind}/{packet.MessageType}' to connection {connectionId.Highlight(HighlightType.ConnectionID)}", LogLevel.ERROR)); } catch { }

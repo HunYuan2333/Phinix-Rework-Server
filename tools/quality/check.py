@@ -253,10 +253,12 @@ def main():
             if not build("pipeline", "Tests/Phase35ServerRuntimeTests/Phase35ServerRuntimeTests.csproj"):
                 return 1
             ok = step("pipeline-test", ["dotnet", "Tests/Phase35ServerRuntimeTests/bin/Release/net10.0/Phase35ServerRuntimeTests.dll"],
-                      expected=r"PASS ServerFull 8 cases; 13 assertions") and ok
+                      expected=r"PASS ServerFull 21 groups; [0-9]+ assertions") and ok
             if build("lifecycle", "Tests/ServerLifecycleTests/ServerLifecycleTests.csproj"):
                 ok = step("lifecycle-test", ["dotnet", "Tests/ServerLifecycleTests/bin/Release/net10.0/ServerLifecycleTests.dll"],
                           expected=r"LIFECYCLE RESULT passed;") and ok
+                ok = step("relay-network-test", ["dotnet", "Tests/ServerLifecycleTests/bin/Release/net10.0/ServerLifecycleTests.dll", "--relay-network"],
+                          expected=r"RELAY NETWORK RESULT passed;") and ok
             else:
                 ok = False
             if build("snapshot", "Tests/ServerSnapshotTests/ServerSnapshotTests.csproj"):

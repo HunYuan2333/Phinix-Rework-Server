@@ -20,6 +20,7 @@
     <Compile Include="ConfigItemDeserialisationException.cs" />
     <Compile Include="HelpEntry.cs" />
     <Compile Include="Logger.cs" />
+    <Compile Include="Framework/ServerDiagnosticText.cs" />
     <Compile Include="Server.cs" />
     <Compile Include="ServerComposition.cs" />
     <Compile Include="../Extensions/LegacyAdapter/Pipeline/PluginResultAdapter.cs" Link="ExtensionCompatibility/PluginResultAdapter.cs" />

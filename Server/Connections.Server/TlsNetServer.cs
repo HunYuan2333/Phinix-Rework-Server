@@ -15,7 +15,7 @@ using Utils;
 namespace Connections
 {
     // TLS adapter uses the same module handlers as UDP. All lifecycle/application callbacks run on one poll worker.
-    public sealed class TlsNetServer : IServerTransport, IAuthenticatedServerTransport
+    public sealed class TlsNetServer : IServerTransport, IAuthenticatedServerTransport, IRelayTransport
     {
         private readonly object gate = new();
         private readonly object lifecycle = new();
@@ -49,8 +49,26 @@ namespace Connections
         public event EventHandler PollCompleted;
         public event EventHandler<ConnectionEventArgs> OnConnectionEstablished;
         public event EventHandler<ConnectionEventArgs> OnConnectionClosed;
-        public void RaiseLogEntry(LogEventArgs args) => OnLogEntry?.Invoke(this, args);
+        public void RaiseLogEntry(LogEventArgs args)
+        {
+            foreach (EventHandler<LogEventArgs> observer in OnLogEntry?.GetInvocationList() ?? Array.Empty<Delegate>())
+                try { observer(this, args); } catch { }
+        }
         private void Report(string type) { try { RaiseLogEntry(new LogEventArgs("TLS transport failure: " + type, LogLevel.ERROR)); } catch { } }
+
+        private bool PublishConnectionEvent(EventHandler<ConnectionEventArgs> observers, ConnectionEventArgs args)
+        {
+            bool succeeded = true;
+            foreach (EventHandler<ConnectionEventArgs> observer in observers?.GetInvocationList() ?? Array.Empty<Delegate>())
+                try { observer(this, args); } catch (Exception error) { succeeded = false; Report(error.GetType().Name); }
+            return succeeded;
+        }
+
+        private void PublishPollCompleted()
+        {
+            foreach (EventHandler observer in PollCompleted?.GetInvocationList() ?? Array.Empty<Delegate>())
+                try { observer(this, EventArgs.Empty); } catch (Exception error) { Report(error.GetType().Name); }
+        }
 
         public TlsNetServer(IPEndPoint endpoint, X509Certificate2 certificate, int maximumConnections = 128,
             int maximumHandshakes = 8, int maximumPacket = 1024 * 1024, bool ownsCertificate = false)
@@ -112,8 +130,11 @@ namespace Connections
                 {
                     try
                     {
-                        if (work.Kind == 0) OnConnectionEstablished?.Invoke(this, new ConnectionEventArgs(work.Session.Id));
-                        else if (work.Kind == 2) OnConnectionClosed?.Invoke(this, new ConnectionEventArgs(work.Session.Id));
+                        if (work.Kind == 0)
+                        {
+                            if (!PublishConnectionEvent(OnConnectionEstablished, new ConnectionEventArgs(work.Session.Id))) DisconnectPeer(work.Session.Id);
+                        }
+                        else if (work.Kind == 2) PublishConnectionEvent(OnConnectionClosed, new ConnectionEventArgs(work.Session.Id));
                         else
                         {
                             NetCommon.PacketHandlerDelegate handler; lock (gate) handlers.TryGetValue(work.Module, out handler);
@@ -123,7 +144,7 @@ namespace Connections
                     catch (Exception error) { Report(error.GetType().Name); }
                     finally { if (work.Payload != null) Interlocked.Add(ref incomingBytes, -work.Payload.Length); }
                 }
-                try { PollCompleted?.Invoke(this, EventArgs.Empty); } catch (Exception error) { Report(error.GetType().Name); }
+                PublishPollCompleted();
                 if (events.Reader.Completion.IsCompleted) break;
                 Thread.Sleep(10);
             }
@@ -160,9 +181,12 @@ namespace Connections
             {
                 lock (session.Gate) { session.Closed = true; session.Outgoing.Writer.TryComplete(); }
                 lock (gate) sessions.Remove(session.Id);
-                await channel.DisposeAsync();
-                try { if (writing != null) await writing; }
-                finally { if (connected) await events.Writer.WriteAsync(new Work(session, 2)); }
+                try { await channel.DisposeAsync(); }
+                finally
+                {
+                    try { if (writing != null) await writing; }
+                    finally { if (connected) await events.Writer.WriteAsync(new Work(session, 2)); }
+                }
             }
         }
         private async Task Write(Session session, CancellationToken cancellation)
@@ -191,6 +215,8 @@ namespace Connections
         }
         public void Send(string connectionId, string module, byte[] payload)
         { if (TrySendWithOutcome(connectionId, module, payload) == TransportSendOutcome.NotSent) throw new IOException("TLS packet was not admitted."); }
+        public TransportSendOutcome TrySendRelay(string connectionId, string module, byte[] payload) =>
+            payload == null || payload.Length > 64 * 1024 ? TransportSendOutcome.NotSent : TrySendWithOutcome(connectionId, module, payload);
         public bool TrySend(string connectionId, string module, byte[] payload) => TrySendWithOutcome(connectionId, module, payload) == TransportSendOutcome.Submitted;
         public void DisconnectPeer(string id)
         { Session session; lock (gate) sessions.TryGetValue(id ?? "", out session); if (session != null) session.Channel.DisposeAsync().GetAwaiter().GetResult(); }

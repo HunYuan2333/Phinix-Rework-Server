@@ -168,97 +168,83 @@ namespace ServerRuntime
             return matchedHandler;
         }
 
-        public bool ProcessIncomingCommand(FrameworkPacket command, ServerFrameworkContext context)
+        public bool ProcessIncomingCommand(FrameworkPacket command, ServerFrameworkContext context) =>
+            ProcessCommand(command, context).Consumed;
+
+        public CommandProcessingResult ProcessCommand(FrameworkPacket command, ServerFrameworkContext context,
+            Func<FrameworkPacket, string> validate = null, Func<FrameworkPacket, RelayResult> route = null)
         {
-            FrameworkPacket currentCommand = command;
-            MessageHandlingResultAction terminalAction = MessageHandlingResultAction.Continue;
-
-            foreach (IServerInboundCommandInterceptor interceptor in InboundCommandInterceptors)
+            FrameworkPacket current = command;
+            bool relay = command?.CommandRoute?.Mode == CommandProcessingMode.Relay;
+            string requestId = command?.MessageId;
+            bool matched = false;
+            CommandProcessingResult Finish(MessageHandlingResultAction action, bool consumed, string error = null, RelayResult routed = null)
             {
-                if (!TryInboundGate(() => interceptor.CanInterceptIncomingCommand(currentCommand), context, out bool eligible))
-                {
-                    observeCommand(currentCommand, context, MessageHandlingResultAction.StopPropagation);
-                    return true;
-                }
+                var result = new CommandProcessingResult { Consumed = consumed, Action = action, Command = current,
+                    Relay = routed ?? (relay ? (error == null ? new RelayResult { RequestMessageId = requestId, Status = "Handled" }
+                        : RelayResult.Failure(requestId, error)) : null) };
+                context.CommandRelayResult = result.Relay;
+                if (consumed) observeCommand(current, context, action);
+                return result;
+            }
+            string Validate()
+            {
+                if ((current?.CommandRoute?.Mode == CommandProcessingMode.Relay) != relay) return "Forbidden";
+                return validate?.Invoke(current);
+            }
+            string failure = Validate();
+            if (failure != null) return Finish(MessageHandlingResultAction.StopPropagation, true, failure);
+            foreach (var interceptor in InboundCommandInterceptors)
+            {
+                if (!TryInboundGate(() => interceptor.CanInterceptIncomingCommand(current), context, out bool eligible))
+                    return Finish(MessageHandlingResultAction.StopPropagation, true, "ProcessingFailed");
                 if (!eligible) continue;
-                ServerIncomingCommandResult result = null;
-                try
+                ServerIncomingCommandResult result;
+                try { result = interceptor.InterceptIncomingCommand(current, context); }
+                catch (Exception error)
                 {
-                    result = interceptor.InterceptIncomingCommand(currentCommand, context);
+                    LogFailure(context, "Inbound processing failed", error);
+                    return Finish(MessageHandlingResultAction.StopPropagation, true, "ProcessingFailed");
                 }
-                catch (Exception ex)
-                {
-                    LogFailure(context, "Inbound processing failed", ex);
-                    observeCommand(currentCommand, context, MessageHandlingResultAction.StopPropagation);
-                    return true;
-                }
-
-                if (shouldContinue(result?.Action))
-                {
-                    continue;
-                }
-
-                if (isReplace(result?.Action) && result?.Command != null)
-                {
-                    currentCommand = result.Command;
-                    continue;
-                }
-
-                if (isBlocked(result?.Action) || isHandled(result?.Action))
-                {
-                    terminalAction = normalizeTerminalAction(result.Action);
-                    observeCommand(currentCommand, context, terminalAction);
-                    return true;
-                }
+                // Validate even in-place mutation and Handled results before allowing a route.
+                if (isReplace(result?.Action) && result.Command != null) current = result.Command;
+                failure = Validate();
+                if (failure != null) return Finish(MessageHandlingResultAction.StopPropagation, true, failure);
+                if (isBlocked(result?.Action)) return Finish(normalizeTerminalAction(result.Action), true, "Blocked");
+                if (isHandled(result?.Action)) return Finish(normalizeTerminalAction(result.Action), true);
             }
-
-            bool matchedHandler = false;
-            foreach (IServerDefaultCommandHandler handler in DefaultCommandHandlers)
+            if (relay)
             {
-                if (!TryInboundGate(() => handler.CanHandleIncomingCommand(currentCommand), context, out bool eligible))
+                RelayResult result;
+                try { result = route?.Invoke(current) ?? RelayResult.Failure(requestId, "UnsupportedRelay"); }
+                catch (Exception error)
                 {
-                    observeCommand(currentCommand, context, MessageHandlingResultAction.StopPropagation);
-                    return true;
+                    LogFailure(context, "Relay routing failed", error);
+                    result = RelayResult.Failure(requestId, "DeliveryFailed");
                 }
+                result.RequestMessageId = requestId;
+                return Finish(result.Error == null ? MessageHandlingResultAction.Handled : MessageHandlingResultAction.StopPropagation,
+                    true, routed: result);
+            }
+            foreach (var handler in DefaultCommandHandlers)
+            {
+                if (!TryInboundGate(() => handler.CanHandleIncomingCommand(current), context, out bool eligible))
+                    return Finish(MessageHandlingResultAction.StopPropagation, true);
                 if (!eligible) continue;
-                matchedHandler = true;
-                ServerIncomingCommandResult result = null;
-                try
+                matched = true;
+                ServerIncomingCommandResult result;
+                try { result = handler.HandleIncomingCommand(current, context); }
+                catch (Exception error)
                 {
-                    result = handler.HandleIncomingCommand(currentCommand, context);
+                    LogFailure(context, "Inbound processing failed", error);
+                    return Finish(MessageHandlingResultAction.StopPropagation, true);
                 }
-                catch (Exception ex)
-                {
-                    LogFailure(context, "Inbound processing failed", ex);
-                    observeCommand(currentCommand, context, MessageHandlingResultAction.StopPropagation);
-                    return true;
-                }
-
-                if (shouldContinue(result?.Action))
-                {
-                    continue;
-                }
-
-                if (isReplace(result?.Action) && result?.Command != null)
-                {
-                    currentCommand = result.Command;
-                    continue;
-                }
-
-                if (isBlocked(result?.Action) || isHandled(result?.Action))
-                {
-                    terminalAction = normalizeTerminalAction(result.Action);
-                    observeCommand(currentCommand, context, terminalAction);
-                    return true;
-                }
+                if (isReplace(result?.Action) && result.Command != null) current = result.Command;
+                failure = Validate();
+                if (failure != null) return Finish(MessageHandlingResultAction.StopPropagation, true, failure);
+                if (isBlocked(result?.Action) || isHandled(result?.Action)) return Finish(normalizeTerminalAction(result.Action), true);
             }
-
-            if (matchedHandler)
-            {
-                observeCommand(currentCommand, context, terminalAction);
-            }
-
-            return matchedHandler;
+            return Finish(MessageHandlingResultAction.Continue, matched);
         }
 
         public bool ProcessIncomingItem(FrameworkPacket item, ServerFrameworkContext context)

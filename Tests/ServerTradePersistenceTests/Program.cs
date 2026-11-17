@@ -14,7 +14,7 @@ using ServerStorage;
 using UserManagement;
 using Utils.Framework;
 
-internal static class Program
+internal static partial class Program
 {
     private static void Check(bool value, string text) { if (!value) throw new Exception(text); }
     private static void Throws<T>(Action action) where T : Exception
@@ -30,6 +30,11 @@ internal static class Program
         string root = Path.Combine(Path.GetTempPath(), "phinix-trade-durable-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(root);
         try
         {
+            ItemCacheLifecycle(Path.Combine(root, "item-cache"));
+            NotificationReliability(Path.Combine(root, "notification-reliability"));
+            SnapshotFailureStillRecovers();
+            TransientReadContention(Path.Combine(root, "transient-read-contention"));
+            DeferredRecoveryFairness(Path.Combine(root, "deferred-recovery-fairness"));
             ModernReceipts(Path.Combine(root,"modern-receipts"));
             SqlPendingIndex(Path.Combine(root, "sql-pages"));
             ConfigurableQuotas(Path.Combine(root, "configuration"));
@@ -78,6 +83,46 @@ internal static class Program
         }
         finally { SqliteConnection.ClearAllPools(); Directory.Delete(root, true); }
     }
+    private static void ItemCacheLifecycle(string root)
+    {
+        var f = new Fixture(root);
+        long now = 0;
+        typeof(PhinixFrameworkTradeServerService).GetField("itemCacheClock", BindingFlags.Instance | BindingFlags.NonPublic)
+            .SetValue(f.Service, (Func<long>)(() => now));
+        string trade = f.Create("cache-create");
+        for (int i = 0; i < 200; i++) f.Cache("abandoned-" + i, 7);
+        now = 599999;
+        int capacityWarnings = 0;
+        f.Service.OnLogEntry += (_, _) => { capacityWarnings++; throw new InvalidOperationException("synthetic diagnostic failure"); };
+        Check(!f.Service.TryCacheItemPacket("overflow", Item(1), f.Context("a")), "Full cache evicted a live batch");
+        for (int i = 0; i < 10; i++)
+            Check(!f.Service.TryCacheItemPacket("overflow-" + i, Item(1), f.Context("a")), "Capacity refusal changed after a faulty diagnostic");
+        Check(capacityWarnings == 1, "Repeated cache refusals flooded diagnostics");
+        // Identical retransmission does not extend the lifetime of abandoned staging.
+        f.Cache("abandoned-0", 7);
+        now = 600000;
+        f.Cache("fresh", 9);
+        f.Offer(trade, new[] { "fresh", "abandoned-0" }, "expired-batch");
+        Check(!f.OfferResponse.Success && f.OfferResponse.FailureMessage.Contains("expired"), "Expired reference accepted or rejection was ambiguous");
+        f.Offer(trade, new[] { "fresh" }, "fresh-offer");
+        Check(f.OfferResponse.Success, "Expired batch refusal consumed its fresh reference");
+        now += 600000;
+        f.Offer(trade, new[] { "fresh" }, "fresh-offer");
+        Check(f.OfferResponse.Success, "Durable replay incorrectly required staging after expiry");
+
+        for (int i = 0; i < 200; i++) f.Cache("disconnected-" + i, 4);
+        f.Registry.Remove("connection-a");
+        f.Ready("b");
+        Check(f.Service.TryCacheItemPacket("other-player", Item(2), f.Context("b")), "Disconnected session blocked another player until timeout");
+        f.Ready("a");
+        f.Offer(trade, new[] { "disconnected-0" }, "old-session-batch");
+        Check(!f.OfferResponse.Success, "Reconnection revived a disconnected session's staging");
+        f.Cache("reconnected", 5);
+        f.Offer(trade, new[] { "reconnected" }, "reconnected-offer");
+        Check(f.OfferResponse.Success, "Reconnected session could not submit fresh staging");
+        f.WorkQueue.Dispose();
+    }
+
     private static void SqlPendingIndex(string root)
     {
         var f = new Fixture(root);
@@ -325,6 +370,13 @@ internal static class Program
         g.Sent.Clear(); g.Service.HandleUserLoggedIn("connection-b", "session-b", "b", g.Send);
         Check(g.Sent.Count == 8 && warnings.Any(w => w.Contains("unattempted deliveries remain Pending")), "Full queue silently stranded recovery");
         g.WorkQueue.Drain(); Check(g.Sent.Count == 8, "Full queue fell back to synchronous backlog drain");
+        PulseRecovery(g.Service);
+        for (int i = 0; i < 65; i++) g.WorkQueue.Drain();
+        Check(g.Sent.Count == 9, "Queue saturation stranded the last page until reconnect");
+        PulseRecovery(g.Service); g.WorkQueue.Drain();
+        Check(g.Sent.Count == 9, "Resumed page duplicated already attempted deliveries");
+        string interrupted = g.Create("send-failure-create");
+        g.Directory.BOnline = false; g.Cancel(interrupted, "send-failure-cancel"); g.Directory.BOnline = true;
         g.Sent.Clear(); g.AfterSend = _ => throw new IOException("synthetic lost response");
         Throws<IOException>(() => g.Service.HandleUserLoggedIn("connection-b", "session-b", "b", g.Send));
         g.AfterSend = null; g.Reopen(); g.Sent.Clear();
@@ -579,6 +631,8 @@ internal static class Program
         public ServerWorkQueue WorkQueue;
         public readonly List<FrameworkPacket> Sent = new();
         public Action<FrameworkPacket> AfterSend;
+        public Action<string, FrameworkPacket> BeforeSend;
+        public readonly List<(string Connection, FrameworkPacket Packet)> SentTargets = new();
         private string expectedPrincipal, expectedOperation;
         private readonly TradeServerConfig config;
         public Fixture(string root, TradeServerConfig config = null) { this.config = config ?? new TradeServerConfig(); System.IO.Directory.CreateDirectory(root); Path = System.IO.Path.Combine(root, "trade-state.bin"); Reopen(); Ready("a"); }
@@ -597,6 +651,7 @@ internal static class Program
         public ServerFrameworkContext Context(string who) => new() { ConnectionId = "connection-" + who, SessionId = "session-" + who, SenderUuid = who, SendMessage = Send };
         public void Send(string connection, FrameworkPacket packet)
         {
+            BeforeSend?.Invoke(connection, packet);
             packet = FrameworkSerialization.DeserializePacket(FrameworkSerialization.SerializePacket(packet));
             if (expectedOperation != null && packet.CommandKind == global::Phinix.Framework.FrameworkCommandKind.Response)
             {
@@ -604,7 +659,7 @@ internal static class Program
                 using var cmd = c.CreateCommand(); cmd.CommandText = "SELECT count(*) FROM operations WHERE principal=$p AND operation=$o"; cmd.Parameters.AddWithValue("$p", expectedPrincipal); cmd.Parameters.AddWithValue("$o", expectedOperation);
                 Check((long)cmd.ExecuteScalar()! == 1, "Response published before durable result");
             }
-            Sent.Add(packet); AfterSend?.Invoke(packet);
+            Sent.Add(packet); SentTargets.Add((connection, packet)); AfterSend?.Invoke(packet);
         }
         private void Run(string who, string op, Action action)
         { Sent.Clear(); expectedPrincipal = who; expectedOperation = op; try { action(); } finally { expectedPrincipal = expectedOperation = null; } }

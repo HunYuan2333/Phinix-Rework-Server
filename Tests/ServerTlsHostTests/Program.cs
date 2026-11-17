@@ -76,6 +76,7 @@ internal static partial class Program
         using var root=Root();using var cert=Leaf(root);
         try
         {
+            await ObserverReliabilityTests(root,cert);
             await SessionTests(rootPath,root,cert);
             string certificate=Path.Combine(rootPath,"cert.pem"),privateKey=Path.Combine(rootPath,"key.pem");
             File.WriteAllText(certificate,cert.ExportCertificatePem());

@@ -17,6 +17,8 @@ namespace Phinix.TradeExtension.Server
         private EventHandler<ServerSessionReadyEventArgs> readyForwarder;
         private IServerSessionReadiness readiness;
         private IFrameworkServerPacketDispatcher packetDispatcher;
+        private Connections.IServerTransport recoveryTransport;
+        private EventHandler recoveryPoll;
 
         public string ExtensionId => FrameworkTradeProtocol.Capability;
 
@@ -53,28 +55,43 @@ namespace Phinix.TradeExtension.Server
             readiness = hostContext.GetRequiredService<IServerSessionReadiness>();
             if (readyForwarder == null)
             {
-                // Only durable Pending may be attempted; imported/attempted Unknown is retained.
+                // Recovery retains the negotiated receipt contract and never invents an outcome.
                 readyForwarder = (_, args) =>
                 {
-                    tradeApi.HandleSnapshotRequest(new ServerFrameworkContext
-                {
-                    ConnectionId = args.ConnectionId,
-                    SessionId = args.SessionId,
-                    SenderUuid = args.PrincipalId,
-                    SendMessage = (connectionId, packet) => packetDispatcher.Send(connectionId, packet, ExtensionId)
-                });
-                    tradeApi.HandleUserLoggedIn(args.ConnectionId, args.SessionId, args.PrincipalId,
-                        (connectionId, packet) => packetDispatcher.Send(connectionId, packet, ExtensionId));
+                    try
+                    {
+                        tradeApi.HandleSnapshotRequest(new ServerFrameworkContext
+                        {
+                            ConnectionId = args.ConnectionId,
+                            SessionId = args.SessionId,
+                            SenderUuid = args.PrincipalId,
+                            SendMessage = (connectionId, packet) => packetDispatcher.Send(connectionId, packet, ExtensionId)
+                        });
+                    }
+                    finally
+                    {
+                        tradeApi.HandleUserLoggedIn(args.ConnectionId, args.SessionId, args.PrincipalId,
+                            (connectionId, packet) => packetDispatcher.Send(connectionId, packet, ExtensionId));
+                    }
                 };
             }
 
             tradeApi.OnLogEntry += logForwarder;
             readiness.SessionReady += readyForwarder;
+            if (recoveryTransport == null && hostContext.TryGetService<Connections.IServerTransport>(out var transport))
+            {
+                recoveryTransport = transport;
+                recoveryPoll = (_, _) => (tradeApi as PhinixFrameworkTradeServerService)?.RetryPendingRecovery();
+                recoveryTransport.PollCompleted += recoveryPoll;
+            }
         }
 
         public void Shutdown(ExtensionHostContext hostContext)
         {
+            if (recoveryTransport != null) recoveryTransport.PollCompleted -= recoveryPoll;
+            recoveryTransport = null; recoveryPoll = null;
             (tradeApi as PhinixFrameworkTradeServerService)?.CancelPendingRecovery();
+            (tradeApi as PhinixFrameworkTradeServerService)?.ClearItemPacketCache();
             if (tradeApi != null && logForwarder != null)
             {
                 tradeApi.OnLogEntry -= logForwarder;

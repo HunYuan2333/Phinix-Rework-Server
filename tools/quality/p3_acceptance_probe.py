@@ -112,6 +112,10 @@ def main():
                                 assert db.execute('SELECT count(*) FROM operations WHERE principal=? AND operation=?', (state['Principals'][0], operation)).fetchone() == (1,)
                         assert all(key not in log_path.read_text() and key not in text for key in state['Keys'])
                         assert 'invalid-synthetic-secret' not in log_path.read_text()
+                        if phase == 'bad-config':
+                            diagnostic=log_path.read_text()
+                            assert 'System.Runtime.Serialization.SerializationException' in diagnostic
+                            assert 'System.FormatException' in diagnostic and 'System.Int32.Parse' in diagnostic
                         if phase in ['initial', 'restart']:
                             host.kill(); host.wait(timeout=5)
                             result['phases'][-1]['termination'] = 'SIGKILL after committed response; no timer/final save'

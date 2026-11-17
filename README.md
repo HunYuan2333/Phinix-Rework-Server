@@ -10,6 +10,8 @@
 
 ---
 
+[文档索引 / Documentation index](docs/README.md)
+
 ## 仓库职责与关联 / Responsibilities & Relations
 
 | 仓库 / Repository | 角色 / Role | 职责 / Responsibility |
@@ -33,7 +35,7 @@ The server repository pins the shared layer as a Git submodule at `Dependencies/
 
 ### 方式 A：Docker 快速部署（推荐） / Option A: Docker (Recommended)
 
-使用官方已验证发布的 Docker Hub 镜像启动服务：
+使用Docker Hub 镜像（拉取前请核验该标签当前存在）启动服务：
 
 ```bash
 docker pull hunyuan2333/phinix-rework:dev
@@ -154,16 +156,9 @@ docker build -t phinix-rework:local .
 
 ### CI 与镜像发布状态 / CI & Publication Status
 
-服务端镜像构建与发布由 `.github/workflows/docker.yml` 工作流驱动。镜像发布目的地统一为 Docker Hub 的 `hunyuan2333/phinix-rework`（注意用户名为 `hunyuan2333`；旧地址 `hunyuan23333/phinix-rework` 已停止自动更新）。
+镜像名为 `hunyuan2333/phinix-rework`。工作流 `.github/workflows/docker.yml` 在 PR、`main`/`dev` push、`v*` tag 和手动触发时运行质量门禁、构建并 smoke test 本地装载的镜像；标签由 metadata action 生成：`dev` 分支标签、`main` 的 `latest`、semver 版本标签及长 SHA 标签。**只有非 PR 事件且仓库变量 `SERVER_IMAGE_PUBLISH_ENABLED` 精确为 `true` 时才登录并推送**，并需要 Actions secrets `DOCKER_HUB_USERNAME` 与 `DOCKER_HUB_TOKEN`。不在文档中保存密钥。
 
-- **已验证的发布路径**：
-  - `dev` 分支的镜像发布已验证生效：生成 `dev` 标签和完整的 commit SHA 标签（如 `sha-42516ec...`），可直接通过 `docker pull hunyuan2333/phinix-rework:dev` 拉取。
-  - 本地 Dockerfile 镜像构建与 CI 自动化装载测试（`load: true`）已验证通过。
-- **尚未完成 / 需配置事项**：
-  - `latest` 标签尚未发布：工作流策略规定仅当合并推送到 `main` 分支且发布开关开启时，才会打出 `latest` 标签。
-  - 自动化推送凭据：向 Docker Hub 推送依赖本仓库配置的 `DOCKER_HUB_USERNAME`、`DOCKER_HUB_TOKEN` 两个 Actions secrets，以及仓库变量 `SERVER_IMAGE_PUBLISH_ENABLED=true`（密钥不会从旧仓自动继承）。未开启该变量时 CI 仅做镜像构建与装载验证，不推送到 Docker Hub。
-  - 正式版本 Tag（`v*`）：推送版本 tag 时会按 semver 规则发布对应的版本镜像标签，目前尚未打出正式版本 release tag。
-
+当前工作树是 `release/legacy-defaults`，并非 workflow 声明的 `main` 或 `dev` 发布分支。工作流配置能确认发布条件和标签规则，但本地 Git 状态不能证明 Actions 实际执行、变量/密钥设置、镜像是否已发布或线上部署。请以对应 workflow run、Docker Hub manifest 和部署记录核验这些状态；本次未部署或发布。
 ---
 
 ## 维护说明 / Notes

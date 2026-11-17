@@ -126,6 +126,7 @@ namespace PhinixServer
             {
                 HostKind = "server",
                 Log = (message, level) => ILoggableHandler(typeof(Server), new LogEventArgs(message, level)),
+                StructuredLog = entry => ILoggableHandler(typeof(Server), new LogEventArgs(ServerDiagnosticText.Format(entry), entry.Level)),
                 StorageProvider = new FileSystemExtensionStorageProvider(System.IO.Path.Combine("framework-extensions", "server"))
             };
             extensionHostContext.AddService<ServerStorage.IOperationJournalFactory>(application.Resolve<ServerStorage.IOperationJournalFactory>());

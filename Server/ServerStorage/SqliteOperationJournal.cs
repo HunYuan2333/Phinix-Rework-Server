@@ -120,6 +120,8 @@ public sealed class SqliteOperationJournal
             command.ExecuteNonQuery();
             return connection;
         }
+        catch (SqliteException error) when (error.SqliteErrorCode == 5 || error.SqliteErrorCode == 6)
+        { connection.Dispose(); throw new JournalBusyException(); }
         catch { connection.Dispose(); throw; }
     }
 
@@ -201,9 +203,13 @@ public sealed class SqliteOperationJournal
     public byte[] ReadState(string id)
     {
         Id(id);
-        using var connection = Connect(); using var command = connection.CreateCommand();
-        command.CommandText = "SELECT value FROM state WHERE id=$id"; command.Parameters.AddWithValue("$id", id);
-        return command.ExecuteScalar() as byte[];
+        try
+        {
+            using var connection = Connect(); using var command = connection.CreateCommand();
+            command.CommandText = "SELECT value FROM state WHERE id=$id"; command.Parameters.AddWithValue("$id", id);
+            return command.ExecuteScalar() as byte[];
+        }
+        catch (SqliteException error) when (error.SqliteErrorCode == 5 || error.SqliteErrorCode == 6) { throw new JournalBusyException(); }
     }
 
     // Stable binary-key cursor; exact recipient matching is intentional. Applications
@@ -213,15 +219,19 @@ public sealed class SqliteOperationJournal
         Id(recipient);
         if (afterDeliveryId != null) Id(afterDeliveryId);
         if (count < 1 || count > 64) throw new ArgumentOutOfRangeException(nameof(count));
-        using var connection = Connect(); using var command = connection.CreateCommand();
-        command.CommandText = afterDeliveryId == null
-            ? "SELECT delivery,recipient,payload FROM outbox WHERE recipient=$r ORDER BY delivery LIMIT $n"
-            : "SELECT delivery,recipient,payload FROM outbox WHERE recipient=$r AND delivery>$after ORDER BY delivery LIMIT $n";
-        command.Parameters.AddWithValue("$r", recipient); command.Parameters.AddWithValue("$n", count);
-        if (afterDeliveryId != null) command.Parameters.AddWithValue("$after", afterDeliveryId);
-        using var reader = command.ExecuteReader(); var entries = new List<PendingJournalEntry>();
-        while (reader.Read()) entries.Add(new(reader.GetString(0), reader.GetString(1), (byte[])reader[2]));
-        return entries.ToArray();
+        try
+        {
+            using var connection = Connect(); using var command = connection.CreateCommand();
+            command.CommandText = afterDeliveryId == null
+                ? "SELECT delivery,recipient,payload FROM outbox WHERE recipient=$r ORDER BY delivery LIMIT $n"
+                : "SELECT delivery,recipient,payload FROM outbox WHERE recipient=$r AND delivery>$after ORDER BY delivery LIMIT $n";
+            command.Parameters.AddWithValue("$r", recipient); command.Parameters.AddWithValue("$n", count);
+            if (afterDeliveryId != null) command.Parameters.AddWithValue("$after", afterDeliveryId);
+            using var reader = command.ExecuteReader(); var entries = new List<PendingJournalEntry>();
+            while (reader.Read()) entries.Add(new(reader.GetString(0), reader.GetString(1), (byte[])reader[2]));
+            return entries.ToArray();
+        }
+        catch (SqliteException error) when (error.SqliteErrorCode == 5 || error.SqliteErrorCode == 6) { throw new JournalBusyException(); }
     }
 
     public long PendingCount()
